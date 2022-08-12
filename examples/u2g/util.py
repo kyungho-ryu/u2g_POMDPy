@@ -30,3 +30,51 @@ def path2Edges(_lpath):
         if i+1 < len(_lpath):
             edges.append((_lpath[i],_lpath[i+1]))
     return edges
+
+def uavTopoUpdate(_graph, _lUav, _locStat, MAX_XGRID_N, MAX_GRID_INDEX):
+    _graph.clear()
+    _uavlist = [u.id for u in _lUav]
+    _graph.add_nodes_from(_uavlist)
+    for u in _lUav:
+        _ngbs = getNgbUAVs(u.cell, _locStat, MAX_XGRID_N, MAX_GRID_INDEX)
+        for n in _ngbs:
+            if n in _lUav and n != u:
+                _graph.add_edge(u.id, n.id)
+
+
+def getNgbUAVs(_gIdx, _locStat, MAX_XGRID_N, MAX_GRID_INDEX):
+    adjUavs = []
+    l, r, u, b = getNgbCellAvail(_gIdx, MAX_XGRID_N, MAX_GRID_INDEX)
+    if l:
+        adjUavs += _locStat[_gIdx -1]
+    if r:
+        adjUavs += _locStat[_gIdx + 1]
+    if u:
+        adjUavs += _locStat[_gIdx + MAX_XGRID_N]
+    if b:
+        adjUavs += _locStat[_gIdx - MAX_XGRID_N]
+    if l and u:
+        adjUavs += _locStat[_gIdx + MAX_XGRID_N - 1]
+    if l and b:
+        adjUavs += _locStat[_gIdx - MAX_XGRID_N - 1]
+    if r and u:
+        adjUavs += _locStat[_gIdx + MAX_XGRID_N + 1]
+    if r and b:
+        adjUavs += _locStat[_gIdx - MAX_XGRID_N + 1]
+    return adjUavs
+
+def getNgbCellAvail(_gIdx, MAX_XGRID_N, MAX_GRID_INDEX):
+    _left = True if _gIdx % MAX_XGRID_N - 1 >= 0 else False
+    _right = True if _gIdx % MAX_XGRID_N + 1 <= MAX_XGRID_N-1 else False
+    _upper = True if _gIdx + MAX_XGRID_N <= MAX_GRID_INDEX else False
+    _lower = True if _gIdx - MAX_XGRID_N >= 0 else False
+    return _left, _right, _upper, _lower
+
+def getLocStat(_lnodes, MAX_GRID_INDEX):
+    locStat = {}
+    for i in range(MAX_GRID_INDEX + 1):
+        locStat[i] = []
+    for m in _lnodes:
+        locStat[m.cell].append(m)
+    return locStat
+

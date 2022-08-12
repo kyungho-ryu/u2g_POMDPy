@@ -6,8 +6,8 @@ from examples.u2g.u2g_action import U2GAction
 from examples.u2g.u2g_state import U2GState, UAV, GMU
 from examples.u2g.u2g_observation import U2GObservation
 from examples.u2g.u2g_position_history import GMUData, PositionAndGMUData
+from examples.u2g.util import getA2ADist, getLocStat
 import logging, random
-import networkx as nx
 
 from pomdpy.discrete_pomdp import DiscreteActionPool, DiscreteObservationPool
 
@@ -20,7 +20,6 @@ class U2GModel(Model) : # Model
         # logging utility
         self.logger = logging.getLogger('POMDPy.U2GModel')
         self.logger.setLevel("INFO")
-        self.G = nx.Graph()
         self.GRID_CENTER = {}
 
         self.p0 = 0
@@ -111,7 +110,7 @@ class U2GModel(Model) : # Model
             self.logger.debug("UAV'{} - loc(x,y), cell :{}".format(uav.id, uav.get_location()))
 
         # deployment status check
-        self.uavStatus = self.getLocStat(self.uavs)  # uav obj. per cell
+        self.uavStatus = getLocStat(self.uavs, Config.MAX_GRID_INDEX)  # uav obj. per cell
         self.logger.debug("UAV is deployed in cells : {}".format([len(self.uavStatus[uav]) for uav in self.uavStatus]))
 
     def generate_GMU(self):
@@ -131,7 +130,7 @@ class U2GModel(Model) : # Model
             self.logger.debug("GMU'{} - loc(x,y), cell :{}".format(gmu.id, gmu.get_location()))
 
         # deployment status check
-        self.gmuStatus = self.getLocStat(self.gmus)
+        self.gmuStatus = getLocStat(self.gmus, Config.MAX_GRID_INDEX)
         self.logger.debug("Gmu is deployed in cells : {}".format([len(self.gmuStatus[gs]) for gs in self.gmuStatus]))
 
 
@@ -181,15 +180,6 @@ class U2GModel(Model) : # Model
         return _yGrid * Config.MAX_XGRID_N + _xGrid
 
 
-    def getLocStat(self, _lnodes):
-        locStat = {}
-        for i in range(Config.MAX_GRID_INDEX + 1):
-            locStat[i] = []
-        for m in _lnodes:
-            locStat[m.cell].append(m)
-        return locStat
-
-
     def draw_env(self):
         self.logger.info("====U2G Network====")
         for row in reversed(self.env_map) :
@@ -216,6 +206,7 @@ class U2GModel(Model) : # Model
             gmus.append(GMU(gmu.id, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
 
         uavs = []
+        exisiting_cells = {} # cell : [index of cell, index of uav, distance]
         for i in range(len(state.uavs)) :
             if state.uavs[i].bGateway :
                 uavs.append(UAV(i, 0, 0, Config.HEIGHT))
@@ -224,6 +215,7 @@ class U2GModel(Model) : # Model
                 uavs.append(UAV(i, x, y, Config.HEIGHT))
 
             uavs[i].cell = self.getGridIndex(uavs[i].x, uavs[i].y)
+            self.control_power_according_to_distance(state.uavs, uavs, i, exisiting_cells)
 
         self.logger.info("Next GMU state : {}".format(sample_states))
         self.logger.info("Next UAV state : {}".format(action.UAV_deployment))
@@ -236,22 +228,63 @@ class U2GModel(Model) : # Model
 
         for i in range(len(observation)) :
             if i in action.UAV_deployment :
-                observation[i] = next_state.gmu_status[i]
+                observation[i] = next_state.gmu_position[i]
 
         self.logger.info("Observation : {}".format(observation))
         return U2GObservation(observation)
 
     def make_reward(self, state, action, next_state):
-        self.calcurate_reallocate_uav_energy(state.uavs, state.uav_position, action.UAV_deployment)
-        pass
+        self.logger.info("Previous UAV deployment : {}".format(state.uav_position))
+        self.logger.info("next UAV deployment : {}".format( action.UAV_deployment))
+        self.logger.info("Active UAV : {}".format(next_state.get_activeUavs()))
+
+        # 1. check gmu deploy and reallocate uavs during UAV_RELOC_PERIOD
+        totalPropEnergy = self.calcurate_reallocate_uav_energy(next_state.uavs, state.uav_position, action.UAV_deployment)
+
+        # 2. serving gmus traffics
+        # aggregate gmu wireless traffic > routing decision (weighted shortest path)
+        # > control sending rate of each UAV based on backhaul congestion
+        # > re-calculate UAV A2G capa > re-assign data rate for each GMUs
+        # > calculate comm. energy and throughput
+
+        exit()
+
 
     def calcurate_reallocate_uav_energy(self, uavs, previous_uav_status, uav_status):
-        self.logger.info("Previous UAV deployment : {}".format(previous_uav_status))
-        self.logger.info("next UAV deployment : {}".format(uav_status))
-        exit()
+        totalPropEnergy = 0
         for i in range(len(uav_status)) :
-            previous_uav_status[i], uav_status[i]
-        _velocity = uavRelocate(ngbUav, _cell, uavs)
+            if 'off' != uavs[i].power :
+                _vel = self.calUAVFlightSpeed(previous_uav_status[i], uav_status[i])
+                if _vel == 0 :
+                    totalPropEnergy += (self.p0+self.p1) * Config.UAV_RELOC_PERIOD
+                else :
+                    totalPropEnergy += energy.calUavFowardEnergy(self.p0, self.p1, _vel) * Config.UAV_RELOC_PERIOD
+
+        self.logger.info("Total prop energy : {}".format(totalPropEnergy))
+
+        return totalPropEnergy
+
+    def calUAVFlightSpeed(self, _tidx, _cIdx):  # target, current
+        _tx, _ty = self.GRID_CENTER[_tidx]
+        _cx, _cy = self.GRID_CENTER[_cIdx]
+        _d = getA2ADist(_tx, _ty, _cx, _cy)
+        return _d / Config.UAV_RELOC_PERIOD
+
+    def control_power_according_to_distance(self, current_state, next_state, index, exisiting_cells):
+        current_cell = current_state[index].cell
+        next_cell = next_state[index].cell
+        _cx, _cy = self.GRID_CENTER[current_cell]
+        _nx, _ny = self.GRID_CENTER[next_cell]
+        if next_cell not in exisiting_cells.keys() :
+            exisiting_cells[next_cell] = [next_cell, index, getA2ADist(_cx, _cy, _nx, _ny)]
+        else :
+            new_dist = getA2ADist(_cx, _cy, _nx, _ny)
+            if new_dist < exisiting_cells[next_cell][2] :
+                next_state[exisiting_cells[next_cell][1]].power = 'off'
+                exisiting_cells[next_cell][1] = index
+                exisiting_cells[next_cell][2] = new_dist
+            else :
+                next_state[index].power = 'off'
 
     ''' ===================================================================  '''
     '''                             Sampling                                 '''
@@ -268,7 +301,7 @@ class U2GModel(Model) : # Model
         self.logger.debug("sample init state : {}".format(sample_states))
         self.logger.debug("UAV init position : {}".format(self.uavPosition))
 
-        return U2GState(self.uavPosition, sample_states, self.uavs, gmus)
+        return U2GState(self.uavPosition, sample_states, self.uavs, gmus, True)
 
     def sample_state_uninformed(self):
         """

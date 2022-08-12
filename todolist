@@ -13,6 +13,9 @@ solver = self.solver_factory(self)
                         - self.total_visit_count = 0
 
 
+# self.calA2ALinkCapa() <- Here, we have to check edge and link state
+
+
 # POMDP
  - observation
     : GMU is observed when the UAV is in that cell, otherwise it is not observerd.

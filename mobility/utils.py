@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import copy, random
-
 class FixSizeOrderedDict(OrderedDict) :
     def __init__(self, *args,  max=0, **kwargs):
         self._max = max

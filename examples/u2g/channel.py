@@ -76,4 +76,3 @@ def calA2ALinkRate(uavLoc1, uavLoc2):
 # for i in range(10, 100, 10):
 #     K = calRicianK(i)
 #     print('K', K)
-    calA2AChannel(500, K)
