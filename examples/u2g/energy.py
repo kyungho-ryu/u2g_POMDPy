@@ -22,6 +22,8 @@ def calA2ACommEnergy(uav1, uav2, sumFlowRate): #user flows between uav1 and uav2
     linkCapa = channel.calA2ALinkRate(uav1, uav2)
     return a2a_static_power + channel.getTxPInWatt() * sumFlowRate/linkCapa
 
+def calA2AMaxCommEnergy(): #user flows between uav1 and uav2
+    return a2a_static_power + channel.getTxPInWatt()
 
 def calA2GCommEnergy(uav, lGmu): #list of GMUs for a serving uav
     dataLoad = 0
@@ -31,6 +33,11 @@ def calA2GCommEnergy(uav, lGmu): #list of GMUs for a serving uav
         dataLoad += min(g.dnRate / linkCapa, 1) #need to change for actual dnRate instead of demand
 
     return a2g_static_power + a2g_load_co * channel.getTxPInWatt() * dataLoad / len(lGmu)
+
+
+def calA2GMaxCommEnergy(): #list of GMUs for a serving uav
+    return a2g_static_power + a2g_load_co * channel.getTxPInWatt()
+
 
 def calUavHoverEnergy():
     _p0 = drag_co/8 * airDense * rotorSol * rotorDisc * pow(bladeSpeed*rotorRadius, 3)

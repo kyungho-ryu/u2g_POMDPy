@@ -41,10 +41,9 @@ def uavTopoUpdate(_graph, _lUav, _locStat, MAX_XGRID_N, MAX_GRID_INDEX):
             if n in _lUav and n != u:
                 _graph.add_edge(u.id, n.id)
 
-
 def getNgbUAVs(_gIdx, _locStat, MAX_XGRID_N, MAX_GRID_INDEX):
     adjUavs = []
-    l, r, u, b = getNgbCellAvail(_gIdx, MAX_XGRID_N, MAX_GRID_INDEX)
+    l, r, u, b = getNgbCellAvail(_gIdx, MAX_XGRID_N, MAX_GRID_INDEX) # 0, 5, 24
     if l:
         adjUavs += _locStat[_gIdx -1]
     if r:
@@ -64,8 +63,8 @@ def getNgbUAVs(_gIdx, _locStat, MAX_XGRID_N, MAX_GRID_INDEX):
     return adjUavs
 
 def getNgbCellAvail(_gIdx, MAX_XGRID_N, MAX_GRID_INDEX):
-    _left = True if _gIdx % MAX_XGRID_N - 1 >= 0 else False
-    _right = True if _gIdx % MAX_XGRID_N + 1 <= MAX_XGRID_N-1 else False
+    _left = True if _gIdx % MAX_XGRID_N != 0 else False
+    _right = True if (_gIdx + 1) % MAX_XGRID_N != 0 else False
     _upper = True if _gIdx + MAX_XGRID_N <= MAX_GRID_INDEX else False
     _lower = True if _gIdx - MAX_XGRID_N >= 0 else False
     return _left, _right, _upper, _lower
@@ -77,4 +76,27 @@ def getLocStat(_lnodes, MAX_GRID_INDEX):
     for m in _lnodes:
         locStat[m.cell].append(m)
     return locStat
+
+def getGMUCellTraffic(_cellId, _gmuStat):
+    aggRate = 0
+    for g in _gmuStat[_cellId]:
+        aggRate += g.dnRate
+    return aggRate
+
+def controlSrcRate(_srcUavRate, _gmuFlowsPerLink, _maxA2ACapa):
+    availRate = _maxA2ACapa/len(_gmuFlowsPerLink) #even rate, not proportional (TBD)
+    for i in _gmuFlowsPerLink:
+        if _srcUavRate[i] > availRate:
+            _srcUavRate[i] = availRate
+
+def getServingUAV(_gIdx, _luavs):
+    for _u in _luavs:
+        if _u.cell == _gIdx and _u.power == 'on' and _u.bGateway == False:
+            return _u
+
+def findServingUAV(_luavs):
+    for u in _luavs:
+        if u.power == 'on' and u.bGateway == False:
+            return u
+    return None
 

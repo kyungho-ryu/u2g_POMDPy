@@ -12,7 +12,7 @@ class MO() :
 
     def update_location(self, coordinate):
         self.current_loc = coordinate
-        self.current_t +=1
+        self.current_t += 1
         self.backward_traj.append(coordinate)
 
     def get_current_loc(self):

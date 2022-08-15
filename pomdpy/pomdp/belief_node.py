@@ -81,7 +81,7 @@ class BeliefNode(object):
             return None
 
     def child(self, action, obs):
-        node = self.action_map.get_action_node(action)
+        node = self.action_map.get_action_node(action)  # DiscreteActionMapping()
         if node is not None:
             child_node = node.get_child(obs)
             if child_node is None:

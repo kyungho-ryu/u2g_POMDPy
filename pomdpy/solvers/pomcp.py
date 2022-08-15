@@ -114,9 +114,13 @@ class POMCP(BeliefTreeSolver):
             console(4, module, "Search horizon reached")
             return 0
 
-        step_result, is_legal = self.model.generate_step(state, action)
+        step_result = self.model.generate_step(state, action)
 
         child_belief_node = belief_node.child(action, step_result.observation)
+        ##
+
+        print("t", belief_node.action_map.total_visit_count)
+        exit()
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count > 0:
             child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
 

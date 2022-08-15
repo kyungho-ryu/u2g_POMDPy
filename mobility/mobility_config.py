@@ -1,7 +1,9 @@
+import numpy as np
 class MConfig :
     # trajectories buffer size
-    H = 300
-    initialTrip = H
+    # H = np.inf
+    H = 1000000000000000000000000000000000000000000
+    initialTrip = 300
 
     # backward trajectory size
     BH = 2

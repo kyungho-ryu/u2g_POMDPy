@@ -1,19 +1,4 @@
-solver = self.solver_factory(self)
-    1) implement root belief tree
-        - belief_tree/reset_root_data()
-            - model/create_root_historical_data()
-
-        - belief_tree/initialize()
-            - root.action_map/create_action_mapping()
-                - create DiscreteActionPool()
-                    - self.all_actions
-                    - create DiscreteActionMapping()
-                        - bin_sequence = belief_node.data.legal_actions()
-                        - self.number_of_children = 0
-                        - self.total_visit_count = 0
-
-
-# self.calA2ALinkCapa() <- Here, we have to check edge and link state
+# should update u2g_state.copy()
 
 
 # POMDP
@@ -22,7 +7,7 @@ solver = self.solver_factory(self)
 
 # SL implementation
  - error distance according to predicted path length
-    - Skip as much as predicted path legth previously
+    - Skip as much as predicted path length previously
 
 # next work
  - if new state is already existed in the tree, the each node has own hash value so that new state link to existing state node

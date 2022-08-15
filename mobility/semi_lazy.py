@@ -151,11 +151,17 @@ class SLModel :
         if coordinate == -1:
             self.logger.error("over coordinate :", _coordinate)
             exit()
+        #
+        # if id == 3 :
+        #     print("test", mo.current_t, mo.id, mo.current_loc, coordinate)
 
         self.tg.add_new_trajectory(coordinate, mo.current_loc, mo.id, mo.current_t)
         mo.update_location(_coordinate, coordinate)
-
         self.traj[id].update_time(update_time)
+
+
+
+
 
     def test_update_trajectory(self, id, T):
         file = "/home/kyungho/project/POMDPy/mobility/trajectory/MO" + str(id) + "_traj.csv"
@@ -189,14 +195,15 @@ class SLModel :
             if eta > theta and k < MConfig.MaxPath+1 :
                 for ro in RO :
                     if ro not in self.tg.leafCells[t0Loc].trajectories :
-                        self.logger.debug("not path : {}".format(ro))
+                        self.logger.error("not path : {}".format(ro))
+                        self.logger.error("not t0Loc : {}".format(t0Loc))
                         continue
 
                     x, y = self.tg.leafCells[t0Loc].trajectories[ro].get_loc()
                     scale = (MConfig.xE - MConfig.x0) // self.cellWidth
                     cellIndex = get_cellIndex(x, y, scale)
 
-                    next_ro = ro[0], ro[1] +1
+                    next_ro = ro[0], ro[1] + 1
                     self.logger.debug("{}' next loc : {}, {} -> cellIndex : {}".format(next_ro, x, y, cellIndex))
 
                     previousRO.append(ro)
@@ -357,3 +364,6 @@ class SLModel :
         self.logger.debug("selected RO : {}".format(next_ROs[selected_index]))
 
         return max_states[selected_index], next_ROs[selected_index], etas[selected_index]
+
+    def get_max_path(self):
+        return MConfig.MaxPath

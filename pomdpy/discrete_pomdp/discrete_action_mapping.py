@@ -4,7 +4,7 @@ from past.utils import old_div
 from pomdpy.pomdp import ActionMapping, ActionMappingEntry
 from pomdpy.pomdp import ActionNode
 import numpy as np
-
+import hashlib
 
 class DiscreteActionMapping(ActionMapping):
     """
@@ -39,14 +39,21 @@ class DiscreteActionMapping(ActionMapping):
         return action_map_copy
 
     def get_action_node(self, action):
-        return self.entries.get(action.bin_number).child_node
+        print(self.entries)
+        key = hashlib.sha256(str(action.UAV_deployment).encode()).hexdigest()
+        print(action.UAV_deployment)
+        print(key)
+        return self.entries.get(key).child_node
 
     def create_current_action_node(self, action):
         entry = DiscreteActionMappingEntry()
         entry.deployment = action
         entry.map = self
         entry.is_legal = True
-        self.entries.__setitem__(self.current_action_count, entry)
+        key = hashlib.sha256(str(action).encode()).hexdigest()
+        print(action)
+        print(key)
+        self.entries.__setitem__(key, entry)
 
         self.current_action_count +=1
 
@@ -139,7 +146,7 @@ class DiscreteActionMappingEntry(ActionMappingEntry):
         self.preferred_action = False
 
     def get_action(self):
-        return self.map.pool.sample_an_action(self.bin_number)
+        return self.map.pool.sample_an_action(self.UAV_deployment)
 
     # Update the action mapping entries visit count and the action maps total visit count
     def update_visit_count(self, delta_n_visits):

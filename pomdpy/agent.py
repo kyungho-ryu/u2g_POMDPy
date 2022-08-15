@@ -178,8 +178,7 @@ class Agent:
                 eps *= self.model.epsilon_decay
 
             # state = not real state
-            step_result, is_legal = self.model.generate_step(state, action)
-            exit()
+            step_result = self.model.generate_step(state, action)
             reward += step_result.reward
             discounted_reward += discount * step_result.reward
 
@@ -189,9 +188,10 @@ class Agent:
             # show the step result
             self.display_step_result(i, step_result)
 
-            if not step_result.is_terminal or not is_legal:
+            if not step_result.is_terminal:
                 solver.update(step_result)
 
+            exit()
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()
             HistoryEntry.update_history_entry(new_hist_entry, step_result.reward,
