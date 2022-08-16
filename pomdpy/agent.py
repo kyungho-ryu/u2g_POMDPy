@@ -171,7 +171,7 @@ class Agent:
             # action will be of type Discrete Action
             action = solver.select_eps_greedy_action(eps, start_time)
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action))
-
+            exit()
 
             # update epsilon
             if eps > self.model.epsilon_minimum:

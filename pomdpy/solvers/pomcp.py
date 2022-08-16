@@ -91,7 +91,8 @@ class POMCP(BeliefTreeSolver):
 
         # choice random state from particles every simulation
         state = belief_node.sample_particle()
-        self.logger.debug("depth {}' state : \n{}".format(tree_depth, state.to_string()))
+        self.logger.debug("depth : {} ================================================================".format(tree_depth))
+        self.logger.debug("state : {}".format(state.to_string()))
         # Time expired
         if time.time() - start_time > self.model.action_selection_timeout:
             console(4, module, "action selection timeout")
@@ -105,7 +106,7 @@ class POMCP(BeliefTreeSolver):
                 temp_action = self.model.sample_random_actions()
 
             action, C, N = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
-            self.logger.debug("depth {}' C,N: [{},{}] action: \n{}".format(tree_depth, C, N, action.to_string()))
+            self.logger.debug("C,N: [{},{}] action: {}".format(C, N, action.to_string()))
         else :
             action = ucb_action(self, belief_node, False)
 
@@ -114,13 +115,9 @@ class POMCP(BeliefTreeSolver):
             console(4, module, "Search horizon reached")
             return 0
 
-        step_result = self.model.generate_step(state, action)
+        step_result, is_legal = self.model.generate_step(state, action)
 
         child_belief_node = belief_node.child(action, step_result.observation)
-        ##
-
-        print("t", belief_node.action_map.total_visit_count)
-        exit()
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count > 0:
             child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
 
@@ -140,7 +137,7 @@ class POMCP(BeliefTreeSolver):
 
         # delayed_reward is "Q maximal"
         # current_q_value is the Q value of the current belief-action pair
-        action_mapping_entry = belief_node.action_map.get_entry(action.bin_number)
+        action_mapping_entry = belief_node.action_map.get_entry(action.UAV_deployment)
 
         q_value = action_mapping_entry.mean_q_value
 
@@ -149,6 +146,6 @@ class POMCP(BeliefTreeSolver):
 
         action_mapping_entry.update_visit_count(1)
         action_mapping_entry.update_q_value(q_value)
-
+        self.logger.debug(" Q value : {}".format(q_value))
         # Add RAVE ?
         return q_value

@@ -123,29 +123,21 @@ class BeliefTreeSolver(Solver):
         :param belief_node:
         :return:
         """
-        legal_actions = belief_node.data.generate_legal_actions()
-
-        if not isinstance(legal_actions, list):
-            legal_actions = list(legal_actions)
-
         state = belief_node.sample_particle()
         is_terminal = False
         discounted_reward_sum = 0.0
         discount = 1.0
         num_steps = 0
-
         while num_steps < self.model.max_depth and not is_terminal:
-            legal_action = random.choice(legal_actions)
+            legal_action = self.model.sample_random_actions()
             step_result, is_legal = self.model.generate_step(state, legal_action)
             is_terminal = step_result.is_terminal
             discounted_reward_sum += step_result.reward * discount
             discount *= self.model.discount
             # advance to next state
             state = step_result.next_state
-            # generate new set of legal actions from the new state
-            legal_actions = self.model.get_legal_actions(state)
-            num_steps += 1
 
+            num_steps += 1
         return discounted_reward_sum
 
     def update(self, step_result, prune=True):

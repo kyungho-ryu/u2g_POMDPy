@@ -17,17 +17,9 @@ class DiscreteActionMapping(ActionMapping):
         super(DiscreteActionMapping, self).__init__(belief_node_owner)
         self.pool = discrete_action_pool
         self.number_of_bins = self.pool.all_actions.__len__()
-        self.entries = {}   # Dictionary of DiscreteActionMappingEntry objects
+        self.entries = {}   # Dictionary of DiscreteActionMappingEntry objects -> length is number of count of action
         self.number_of_children = 0
         self.total_visit_count = 0
-        self.current_action_count = 0
-
-        # for i in range(0,self.number_of_bins):
-        #     entry = DiscreteActionMappingEntry()
-        #     entry.bin_number = i
-        #     entry.map = self
-        #     entry.is_legal = False
-        #     self.entries.__setitem__(i, entry)
 
 
     def copy(self):
@@ -39,28 +31,25 @@ class DiscreteActionMapping(ActionMapping):
         return action_map_copy
 
     def get_action_node(self, action):
-        print(self.entries)
-        key = hashlib.sha256(str(action.UAV_deployment).encode()).hexdigest()
-        print(action.UAV_deployment)
-        print(key)
+        key = self.get_key(action.UAV_deployment)
         return self.entries.get(key).child_node
+
+    def get_number_of_action(self):
+        return len(self.entries)
 
     def create_current_action_node(self, action):
         entry = DiscreteActionMappingEntry()
-        entry.deployment = action
+        entry.deployment = action.UAV_deployment
         entry.map = self
         entry.is_legal = True
-        key = hashlib.sha256(str(action).encode()).hexdigest()
-        print(action)
-        print(key)
+        key = self.get_key(action.UAV_deployment)
         self.entries.__setitem__(key, entry)
 
-        self.current_action_count +=1
-
-        return action, self.current_action_count, self.total_visit_count
+        return action, len(self.entries), self.total_visit_count
 
     def create_action_node(self, action):
-        entry = self.entries.get(action.deployment)
+        key = self.get_key(action.UAV_deployment)
+        entry = self.entries.get(key)
         entry.child_node = ActionNode(entry)
         self.number_of_children += 1
         return entry.child_node
@@ -91,8 +80,9 @@ class DiscreteActionMapping(ActionMapping):
         np.random.shuffle(all_actions)
         return all_actions
 
-    def get_entry(self, action_bin_number):
-        return self.entries.get(action_bin_number)
+    def get_entry(self, action_deployment):
+        key = self.get_key(action_deployment)
+        return self.entries.get(key)
 
     # No more bins to try -> no action to try
     # Otherwise we sample a new action using the first bin to be tried
@@ -124,6 +114,8 @@ class DiscreteActionMapping(ActionMapping):
         for bin_number in self.bin_sequence:
             self.entries.get(bin_number).is_legal = True
 
+    def get_key(self, uav_deployment):
+        return hashlib.sha256(str(uav_deployment).encode()).hexdigest()
 
 class DiscreteActionMappingEntry(ActionMappingEntry):
     """
@@ -146,7 +138,7 @@ class DiscreteActionMappingEntry(ActionMappingEntry):
         self.preferred_action = False
 
     def get_action(self):
-        return self.map.pool.sample_an_action(self.UAV_deployment)
+        return self.map.pool.sample_an_action(self.deployment)
 
     # Update the action mapping entries visit count and the action maps total visit count
     def update_visit_count(self, delta_n_visits):

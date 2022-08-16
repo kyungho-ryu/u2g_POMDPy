@@ -38,7 +38,6 @@ class PositionAndGMUData(HistoricalData):
 
         # List of RockData indexed by the rock number
         self.all_gmu_data = all_gmu_data
-
         # Holds reference to the function for generating legal actions
         if self.model.preferred_actions:
             self.legal_actions = self.generate_smart_actions
@@ -63,7 +62,7 @@ class PositionAndGMUData(HistoricalData):
         """
         Passes along a reference to the rock data to the new copy of RockPositionHistory
         """
-        return PositionAndGMUData(self.model, self.uav_position.copy(), self.all_rock_data, self.solver)
+        return PositionAndGMUData(self.model, self.uav_position.copy(), self.all_gmu_data, self.solver)
 
     def shallow_copy(self):
         """
@@ -73,55 +72,12 @@ class PositionAndGMUData(HistoricalData):
         return PositionAndGMUData(self.model, self.uav_position.copy(), new_gmu_data, self.solver)
 
     def update(self, other_belief):
-        self.all_rock_data = other_belief.data.all_rock_data
+        self.uav_position = other_belief.data.uav_position
 
-    def any_good_rocks(self):
-        any_good_rocks = False
-        for rock_data in self.all_rock_data:
-            if rock_data.goodness_number > 0:
-                any_good_rocks = True
-        return any_good_rocks
 
-    def create_child(self, rock_action, rock_observation):
+    def create_child(self, u2g_action, u2g_observation):
         next_data = self.deep_copy()
-        next_position, is_legal = self.model.make_next_position(self.grid_position.copy(), rock_action.bin_number)
-        next_data.grid_position = next_position
-
-        if rock_action.bin_number is ActionType.SAMPLE:
-            rock_no = self.model.get_cell_type(self.grid_position)
-            next_data.all_rock_data[rock_no].chance_good = 0.0
-            next_data.all_rock_data[rock_no].check_count = 10
-            next_data.all_rock_data[rock_no].goodness_number = -10
-
-        elif rock_action.bin_number >= ActionType.CHECK:
-            rock_no = rock_action.rock_no
-            rock_pos = self.model.rock_positions[rock_no]
-
-            dist = self.grid_position.euclidean_distance(rock_pos)
-            probability_correct = self.model.get_sensor_correctness_probability(dist)
-            probability_incorrect = 1 - probability_correct
-
-            rock_data = next_data.all_rock_data[rock_no]
-            rock_data.check_count += 1
-
-            likelihood_good = rock_data.chance_good
-            likelihood_bad = 1 - likelihood_good
-
-            if rock_observation.is_good:
-                rock_data.goodness_number += 1
-                likelihood_good *= probability_correct
-                likelihood_bad *= probability_incorrect
-            else:
-                rock_data.goodness_number -= 1
-                likelihood_good *= probability_incorrect
-                likelihood_bad *= probability_correct
-
-            if np.abs(likelihood_good) < 0.01 and np.abs(likelihood_bad) < 0.01:
-                # No idea whether good or bad. reset data
-                # print "Had to reset RockData"
-                rock_data = RockData()
-            else:
-                rock_data.chance_good = old_div(likelihood_good, (likelihood_good + likelihood_bad))
+        next_data.grid_position = u2g_action.UAV_deployment
 
         return next_data
 

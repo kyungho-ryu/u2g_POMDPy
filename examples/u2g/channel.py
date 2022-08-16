@@ -62,9 +62,14 @@ def calRicianK(height):
 
 def calA2ALinkRate(uavLoc1, uavLoc2):
     K = calRicianK(uavLoc1.h)
-    dist = util.getA2ADist(uavLoc1.x, uavLoc1.y, uavLoc2.x, uavLoc2.y)
     noise = THERM_NOISE + util.watt2Db(BAND_A2A)
-    pathloss_los = 20 * math.log10(4 * math.pi * dist / a2a_wavelen)
+
+    dist = util.getA2ADist(uavLoc1.x, uavLoc1.y, uavLoc2.x, uavLoc2.y)
+    if dist == 0:
+        pathloss_los = 0
+    else :
+        pathloss_los = 20 * math.log10(4 * math.pi * dist / a2a_wavelen)
+
     RxP = TxPower - math.sqrt(K/(1+K)) * pathloss_los + RxGain + TxGain - IMP_LOSS - NOISE_FIGURE
     #print('rxp ', RxP)
     snr = RxP - noise

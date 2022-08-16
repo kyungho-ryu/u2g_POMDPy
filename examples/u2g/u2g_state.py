@@ -19,7 +19,7 @@ class U2GState(DiscreteState):
         self.logger  = logging.getLogger('POMDPy.State')
         self.logger.setLevel("INFO")
         self.uav_position = uav_position # list of uav cell position
-        self.gmu_position = gmu_position  # list
+        self.gmu_position = gmu_position  # list of gmu cell position
         self.uavs = uavs
         self.gmus = gmus
         self.G = nx.Graph()
@@ -144,7 +144,6 @@ class U2GState(DiscreteState):
         for e in list(self.G.edges()):
             self.a2aLinkStatus[e] = {'max': 0, 'load': 0}
             self.a2aLinkStatus[e]['max'] = calA2ALinkRate(self.uavs[e[0]], self.uavs[e[1]])
-
         self.logger.debug("A2A Link State : {}".format(self.a2aLinkStatus))
 
 
@@ -155,7 +154,7 @@ class U2GState(DiscreteState):
         nx.draw(self.G, with_labels=True, font_weight="bold")
 
     def copy(self):
-        return U2GState(self.uav_position, self.gmu_position)
+        return self
 
     def __hash__(self):
         """

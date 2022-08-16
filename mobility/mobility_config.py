@@ -3,7 +3,9 @@ class MConfig :
     # trajectories buffer size
     # H = np.inf
     H = 1000000000000000000000000000000000000000000
-    initialTrip = 300
+    initialTrip = 250
+    Batch = 50
+    BatchInitialTrip = 250
 
     # backward trajectory size
     BH = 2
@@ -27,3 +29,6 @@ class MConfig :
 
     # probability of specific RO
     RO_prob = 1
+
+    # minimun size to provide information for trajectory prediction in lookup process
+    Min_remaining_trajectory = MaxPath

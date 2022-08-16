@@ -23,6 +23,8 @@ def get_cellCoordinate(x, y, diameterofCell) :
     x, y= int(x //diameterofCell), int(y //diameterofCell)
 
     if x <0 or y<0 :
+        print("asdasd")
+        exit()
         return -1
     else :
         return x, y
@@ -45,8 +47,8 @@ def get_state_transition_prob(previousRO, currentRO) :
 
 
 def create_random_position_in_cell(x,y, cellWidth) :
-    x = random.randint(cellWidth*x, cellWidth*(x+1))
-    y = random.randint(cellWidth*y, cellWidth*(y+1))
+    x = random.randint(cellWidth*x+1, cellWidth*(x+1)-1)
+    y = random.randint(cellWidth*y+1, cellWidth*(y+1)-1)
 
     return x, y
 

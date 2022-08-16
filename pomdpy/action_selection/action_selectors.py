@@ -40,10 +40,9 @@ def action_progWiden(mcts, current_node, temp_action, k, alpha):
     mapping = current_node.action_map
 
     # print("C : {}, kxN^alpha : {}".format(mapping.number_of_children, k * (mapping.total_visit_count**alpha)))
-    if mapping.current_action_count <= k * (mapping.total_visit_count**alpha) :
+    if mapping.get_number_of_action() <= k * (mapping.total_visit_count**alpha) :
 
         action, C, N =  mapping.create_current_action_node(temp_action)
-
         return action, C, N
     else :
         best_actions = []
@@ -60,18 +59,16 @@ def action_progWiden(mcts, current_node, temp_action, k, alpha):
 
             current_q = action_entry.mean_q_value
             current_q += mcts.find_fast_ucb(N, action_entry.visit_count, log_n)
-
             if current_q >= best_q_value:
                 if current_q > best_q_value:
                     best_actions = []
                 best_q_value = current_q
                 # best actions is a list of Discrete Actions
                 best_actions.append(action_entry.get_action())
-
         assert best_actions.__len__() is not 0
 
         action = random.choice(best_actions)
-        return action, mapping.current_action_count, N
+        return action, mapping.get_number_of_action(), N
 
 def e_greedy(current_node, epsilon):
     best_actions = []

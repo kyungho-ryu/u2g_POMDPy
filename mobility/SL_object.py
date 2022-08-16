@@ -18,6 +18,8 @@ class MO() :
     def get_current_loc(self):
         return self.current_loc
 
+    def get_current_time(self):
+        return self.current_t
 class GMU(MO) :
     def __init__(self, _id, _demand):
         super(GMU, self).__init__(_id)
@@ -64,8 +66,8 @@ class GMU(MO) :
             return self.S, self.RO, self.eta, self.k, self.current_loc
 
 class State() :
-    def __init__(self):
-        self.states = {}
+    def __init__(self, states={}):
+        self.states = states
 
     def update(self, k, loc, cellIndex, traHashKey):
         createdNewState = False

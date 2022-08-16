@@ -1,5 +1,5 @@
 from pomdpy.pomdp import ObservationMapping, ObservationMappingEntry, BeliefNode
-
+import hashlib
 
 class DiscreteObservationMap(ObservationMapping):
     """
@@ -16,7 +16,8 @@ class DiscreteObservationMap(ObservationMapping):
         self.total_visit_count = 0
 
     def get_belief(self, disc_observation):
-        entry = self.get_entry(disc_observation)
+        key = self.get_key(disc_observation.observed_gmu_status)
+        entry = self.get_entry(key)
         if entry is None:
             return None
         else:
@@ -27,7 +28,8 @@ class DiscreteObservationMap(ObservationMapping):
         entry.map = self
         entry.observation = disc_observation
         entry.child_node = BeliefNode(self.agent, None, entry)
-        self.child_map.__setitem__(entry.observation, entry)
+        key = self.get_key(disc_observation.observed_gmu_status)
+        self.child_map.__setitem__(key, entry)
         return entry.child_node
 
     def delete_child(self, obs_mapping_entry):
@@ -46,6 +48,8 @@ class DiscreteObservationMap(ObservationMapping):
                 return i
         return None
 
+    def get_key(self, obs):
+        return hashlib.sha256(str(obs).encode()).hexdigest()
 
 class DiscreteObservationMapEntry(ObservationMappingEntry):
     """

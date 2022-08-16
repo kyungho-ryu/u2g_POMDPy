@@ -14,12 +14,13 @@ class DiscreteActionPool(ActionPool):
         :param model:
         """
         self.all_actions = model.get_all_actions()
+        self.actionClass = model.get_actionClass()
 
     def create_action_mapping(self, belief_node):
         return DiscreteActionMapping(belief_node, self)
 
-    def sample_an_action(self, bin_number):
-        return self.all_actions[bin_number]
+    def sample_an_action(self, deployment):
+        return self.actionClass(deployment)
 
     def sample_random_action(self):
         return np.random.choice(self.all_actions)

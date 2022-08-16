@@ -14,13 +14,15 @@ class TG () :
         if not new_loc in self.leafCells:
             self.leafCells[new_loc] = Cell()
 
+
+
         # update the density
         self.leafCells[new_loc].visit()
 
     # find reference objects
-    def lookup(self, id, trajectories):
+    def lookup(self, id, trajectories, MOS):
 
-        def find_candidate_objs (id, traj, candidate, last_index):   # candiate = id, t
+        def find_candidate_objs (id, traj, candidate, MOS, last_index):   # candiate = id, t
             candidate_objs = []
             self.logger.debug("current selected {}:".format(candidate))
             self.logger.debug("candidate : {}".format(list(self.leafCells[traj].trajectories.keys())))
@@ -29,6 +31,8 @@ class TG () :
                     if candidate ==[] or k in candidate :
                         if last_index :
                             candidateOBJ = k
+                            if MOS[int(k[0][-1])].get_current_time() < int(k[1]) + MConfig.Min_remaining_trajectory:
+                                continue
                         else :
                             candidateOBJ = k[0], k[1]+1
 
@@ -40,7 +44,7 @@ class TG () :
 
         self.logger.debug("{}'s backward trajesctories :{}".format(id, trajectories))
         for i in range(len(trajectories)) :
-            referenceOBJs = (find_candidate_objs(id, trajectories[i], referenceOBJs, i==len(trajectories)-1))
+            referenceOBJs = (find_candidate_objs(id, trajectories[i], referenceOBJs, MOS, i==len(trajectories)-1))
             if referenceOBJs == [] : return referenceOBJs
         
         return referenceOBJs

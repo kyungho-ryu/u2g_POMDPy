@@ -1,7 +1,7 @@
 from __future__ import print_function
 from builtins import str
 from pomdpy.discrete_pomdp import DiscreteU2GObservation
-
+import hashlib
 
 class U2GObservation(DiscreteU2GObservation):
     """
@@ -14,7 +14,11 @@ class U2GObservation(DiscreteU2GObservation):
         return U2GObservation(self.observed_gmu_status)
 
     def __eq__(self, other_u2g_observation):
-        return self.observed_gmu_status == other_u2g_observation.observed_gmu_status
+        key = self.get_key(self.observed_gmu_status)
+        return key == other_u2g_observation
+    def get_key(self, obs):
+
+        return hashlib.sha256(str(obs).encode()).hexdigest()
 
     def __hash__(self):
         # return (False, True)[self.is_good]

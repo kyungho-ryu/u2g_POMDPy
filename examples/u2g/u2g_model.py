@@ -208,50 +208,57 @@ class U2GModel(Model) : # Model
             if cellIndex == -1:
                 self.logger.error("have to be terminated previously")
                 print("test", gmu.id, gmu.k, gmu.get_SL_params(Config.GRID_W))
+                print("test", gmu.x, gmu.y)
                 exit()
 
             sample_states[cellIndex] += 1
             gmus.append(GMU(gmu.id, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
-            if SL_params[4] +1 > self.mobility_SLModel.get_max_path() :
+            if SL_params[4] +1 > self.mobility_SLModel.get_max_path() or SL_params[5]:
                 _is_terminal = True
 
         self.updateCellInfo(gmus)
 
         uavs = []
+        uavs_deployment = []
         exisiting_cells = {} # cell : [index of cell, index of uav, distance]
         for i in range(len(state.uavs)) :
             if state.uavs[i].bGateway :
                 uavs.append(UAV(i, 0, 0, Config.HEIGHT))
+                uavs[i].bGateway = True
+                uavs[i].cell = self.getGridIndex(uavs[i].x, uavs[i].y)
+                self.control_power_according_to_distance(state.uavs, uavs, i, exisiting_cells)
             else :
                 x, y= self.GRID_CENTER[action.UAV_deployment[i]]
                 uavs.append(UAV(i, x, y, Config.HEIGHT))
-
-            uavs[i].cell = self.getGridIndex(uavs[i].x, uavs[i].y)
-            self.control_power_according_to_distance(state.uavs, uavs, i, exisiting_cells)
+                uavs[i].cell = self.getGridIndex(uavs[i].x, uavs[i].y)
+                self.control_power_according_to_distance(state.uavs, uavs, i, exisiting_cells)
+                uavs_deployment.append(self.getGridIndex(uavs[i].x, uavs[i].y))
 
         self.logger.debug("Next GMU state : {}".format(sample_states))
-        self.logger.debug("Next UAV state : {}".format(action.UAV_deployment))
+        self.logger.debug("Next UAV state : {}".format(uavs_deployment))
 
-        return U2GState(action.UAV_deployment, sample_states, uavs, gmus, _is_terminal)
+        return U2GState(uavs_deployment, sample_states, uavs, gmus, _is_terminal)
 
 
-    def make_observation(self, action, next_state):
+    def make_observation(self, next_state):
         observation = [None for _ in range(Config.MAX_GRID_INDEX+1)]
 
         for i in range(len(observation)) :
-            if i in action.UAV_deployment :
+            if i in next_state.uav_position :
                 observation[i] = next_state.gmu_position[i]
 
         self.logger.debug("Observation : {}".format(observation))
         return U2GObservation(observation)
 
-    def make_reward(self, state, action, next_state):
+    def make_reward(self, state, next_state):
         self.logger.debug("Previous UAV deployment : {}".format(state.uav_position))
-        self.logger.debug("next UAV deployment : {}".format( action.UAV_deployment))
+        self.logger.debug("next UAV deployment : {}".format( next_state.uav_position))
         self.logger.debug("Active UAV : {}".format(next_state.get_activeUavs()))
 
         # 1. check gmu deploy and reallocate uavs during UAV_RELOC_PERIOD
-        totalPropEnergy = self.calcurate_reallocate_uav_energy(next_state.uavs, state.uav_position, action.UAV_deployment)
+        totalPropEnergy = self.calcurate_reallocate_uav_energy(
+            next_state.uavs, state.uav_position, next_state.uav_position
+        )
 
         # 2. Calcurate energy consumption
         totalA2GEnergy, totalA2AEnergy = self.calcurate_energy_consumption(next_state)
@@ -359,10 +366,16 @@ class U2GModel(Model) : # Model
             new_dist = getA2ADist(_cx, _cy, _nx, _ny)
             if new_dist < exisiting_cells[next_cell][2] :
                 next_state[exisiting_cells[next_cell][1]].power = 'off'
+                next_state[index].x = _cx
+                next_state[index].y = _cy
+
                 exisiting_cells[next_cell][1] = index
                 exisiting_cells[next_cell][2] = new_dist
             else :
                 next_state[index].power = 'off'
+                next_state[index].x =  _cx
+                next_state[index].y =  _cy
+
 
     ''' ===================================================================  '''
     '''                             Sampling                                 '''
@@ -445,11 +458,11 @@ class U2GModel(Model) : # Model
         result = StepResult()
         result.next_state = self.make_next_state(state, action)
         result.action = action.copy()
-        result.observation = self.make_observation(action, result.next_state)
-        result.reward = self.make_reward(state, action, result.next_state)
+        result.observation = self.make_observation(result.next_state)
+        result.reward = self.make_reward(state, result.next_state)
         result.is_terminal = self.is_terminal(result.next_state)
 
-        return result
+        return result, True
 
 
     # used for data in belief root node
@@ -494,7 +507,11 @@ class U2GModel(Model) : # Model
         """
         return []
 
-
+    def get_actionClass(self):
+        """
+        :return: initial action list which is updated when child belief node is created
+        """
+        return U2GAction
     def get_all_observations(self):
         """
         :return: list of enumerated observations (discrete) or range of observations (continuous)
