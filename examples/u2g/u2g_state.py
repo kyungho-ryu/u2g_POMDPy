@@ -140,6 +140,9 @@ class U2GState(DiscreteState):
     def get_gmu_dnRate(self):
         return self.TotalDnRate
 
+    def get_total_energy_consumption(self):
+        return self.totalA2GEnergy+self.totalA2AEnergy+self.totalPropEnergy
+
     def calA2ALinkCapa(self):
         for e in list(self.G.edges()):
             self.a2aLinkStatus[e] = {'max': 0, 'load': 0}

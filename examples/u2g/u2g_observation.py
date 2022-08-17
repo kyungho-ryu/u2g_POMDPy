@@ -17,7 +17,6 @@ class U2GObservation(DiscreteU2GObservation):
         key = self.get_key(self.observed_gmu_status)
         return key == other_u2g_observation
     def get_key(self, obs):
-
         return hashlib.sha256(str(obs).encode()).hexdigest()
 
     def __hash__(self):

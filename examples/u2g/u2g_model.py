@@ -184,6 +184,18 @@ class U2GModel(Model) : # Model
         _yGrid = int(_y // Config.GRID_W)
         return _yGrid * Config.MAX_XGRID_N + _xGrid
 
+    def get_reward(self, next_state):
+        totalDnRate = next_state.get_gmu_dnRate()
+        totalEnergyConsumtion = next_state.get_total_energy_consumption()
+
+        self.logger.debug("GMU's dnRate : {}".format(totalDnRate))
+        self.logger.debug("TotalEnergyConsumtion : {}".format(totalEnergyConsumtion))
+
+        totalEnergyConsumtion, totalDnRate = self.norm_rewards(totalEnergyConsumtion, totalDnRate)
+
+        self.logger.debug("total rewards : {}/{}".format(totalEnergyConsumtion, totalDnRate))
+
+        return totalEnergyConsumtion + totalDnRate
 
     def draw_env(self):
         self.logger.info("====U2G Network====")
@@ -277,6 +289,7 @@ class U2GModel(Model) : # Model
         self.logger.debug("total rewards : {}/{}".format(totalEnergyConsumtion, totalDnRate))
 
         return totalEnergyConsumtion + totalDnRate
+
 
     def norm_rewards(self, _energyConsumtion, _dnRate):
         energyConsumtion = 1 - _energyConsumtion / self.MaxEnergyConsumtion
@@ -528,6 +541,7 @@ class U2GModel(Model) : # Model
         Calculate and return the highest possible undiscounted return
         :return:
         """
+
 
     def is_terminal(self, state):
         """

@@ -18,7 +18,7 @@ class DiscreteActionMapping(ActionMapping):
         self.pool = discrete_action_pool
         self.number_of_bins = self.pool.all_actions.__len__()
         self.entries = {}   # Dictionary of DiscreteActionMappingEntry objects -> length is number of count of action
-        self.number_of_children = 0
+        self.number_of_children = 0 # number of action nodes
         self.total_visit_count = 0
 
 

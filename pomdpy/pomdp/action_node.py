@@ -13,6 +13,7 @@ class ActionNode(object):
         else:
             self.parent_entry = None
         self.observation_map = None
+        self.total_visit_count = 0
 
     def get_parent_belief(self):
         return self.parent_entry.get_mapping().get_owner()
@@ -20,6 +21,21 @@ class ActionNode(object):
     # Returns a specific child belief node given the observation
     def get_child(self, obs):
         return self.observation_map.get_belief(obs)
+
+    def get_child_entry(self, obs):
+        return self.observation_map.get_entry(obs)
+
+    def get_child_all_entries(self):
+        return self.observation_map.get_child_entries()
+
+    def get_count_child(self):
+        return self.observation_map.get_number_child_entries()
+
+    def get_visit_count(self):
+        return self.total_visit_count
+
+    def get_visit_count_obs(self):
+        return self.observation_map.get_visit_count()
 
     # -------------- internal methods ---------------- #
 
@@ -37,5 +53,6 @@ class ActionNode(object):
             added = True
         return child_node, added
 
-
+    def update_visit_count(self, delta_n_visits):
+        self.total_visit_count +=delta_n_visits
 

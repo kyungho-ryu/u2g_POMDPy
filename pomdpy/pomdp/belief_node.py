@@ -80,16 +80,63 @@ class BeliefNode(object):
         else:
             return None
 
+    def get_number_observation(self, action):
+        actionNode = self.action_map.get_action_node(action)
+        if actionNode is not None:
+            return actionNode.get_count_child()
+        else :
+            return 0
+
+    def get_visit_count_observation(self, action):
+        actionNode = self.action_map.get_action_node(action)
+        if actionNode is not None:
+            return actionNode.get_visit_count()
+        else:
+            return 0
+    def get_visit_count_specific_observation(self, action, obs):
+        actionNode = self.action_map.get_action_node(action)
+        if actionNode is not None:
+            total_visit_count = actionNode.get_visit_count_obs()
+            child_node = actionNode.get_child_entry(obs)
+            if child_node is not None:
+                    obs_visit_count = child_node.get_visit_count()
+
+                    return obs_visit_count, total_visit_count
+        else :
+            return None
+
+    def get_child_obs_entries(self, action):
+        actionNode = self.action_map.get_action_node(action)
+
+        if actionNode is not None:
+            return actionNode.get_child_all_entries()
+
+    def update_visit_count_observation(self, action, delta_n_visits):
+        actionNode = self.action_map.get_action_node(action)
+
+        if actionNode is not None:
+            actionNode.update_visit_count(delta_n_visits)
+
+    def update_visit_count_specific_observation(self, action, obs, delta_n_visits):
+        actionNode = self.action_map.get_action_node(action)
+
+        if actionNode is not None:
+            child_node = actionNode.get_child_entry(obs)
+            if child_node is not None:
+                    child_node.update_visit_count(delta_n_visits)
+
+
+
     def child(self, action, obs):
         node = self.action_map.get_action_node(action)  # DiscreteActionMapping()
         if node is not None:
             child_node = node.get_child(obs)
             if child_node is None:
-                return None
+                return None, "NOOBS"
             child_node.data.update(child_node.get_parent_belief())
-            return child_node
+            return child_node, "OBS"
         else:
-            return None
+            return None, "NOACTION"
 
     # ----------- Core Methods -------------- #
 

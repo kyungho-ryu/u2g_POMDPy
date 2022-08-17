@@ -43,7 +43,7 @@ def action_progWiden(mcts, current_node, temp_action, k, alpha):
     if mapping.get_number_of_action() <= k * (mapping.total_visit_count**alpha) :
 
         action, C, N =  mapping.create_current_action_node(temp_action)
-        return action, C, N
+        return action, C, N, "Create New action"
     else :
         best_actions = []
         N = mapping.total_visit_count
@@ -68,7 +68,7 @@ def action_progWiden(mcts, current_node, temp_action, k, alpha):
         assert best_actions.__len__() is not 0
 
         action = random.choice(best_actions)
-        return action, mapping.get_number_of_action(), N
+        return action, mapping.get_number_of_action(), N, "Select action according to Value function"
 
 def e_greedy(current_node, epsilon):
     best_actions = []

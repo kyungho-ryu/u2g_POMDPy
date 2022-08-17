@@ -138,9 +138,6 @@ class SLModel :
             result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
 
         else :
-            if k != args[0][4] :
-                print("wksdlfksdf")
-                exit()
             result = self.prediction_probabilistic_next_states(
                 args[0][2], MConfig.theta, args[0][0], args[0][1], args[0][3], args[0][4], id)
 
@@ -178,7 +175,6 @@ class SLModel :
         self.tg.add_new_trajectory(coordinate, mo.current_loc, mo.id, mo.current_t)
         mo.update_location(_coordinate, coordinate)
         self.traj[id].update_time(update_time)
-
 
 
     def test(self, ro, own_id, t0Loc):
@@ -237,10 +233,6 @@ class SLModel :
                         self.logger.error("not path : {}".format(ro))
                         self.logger.error("not t0Loc : {}".format(t0Loc))
                         self.test(ro, id,self.MOS[id].backward_traj[-1])
-                        # for k1, v1 in S.states.items() :
-                        #     self.logger.error("K : {}".format(k1))
-                        #     for k2, v2 in S.states[k1].items() :
-                        #         self.logger.error("test2 :{}/{}".format(k2, v2.currentRO))
 
                         continue
 

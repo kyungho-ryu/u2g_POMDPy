@@ -23,6 +23,7 @@ class DiscreteObservationMap(ObservationMapping):
         else:
             return entry.child_node
 
+
     def create_belief(self, disc_observation):
         entry = DiscreteObservationMapEntry()
         entry.map = self
@@ -42,6 +43,9 @@ class DiscreteObservationMap(ObservationMapping):
             return_entries.append(self.child_map.get(key))
         return return_entries
 
+    def get_number_child_entries(self):
+        return len(self.child_map)
+
     def get_entry(self, obs):
         for i in list(self.child_map.values()):
             if obs == i.observation:
@@ -50,6 +54,9 @@ class DiscreteObservationMap(ObservationMapping):
 
     def get_key(self, obs):
         return hashlib.sha256(str(obs).encode()).hexdigest()
+
+    def get_visit_count(self):
+        return self.total_visit_count
 
 class DiscreteObservationMapEntry(ObservationMappingEntry):
     """
@@ -69,8 +76,9 @@ class DiscreteObservationMapEntry(ObservationMappingEntry):
     def get_observation(self):
         return self.observation.copy()
 
+    def get_visit_count(self):
+        return self.visit_count
+
     def update_visit_count(self, delta_n_visits):
         self.visit_count += delta_n_visits
         self.map.total_visit_count += delta_n_visits
-
-
