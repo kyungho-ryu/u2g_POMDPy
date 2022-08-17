@@ -53,6 +53,8 @@ class BeliefTreeSolver(Solver):
             self.model.reset_for_simulation()
             self.simulate(self.belief_tree_index, eps, start_time)
 
+
+
     @abc.abstractmethod
     def simulate(self, belief, eps, start_time):
         """
@@ -64,7 +66,7 @@ class BeliefTreeSolver(Solver):
         """
 
     @abc.abstractmethod
-    def select_eps_greedy_action(self, eps, start_time):
+    def select_eps_greedy_action(self,epoch,step, eps, start_time):
         """
         Call methods specific to the implementation of the solver
         to select an action

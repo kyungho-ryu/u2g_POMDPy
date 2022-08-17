@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Set the run parameters.')
     parser.add_argument('--env', type=str, help='Specify the env to solve')
-    parser.add_argument('--solver', default='POMCP', type=str,
+    parser.add_argument('--solver', default='POMCP-DPW', type=str,
                         help='Specify the solver to use {POMCP}')
     parser.add_argument('--seed', default=1993, type=int, help='Specify the random seed for numpy.random')
     parser.add_argument('--use_tf', dest='use_tf', action='store_true', help='Set if using TensorFlow')
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--NN', default=False, type=bool, help='apply neural network for action selection ')
 
     # Progressive Widening
-    parser.add_argument('--DPW', default=True, type=bool, help='apply progrssive widening for action and observation')
+    parser.add_argument('--DPW', type=bool, help='apply progrssive widening for action and observation')
     parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')
     parser.add_argument('--pw_a_alpha', default=0.5, type=float, help='coefficient for progrssive widening in action')
     parser.add_argument('--pw_o_k', default=1, type=int, help='coefficient for progrssive widening in observation')
@@ -63,10 +63,13 @@ if __name__ == '__main__':
 
     np.random.seed(args['seed'])
 
-    if not args['solver'] == 'POMCP':
-        raise ValueError('solver not supported')
-    else:
-        solver = POMCP
+    if args['solver'] == "POMCP-DPW" :
+        args["DPW"] = True
+    else :
+        args["DPW"] = False
+
+    solver = POMCP
+
     if args['env'] == 'U2GModel':
         env = U2GModel(args)
         env.draw_env()

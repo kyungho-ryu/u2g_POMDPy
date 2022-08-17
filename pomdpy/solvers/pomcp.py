@@ -4,7 +4,7 @@ from builtins import range
 from past.utils import old_div
 import time, logging
 import numpy as np
-from pomdpy.util import console
+from pomdpy.util import console, summary
 from pomdpy.action_selection import ucb_action, action_progWiden
 from .belief_tree_solver import BeliefTreeSolver
 
@@ -69,7 +69,7 @@ class POMCP(BeliefTreeSolver):
         else:
             return self.model.ucb_coefficient * np.sqrt(old_div(log_n, action_map_entry_visit_count))
 
-    def select_eps_greedy_action(self, eps, start_time):
+    def select_eps_greedy_action(self,epoch,step, eps, start_time):
         """
         Starts off the Monte-Carlo Tree Search and returns the selected action. If the belief tree
                 data structure is disabled, random rollout is used.
@@ -78,6 +78,9 @@ class POMCP(BeliefTreeSolver):
             self.rollout_search(self.belief_tree_index)
         else:
             self.monte_carlo_approx(eps, start_time)
+
+        summary.summary_simulationResult(self.model.writer, self.belief_tree_index, epoch+step)
+
         return ucb_action(self, self.belief_tree_index, True)
 
     def simulate(self, belief_node, eps, start_time):   # not use eps
@@ -159,7 +162,7 @@ class POMCP(BeliefTreeSolver):
         child_belief_node, ChildStatus = belief_node.child(action, step_result.observation)
         self.logger.info("Status : {}".format(ChildStatus))
 
-        if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count > 0:
+        if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
             child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
 
         if not step_result.is_terminal or not is_legal:

@@ -43,6 +43,12 @@ class DiscreteObservationMap(ObservationMapping):
             return_entries.append(self.child_map.get(key))
         return return_entries
 
+    def get_child_nodes(self):
+        return_nodes = []
+        for key in list(self.child_map.keys()):
+            return_nodes.append(self.child_map.get(key).child_node)
+        return return_nodes
+
     def get_number_child_entries(self):
         return len(self.child_map)
 

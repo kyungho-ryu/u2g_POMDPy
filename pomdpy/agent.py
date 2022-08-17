@@ -137,7 +137,7 @@ class Agent:
             # Reset the epoch stats
             self.results = Results()
 
-            if self.model.solver == 'POMCP':
+            if self.model.solver == 'POMCP-DPW':
                 eps = self.run_pomcp(i + 1, eps)
                 self.model.reset_for_epoch()
 
@@ -169,7 +169,7 @@ class Agent:
             start_time = time.time()
 
             # action will be of type Discrete Action
-            action = solver.select_eps_greedy_action(eps, start_time)
+            action = solver.select_eps_greedy_action(epoch, i, eps, start_time)
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action))
             exit()
 

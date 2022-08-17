@@ -28,6 +28,8 @@ class ActionNode(object):
     def get_child_all_entries(self):
         return self.observation_map.get_child_entries()
 
+    def get_child_all_nodes(self):
+        return self.observation_map.get_child_nodes()
     def get_count_child(self):
         return self.observation_map.get_number_child_entries()
 

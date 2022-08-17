@@ -3,6 +3,7 @@ from builtins import object
 import abc
 import random
 from future.utils import with_metaclass
+from tensorboardX import SummaryWriter
 import pprint
 import os
 
@@ -32,23 +33,34 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         pp(args)
 
         my_dir = os.path.dirname(__file__)
-        self.weight_dir = os.path.join(my_dir, '..', '..', 'experiments', 'pickle_jar')
-        self.ckpt_dir = os.path.join(my_dir, '..', '..', 'experiments', 'checkpoints')
+        # self.weight_dir = os.path.join(my_dir, '..', '..', 'experiments', 'pickle_jar')
+        # self.ckpt_dir = os.path.join(my_dir, '..', '..', 'experiments', 'checkpoints')
         self.logs = os.path.join(my_dir, '..', '..', 'experiments', 'tensorboard')
 
         # TODO: More elegant naming convention for experiments
         if not os.path.exists(self.logs):
             os.makedirs(self.logs)
 
+        self.logs = os.path.join(self.logs, args["solver"])
+        if not os.path.exists(self.logs):
+            os.makedirs(self.logs)
+
+        parms = str([args['pw_a_k'], args['pw_a_alpha'], args['pw_o_k'], args['pw_o_alpha']])
+        self.logs = os.path.join(self.logs, parms)
+        if not os.path.exists(self.logs):
+            os.makedirs(self.logs)
+
         count = len(os.listdir(self.logs))
         self.logs = os.path.join(self.logs, str(count))
 
-        if not os.path.exists(self.weight_dir):
-            os.makedirs(self.weight_dir)
-        if not os.path.exists(self.ckpt_dir):
-            os.makedirs(self.ckpt_dir)
+        # if not os.path.exists(self.weight_dir):
+        #     os.makedirs(self.weight_dir)
+        # if not os.path.exists(self.ckpt_dir):
+        #     os.makedirs(self.ckpt_dir)
         if not os.path.exists(self.logs):
             os.makedirs(self.logs)
+
+        self.writer = SummaryWriter(self.logs)
 
     @abc.abstractmethod
     def reset_for_simulation(self):
