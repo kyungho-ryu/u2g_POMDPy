@@ -27,3 +27,4 @@ def init_logger():
     # add a handler to the logger
     my_logger.addHandler(my_handler)
     my_logger.addHandler(sys_handler)
+

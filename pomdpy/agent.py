@@ -4,7 +4,7 @@ import logging
 import os
 from pomdpy.pomdp import Statistic
 from pomdpy.pomdp.history import Histories, HistoryEntry
-from pomdpy.util import console, print_divider
+from pomdpy.util import console, print_divider, summary
 from experiments.scripts.pickle_wrapper import save_pkl
 
 module = "agent"
@@ -24,6 +24,7 @@ class Agent:
         :return:
         """
         self.logger = logging.getLogger('POMDPy.Solver')
+        self.logger.setLevel(logging.INFO)
         self.model = model
         self.results = Results()
         self.experiment_results = Results()
@@ -132,13 +133,13 @@ class Agent:
     def multi_epoch(self):
         eps = self.model.epsilon_start
         self.model.reset_for_epoch()
-
+        steps = 1
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()
 
             if self.model.solver == 'POMCP-DPW':
-                eps = self.run_pomcp(i + 1, eps)
+                eps, steps = self.run_pomcp(i + 1, eps, steps)
                 self.model.reset_for_epoch()
 
             if self.experiment_results.time.running_total > self.model.timeout:
@@ -146,7 +147,7 @@ class Agent:
                         self.experiment_results.time.running_total + ' seconds')
                 break
 
-    def run_pomcp(self, epoch, eps):
+    def run_pomcp(self, epoch, eps, steps):
         epoch_start = time.time()
         # Create a new solver, purune belief tree
         solver = self.solver_factory(self)
@@ -163,22 +164,29 @@ class Agent:
         discounted_reward = 0
         discount = 1.0
 
+        print_divider('large')
+        print('\tEpoch #' + str(epoch))
+
         # episode start
         for i in range(self.model.max_steps):
             # state is changed
             start_time = time.time()
 
             # action will be of type Discrete Action
-            action = solver.select_eps_greedy_action(epoch, i, eps, start_time)
-            self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action))
-            exit()
+            print_divider('large')
+            print('\tStep #' + str(i) + ' simulation is working\n')
+
+            action = solver.select_eps_greedy_action(epoch, steps, eps, start_time)
+            print('\n')
+            self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action.UAV_deployment))
 
             # update epsilon
             if eps > self.model.epsilon_minimum:
                 eps *= self.model.epsilon_decay
 
             # state = not real state
-            step_result = self.model.generate_step(state, action)
+            step_result, is_legal = self.model.generate_step(state, action)
+
             reward += step_result.reward
             discounted_reward += discount * step_result.reward
 
@@ -191,12 +199,15 @@ class Agent:
             if not step_result.is_terminal:
                 solver.update(step_result)
 
-            exit()
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()
-            HistoryEntry.update_history_entry(new_hist_entry, step_result.reward,
-                                              step_result.action, step_result.observation, step_result.next_state)
+            HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
 
+            summary.summary_result(
+                self.model.writer, steps, reward, discounted_reward,
+                self.model.get_simulationResult(step_result.next_state), time.time()- epoch_start
+            )
+            steps +=1
             if step_result.is_terminal or not is_legal:
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
                 break
@@ -206,7 +217,7 @@ class Agent:
 
         # Pretty Print results
         # print_divider('large')
-        solver.history.show()
+        # solver.history.show()
         self.results.show(epoch)
         console(3, module, 'Total possible undiscounted return: ' + str(self.model.get_max_undiscounted_return()))
         print_divider('medium')
@@ -217,7 +228,7 @@ class Agent:
         self.experiment_results.discounted_return.count += (self.results.discounted_return.count - 1)
         self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
 
-        return eps
+        return eps, steps
 
     def run_value_iteration(self, solver, epoch):
         run_start_time = time.time()
@@ -283,7 +294,6 @@ class Agent:
         console(3, module, 'Step Result.Observation = ' + step_result.observation.to_string())
         # console(3, module, 'Step Result.Next_State = ' + step_result.next_state.to_string())
         console(3, module, 'Step Result.Reward = ' + str(step_result.reward))
-
 
 class Results(object):
     """

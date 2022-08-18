@@ -46,17 +46,28 @@ def summary_simulationResult(writer, beliefTree, epoch) :
 
     writer.add_scalar("depth", tree_depth, epoch)
 
-    actions = list(beliefTree.action_map.entries.values())
-    best_q_value = -np.inf
-    for action_entry in actions:
-        # Skip illegal actions
-        if not action_entry.is_legal:
-            continue
 
-        current_q = action_entry.mean_q_value
+def summary_result(writer, epoch, reward, discounted_reward, simulationResult, time) :
+    group = "Reward/"
+    writer.add_scalar(group+'R', reward, epoch)
+    writer.add_scalar(group+'discounted_R', discounted_reward, epoch)
 
-        if current_q >= best_q_value:
-            best_q_value = current_q
+    group = "Energy/"
+    writer.add_scalar(group + 'A2GEnergy', simulationResult[0], epoch)
+    writer.add_scalar(group + 'A2AEnergy', simulationResult[1], epoch)
+    writer.add_scalar(group + 'PropEnergy', simulationResult[2], epoch)
+
+    group = "TotalReward/"
+    writer.add_scalar(group + 'energy', simulationResult[3], epoch)
+    writer.add_scalar(group + 'dataRate', simulationResult[4], epoch)
+    writer.add_scalar(group + 'scaledEnergy', simulationResult[5], epoch)
+    writer.add_scalar(group + 'scaledDataRate', simulationResult[6], epoch)
 
 
-    writer.add_scalar("Q", best_q_value, epoch)
+    group = "UAV, GMU/"
+    writer.add_scalar(group + 'activeUav', simulationResult[7], epoch)
+    writer.add_scalar(group + 'observedGMU', simulationResult[8], epoch)
+
+    writer.add_scalar("Time", time, epoch)
+
+

@@ -8,7 +8,6 @@ def ucb_action(mcts, current_node, greedy):
     best_q_value = -np.inf
     mapping = current_node.action_map
 
-    print("mapping", mapping)
     N = mapping.total_visit_count
     log_n = np.log(N + 1)
 

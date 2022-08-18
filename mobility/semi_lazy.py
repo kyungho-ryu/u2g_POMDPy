@@ -1,16 +1,15 @@
 import pandas as pd
 from .trajectory_grid import TG
-from .SL_object import MO, State, Trajectory, GMU
+from .SL_object import MO, State, Trajectory
 from .mobility_config import MConfig
 from .utils import set_coordinate, get_cellCoordinate, get_cellIndex, get_state_transition_prob, create_random_position_in_cell, getGridIndex
 import logging, random, copy
 
 class SLModel :
-    def __init__(self, NumOfMO, cellWidth, USER_DEMAND, MAX_XGRID_N, exceptedID=-1):
+    def __init__(self, NumOfMO, cellWidth, MAX_XGRID_N, exceptedID=-1):
         self.logger = logging.getLogger('POMDPy.SLModel')
         self.logger.setLevel("INFO")
         self.traj = {}
-        # GMU' current location
 
         self.cellWidth = cellWidth
         self.MAX_XGRID_N = MAX_XGRID_N
@@ -22,13 +21,22 @@ class SLModel :
         # 4. TG AND UPDATE PROCESS
         self.tg = TG(self.logger)
         self.MOS = []
+        self.NumObservedGMU = 0
+        self.initialize(NumOfMO, exceptedID)
+
+        self.init_tg = copy.deepcopy(self.tg)
+        self.init_MOS = copy.deepcopy(self.MOS)
+
+
+
+    def initialize(self, NumOfMO, exceptedID):
         for i in range(NumOfMO) :
             if i == exceptedID :
                 continue
             file = "/home/kyungho/project/U2G_POMDPy/mobility/trajectory/MO" + str(i) +"_traj.csv"
 
             self.traj[i] = Trajectory(pd.read_csv(file))
-            mo = GMU("MO"+str(i), USER_DEMAND)
+            mo = MO("MO"+str(i))
             for j in range(0, MConfig.initialTrip*self.sampling_interval, self.sampling_interval) :
                 self.update_trajectory(mo, i, j)
 
@@ -41,16 +49,19 @@ class SLModel :
             file = "/home/kyungho/project/U2G_POMDPy/mobility/trajectory/MO" + str(i) +"_traj.csv"
 
             self.traj[i] = Trajectory(pd.read_csv(file))
-            mo = GMU("MO"+str(i), USER_DEMAND)
+            mo = MO("MO"+str(i))
             for j in range(0, MConfig.BatchInitialTrip*self.sampling_interval, self.sampling_interval) :
                 self.update_trajectory(mo, i, j)
 
             self.logger.debug("GMU {}' trajectory updated until {} steps".format(i, self.traj[i].updated_time))
             self.MOS.append(mo)
 
+    def reset(self):
+        self.tg = copy.deepcopy(self.init_tg)
+        self.MOS = copy.deepcopy(self.init_MOS)
 
     def update_gmu_location(self, id, uavStatus):
-        cellCoordinate = self.MOS[id].get_current_loc()
+        cellCoordinate = self.MOS[id].get_cell_location()
 
         if uavStatus[cellCoordinate[1]][cellCoordinate[0]] == 0 :
             if self.MOS[id].observed == True :
@@ -67,9 +78,9 @@ class SLModel :
                 elif result[5] == True :
                     pass
                 else :
-                    self.MOS[id].set_prediction(result[0], result[2], result[3], result[4])
+                    self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
             else :
-                S, RO, eta, k, t0Loc = self.MOS[id].get_mobility_model()
+                S, t0Loc, RO, eta, k = self.MOS[id].get_mobility_model()
                 result = self.prediction_probabilistic_next_states(RO, MConfig.theta, t0Loc, S, eta, k)
 
                 if result == [] :
@@ -78,7 +89,7 @@ class SLModel :
                 elif result[5] == True :
                     pass
                 else :
-                    self.MOS[id].set_prediction(result[0], result[2], result[3], result[4])
+                    self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
 
             # create a random position corresponding its cell
             next_loc = create_random_position_in_cell(result[1][0], result[1][1], self.cellWidth)
@@ -101,25 +112,107 @@ class SLModel :
 
             return self.MOS[id].id, self.MOS[id].get_location(), True, None
 
-    def get_init_gmu_locIndex(self, id):
-        if self.MOS[id].observed == True :
-            xC, yC = self.MOS[id].get_current_loc()
-            index = getGridIndex(xC, yC, self.MAX_XGRID_N)
+    def create_gmu_for_simulation(self, id, uavStatus):
+        cellCoordinate = self.MOS[id].get_cell_location()
 
-            return index, self.MOS[id].get_location(), True, None
-        else :
+        if uavStatus[cellCoordinate[1]][cellCoordinate[0]] == 0 :
             t0Loc = self.MOS[id].backward_traj[-1]
             ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
             S = State()
             eta = 1
-            k = 1
+            k=1
+            result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
+
+            if result == [] :
+                self.logger.error("There are no path of GMU [{}]".format(id))
+                return -1, -1, -1, -1
+            elif result[5] == True :
+                self.logger.error("There are no next path of GMU [{}]".format(id))
+                return -1, -1, -1, -1
+            else:
+                self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
+
+            # create a random position corresponding its cell
+            next_loc = create_random_position_in_cell(result[1][0], result[1][1], self.cellWidth)
+
+            self.logger.debug("[{}]' trajectory is predictied : {}".format(self.MOS[id].id, next_loc))
+            return self.MOS[id].id, next_loc, False, result
+        else :
+            update_time = self.traj[id].updated_time + self.sampling_interval
+            self.update_trajectory(self.MOS[id], id, update_time)
+            self.NumObservedGMU +=1
+            self.logger.debug("[{}]' trajectory is updated : {}".format(self.MOS[id].id, self.MOS[id].get_location()))
+
+            return self.MOS[id].id, self.MOS[id].get_location(), True, None
+
+    def update_gmu_for_simulation(self, id, uavStatus):
+        self.NumObservedGMU = 0
+
+        update_time = self.traj[id].updated_time + self.sampling_interval
+        actual_next_loc = self.get_traj(id, update_time)
+
+        if uavStatus[actual_next_loc[1][1]][actual_next_loc[1][0]] == 0 :
+            if self.MOS[id].observed == True :
+                t0Loc = self.MOS[id].backward_traj[-1]
+                ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
+                S = State()
+                eta = 1
+                k=1
+                result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
+
+                if result == [] :
+                    self.logger.error("There is no path of GMU [{}]".format(id))
+                elif result[5] == True :
+                    self.logger.error("There are no next path of GMU [{}]".format(id))
+                else :
+                    self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
+            else :
+                S, t0Loc, RO, eta, k = self.MOS[id].get_mobility_model()
+                result = self.prediction_probabilistic_next_states(RO, MConfig.theta, t0Loc, S, eta, k)
+
+                if result == [] :
+                    self.logger.error("There is no path of GMU [{}]".format(id))
+                elif result[5] == True :
+                    self.logger.error("There are no next path of GMU [{}]".format(id))
+                else :
+                    self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
+        else :
+            self.NumObservedGMU +=1
+            if self.MOS[id].observed == False:
+                for _ in range(self.MOS[id].k) :
+                    updated_time = self.traj[id].updated_time + self.sampling_interval
+                    self.update_trajectory(self.MOS[id], id, updated_time)
+
+                self.MOS[id].reset_prediction()
+
+            else :
+                self.update_trajectory(self.MOS[id], id, update_time)
+
+            self.logger.debug("[{}]' trajectory is updated : {}".format(self.MOS[id].id, self.MOS[id].get_location()))
+
+
+
+    def get_init_gmu_locIndex(self, id):
+        if self.MOS[id].observed == True :
+            xC, yC = self.MOS[id].get_cell_location()
+            index = getGridIndex(xC, yC, self.MAX_XGRID_N)
+
+            return index, self.MOS[id].get_location(), True, None
+        else :
+            S, t0Loc, ro, eta, k = self.MOS[id].get_mobility_model()
+            # t0Loc = self.MOS[id].backward_traj[-1]
+            # ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
+            # S = State()
+            # eta = 1
+            # k = 1
             result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
 
             if result == []:
-                self.logger.error("There is no path of GMU [{}]".format(id))
+                self.logger.error("There are no path of GMU [{}]".format(id))
                 return -1, -1, -1, -1
             elif result[5] == True:
-                pass
+                self.logger.error("There is no next path of GMU [{}]".format(id))
+                return -1, -1, -1, -1
             # create a random position corresponding its cell
             index = getGridIndex(result[1][0], result[1][1], self.MAX_XGRID_N)
 
@@ -127,6 +220,7 @@ class SLModel :
             next_loc = create_random_position_in_cell(result[1][0], result[1][1], self.cellWidth)
 
             return index, next_loc, False, result
+
 
     def get_gmu_locIndex(self, id, k, *args):
         if k==1 :
@@ -172,7 +266,7 @@ class SLModel :
         # if id == 3 :
         #     print("test", mo.current_t, mo.id, mo.current_loc, coordinate)
 
-        self.tg.add_new_trajectory(coordinate, mo.current_loc, mo.id, mo.current_t)
+        self.tg.add_new_trajectory(coordinate, mo.get_cell_location(), mo.id, mo.current_t)
         mo.update_location(_coordinate, coordinate)
         self.traj[id].update_time(update_time)
 
@@ -199,7 +293,7 @@ class SLModel :
         file = "/home/kyungho/project/POMDPy/mobility/trajectory/MO" + str(id) + "_traj.csv"
 
         self.traj[id] = Trajectory(pd.read_csv(file))
-        mo = GMU("MO" + str(id), 15)
+        mo = MO("MO" + str(id))
         for j in range(0, T * self.sampling_interval, self.sampling_interval):
             self.update_trajectory(mo, id, j)
 
@@ -414,3 +508,6 @@ class SLModel :
 
     def get_max_path(self):
         return MConfig.MaxPath +1
+
+    def get_num_observed_GMU(self):
+        return self.NumObservedGMU

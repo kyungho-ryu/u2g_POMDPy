@@ -8,7 +8,7 @@ from examples.u2g.u2g_observation import U2GObservation
 from examples.u2g.u2g_position_history import GMUData, PositionAndGMUData
 from examples.u2g.util import getA2ADist, getLocStat, getNgbCellAvail
 from examples.u2g.energy import calA2GCommEnergy, calA2ACommEnergy, calA2GMaxCommEnergy, calA2AMaxCommEnergy
-import logging, random
+import logging, random, copy
 
 from pomdpy.discrete_pomdp import DiscreteActionPool, DiscreteObservationPool
 
@@ -29,30 +29,27 @@ class U2GModel(Model) : # Model
         self.n_rows = int(Config.MAX_X/Config.GRID_W)
         self.n_cols = int(Config.MAX_Y/Config.GRID_W)
 
-        self.numUavs = 0
-        self.numGmus = 0
+        self.numUavs = Config.NUM_UAV
+        self.numGmus = Config.NUM_GMU
         self.uavs = []
-        self.gmus = []
+        # self.gmus = []
         self.uavStatus = {}
-        self.gmuStatus = {}
+        # self.gmuStatus = {}
         self.uavPosition = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]    # except gcc
+
+        # Uav object to keep the same position every epoch
+        self.init_uavs = []
 
         self.MaxEnergyConsumtion = 0
         self.MaxDnRate = 0
 
         # list of map
         self.env_map = []
-
         # Smart gmu data
         self.all_gmu_data = []
 
-        # Actual gmu states
-        # generate gmu according to deployment of UAV
-        # include both gmus with real position and gmus with predicted position
-        self.actual_gmu_states = []
-
         # Mobility model
-        self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.USER_DEMAND, Config.MAX_XGRID_N)
+        self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N)
 
         self.initialize()
 
@@ -66,7 +63,7 @@ class U2GModel(Model) : # Model
         self.generate_UAV()
         self.set_envMap()
 
-        self.generate_GMU()
+        # self.generate_GMU()
 
         self.MaxEnergyConsumtion = self.calcurate_max_uav_energy(Config.MAX_GRID_INDEX, Config.NUM_UAV)
         self.MaxDnRate = Config.USER_DEMAND * Config.NUM_GMU
@@ -86,16 +83,12 @@ class U2GModel(Model) : # Model
             return random.randint(0, MaxX), random.randint(0, MaxY)
 
     def generate_UAV(self):
-        uav_deployment = []
         for i in range(Config.NUM_UAV):
             x,y = self.generate_uav_with_duplication(Config.MAX_X-1, Config.MAX_Y-1)
-            self.uavs.append(UAV(self.numUavs, x,y, Config.HEIGHT))
+            self.uavs.append(UAV(i, x,y, Config.HEIGHT))
 
             cellIndex = self.getGridIndex(x, y)
-            self.set_UAV_position(self.numUavs, cellIndex)
-
-            self.numUavs += 1
-            uav_deployment.append(cellIndex)
+            self.set_UAV_position(i, cellIndex)
 
         self.logger.info("Create UAV :{}".format(self.numUavs))
 
@@ -110,6 +103,7 @@ class U2GModel(Model) : # Model
         self.updateCellInfo(self.uavs)
 
         self.initUAVLoc(self.uavs)  # grid center locating
+        self.init_uavs = copy.deepcopy(self.uavs)
 
         for uav in self.uavs:
             self.logger.debug("UAV'{} - loc(x,y), cell :{}".format(uav.id, uav.get_location()))
@@ -119,24 +113,23 @@ class U2GModel(Model) : # Model
         self.logger.debug("UAV is deployed in cells : {}".format([len(self.uavStatus[uav]) for uav in self.uavStatus]))
 
     def generate_GMU(self):
+
         # generate gmu according to deployment of UAV
         # include both gmus with real position and gmus with predicted position
         for i in range(Config.NUM_GMU):
-            id, coordinate, observed, SL_params = self.mobility_SLModel.update_gmu_location(self.numGmus, self.env_map)
+            id, coordinate, observed, SL_params = self.mobility_SLModel.create_gmu_for_simulation(i, self.env_map)
             self.gmus.append(GMU(id, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
 
-            self.numGmus += 1
-
-        self.logger.debug("Create GMU :{}".format(self.numGmus))
+        self.numGmus = Config.NUM_GMU
+        self.logger.info("Create GMU :{}".format(self.numGmus))
         # check cell location for uav, gmu
         self.updateCellInfo(self.gmus)
-
         for gmu in self.gmus:
             self.logger.debug("GMU'{} - loc(x,y), cell :{}".format(gmu.id, gmu.get_location()))
 
         # deployment status check
         self.gmuStatus = getLocStat(self.gmus, Config.MAX_GRID_INDEX)
-        self.logger.debug("Gmu is deployed in cells : {}".format([len(self.gmuStatus[gs]) for gs in self.gmuStatus]))
+        self.logger.info("Gmu is deployed in cells : {}".format([len(self.gmuStatus[gs]) for gs in self.gmuStatus]))
 
 
     def initUAVLoc(self, _luav):
@@ -158,6 +151,10 @@ class U2GModel(Model) : # Model
     def set_UAV_position(self, id, cell):
         self.uavPosition[id] = cell
 
+    def set_UAV_positions(self, uavs):
+        for uav in uavs :
+            if uav.bGateway : continue
+            self.uavPosition[uav.id] = uav.cell
 
     def set_envMap(self):
         envMap = []
@@ -429,8 +426,8 @@ class U2GModel(Model) : # Model
 
         return U2GAction(uav_deployment)
 
-    def sample_gmus(self):
-        return [len(self.gmuStatus[gs]) for gs in self.gmuStatus]
+    # def sample_gmus(self):
+    #     return [len(self.gmuStatus[gs]) for gs in self.gmuStatus]
 
     ''' ===================================================================  '''
     '''                 Implementation of abstract Model class               '''
@@ -443,8 +440,14 @@ class U2GModel(Model) : # Model
         """
 
     def reset_for_epoch(self):
-        self.actual_gmu_states = self.sample_gmus()
-        self.logger.info("Actual GMU states : {}".format(self.actual_gmu_states))
+        # reset UAV status to same init position
+        self.uavs = copy.deepcopy(self.init_uavs)
+        self.uavStatus = getLocStat(self.uavs, Config.MAX_GRID_INDEX)  # uav obj. per cell
+        self.set_UAV_positions(self.uavs)
+        self.set_envMap()
+
+        # reset GMU status
+        self.mobility_SLModel.reset()
 
     def update(self, sim_data):
         """
@@ -452,6 +455,19 @@ class U2GModel(Model) : # Model
         :param sim_data:
         :return:
         """
+        self.update_uavs_for_simulation(sim_data.next_state)
+        self.update_gmus_for_simulation()
+
+    def update_uavs_for_simulation(self, next_state):
+        self.uavs = copy.deepcopy(next_state.uavs)
+        self.uavStatus = copy.deepcopy(next_state.uavStatus)
+        self.uavPosition = copy.deepcopy(next_state.uav_position)
+        self.set_envMap()
+
+    def update_gmus_for_simulation(self):
+        for i in range(self.numGmus):
+            self.mobility_SLModel.update_gmu_for_simulation(i, self.env_map)
+
 
     def generate_step(self, state, action):
         """
@@ -477,6 +493,19 @@ class U2GModel(Model) : # Model
 
         return result, True
 
+    def generate_particles(self,  n_particles):
+        particles = []
+        for _ in range(n_particles) :
+            sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
+            gmus = []
+            for i in range(self.numGmus):
+                cellIndex, coordinate, observed, SL_params = self.mobility_SLModel.get_init_gmu_locIndex(i)
+                sample_states[cellIndex] += 1
+                gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
+
+            particles.append(U2GState(self.uavPosition, sample_states, self.uavs, gmus, False, True))
+        return particles
+
 
     # used for data in belief root node
     def create_root_historical_data(self, solver):
@@ -501,6 +530,14 @@ class U2GModel(Model) : # Model
         :param observation
         :return:
         """
+
+    def get_simulationResult(self, state):
+        totalEnergyConsumtion = state.totalA2GEnergy + state.totalA2AEnergy + state.totalPropEnergy
+        scaledEnergyConsumtion, scaledDnRate = self.norm_rewards(totalEnergyConsumtion, state.TotalDnRate)
+
+        return [state.totalA2GEnergy, state.totalA2AEnergy, state.totalPropEnergy, totalEnergyConsumtion,
+                state.TotalDnRate, scaledEnergyConsumtion, scaledDnRate,
+                len(state.activeUavsID), self.mobility_SLModel.get_num_observed_GMU()]
 
     def get_initial_belief_state(self):
         """

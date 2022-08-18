@@ -1,11 +1,14 @@
 from builtins import str
 from builtins import range
 import time
-import random
+import random, logging
 import abc
 from pomdpy.util import console
 from pomdpy.pomdp.belief_tree import BeliefTree
 from pomdpy.solvers import Solver
+from tqdm import tqdm
+import io
+
 
 module = "BeliefTreeSolver"
 
@@ -48,13 +51,12 @@ class BeliefTreeSolver(Solver):
         :param start_time
         :return:
         """
-        for i in range(self.model.n_sims): # default = 500
+        pbar = tqdm(range(self.model.n_sims), ncols=70)
+        for _ in pbar: # default = 500
             # Reset the Simulator
             self.model.reset_for_simulation()
             self.simulate(self.belief_tree_index, eps, start_time)
-
-
-
+            # pbar.set_postfix({'Simulation step ' : i})
     @abc.abstractmethod
     def simulate(self, belief, eps, start_time):
         """
@@ -181,16 +183,14 @@ class BeliefTreeSolver(Solver):
             num_to_add = self.model.max_particle_count - child_belief_node.state_particles.__len__()
 
             # Generate particles for the new root node
-            child_belief_node.state_particles += self.model.generate_particles(self.belief_tree_index, step_result.action,
-                                                                               step_result.observation, num_to_add,
-                                                                               self.belief_tree_index.state_particles)
+            child_belief_node.state_particles += self.model.generate_particles(num_to_add)
 
             # If that failed, attempt to create a new state particle set
-            if child_belief_node.state_particles.__len__() == 0:
-                child_belief_node.state_particles += self.model.generate_particles_uninformed(self.belief_tree_index,
-                                                                                              step_result.action,
-                                                                                              step_result.observation,
-                                                                                        self.model.min_particle_count)
+            # if child_belief_node.state_particles.__len__() == 0:
+            #     child_belief_node.state_particles += self.model.generate_particles_uninformed(self.belief_tree_index,
+            #                                                                                   step_result.action,
+            #                                                                                   step_result.observation,
+            #                                                                             self.model.min_particle_count)
 
         # Failed to continue search- ran out of particles
         if child_belief_node is None or child_belief_node.state_particles.__len__() == 0:
@@ -201,4 +201,5 @@ class BeliefTreeSolver(Solver):
         self.belief_tree_index = child_belief_node
         if prune:
             self.prune(self.belief_tree_index)
+
 

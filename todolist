@@ -1,5 +1,7 @@
-# should update u2g_state.copy()
-
+# need to remove old particles.
+ -> Solution
+    : particle should be implemented as dequeue(), which have small capacity
+    : and then, when real state transition is worked, oldest particles is get out.  (e.g., 5%. 10%)
 
 # POMDP
  - observation

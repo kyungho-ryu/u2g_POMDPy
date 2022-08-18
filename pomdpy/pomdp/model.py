@@ -230,7 +230,8 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         :return:
         """
 
-    def generate_particles(self, previous_belief, action, obs, n_particles, prev_particles):
+    @abc.abstractmethod
+    def generate_particles(self, n_particles):
         """
         Generates new state particles based on the state particles of the previous node,
         * as well as on the action and observation.
@@ -243,25 +244,39 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         :param n_particles:
         :return: list of particles
         """
-        particles = []
-        action_node = previous_belief.action_map.get_action_node(action)
-        if action_node is None:
-            return particles
-        else:
-            obs_map = action_node.observation_map
-        child_node = obs_map.get_belief(obs)
 
-        while particles.__len__() < n_particles:
-            # sample a random particle
-            state = random.choice(prev_particles)
-
-            # Now generate a step in the model, and compare the observation to the actual observation.
-            # Note that this comparison is done implicitly via the observation mapping, to ensure
-            # that approximate observations are treated cleanly.
-            result, is_legal = self.generate_step(state, action)
-            if obs_map.get_belief(result.observation) is child_node:
-                particles.append(result.next_state)
-        return particles
+    # def generate_particles(self, previous_belief, action, obs, n_particles, prev_particles):
+    #     """
+    #     Generates new state particles based on the state particles of the previous node,
+    #     * as well as on the action and observation.
+    #     *
+    #     * The default implementation uses rejection sampling, but this can be overridden to provide
+    #     * a more efficient implementation.
+    #     :param previous_belief:
+    #     :param action:
+    #     :param obs:
+    #     :param n_particles:
+    #     :return: list of particles
+    #     """
+    #     particles = []
+    #     action_node = previous_belief.action_map.get_action_node(action)
+    #     if action_node is None:
+    #         return particles
+    #     else:
+    #         obs_map = action_node.observation_map
+    #     child_node = obs_map.get_belief(obs)
+    #
+    #     while particles.__len__() < n_particles:
+    #         # sample a random particle
+    #         state = random.choice(prev_particles)
+    #
+    #         # Now generate a step in the model, and compare the observation to the actual observation.
+    #         # Note that this comparison is done implicitly via the observation mapping, to ensure
+    #         # that approximate observations are treated cleanly.
+    #         result, is_legal = self.generate_step(state, action)
+    #         if obs_map.get_belief(result.observation) is child_node:
+    #             particles.append(result.next_state)
+    #     return particles
 
     def generate_particles_uninformed(self, previous_belief, action, obs, n_particles):
         """

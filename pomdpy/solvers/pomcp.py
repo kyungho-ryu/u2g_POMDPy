@@ -79,8 +79,7 @@ class POMCP(BeliefTreeSolver):
         else:
             self.monte_carlo_approx(eps, start_time)
 
-        summary.summary_simulationResult(self.model.writer, self.belief_tree_index, epoch+step)
-
+        summary.summary_simulationResult(self.model.writer, self.belief_tree_index, step)
         return ucb_action(self, self.belief_tree_index, True)
 
     def simulate(self, belief_node, eps, start_time):   # not use eps
@@ -97,7 +96,7 @@ class POMCP(BeliefTreeSolver):
 
         # choice random state from particles every simulation
         state = belief_node.sample_particle()
-        self.logger.info("depth : {} ================================================================".format(tree_depth))
+        self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
 
         # Time expired
@@ -118,7 +117,7 @@ class POMCP(BeliefTreeSolver):
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
-        self.logger.info(actionStatus)
+        self.logger.debug(actionStatus)
 
         # update visit count of child belief node
         N_O = belief_node.get_visit_count_observation(action)
@@ -145,7 +144,7 @@ class POMCP(BeliefTreeSolver):
         action_mapping_entry.update_visit_count(1)
         belief_node.update_visit_count_observation(action, 1)
 
-        self.logger.info("update total count of observation : {}".format(belief_node.get_visit_count_observation(action)))
+        self.logger.debug("update total count of observation : {}".format(belief_node.get_visit_count_observation(action)))
 
         action_mapping_entry.update_q_value(q_value)
         self.logger.debug(" Q value : {}".format(q_value))
@@ -153,14 +152,14 @@ class POMCP(BeliefTreeSolver):
         return q_value
 
     def create_new_step(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
-        self.logger.info("create new step")
+        self.logger.debug("create new step")
         step_result, is_legal = self.model.generate_step(state, action)
         self.logger.debug("observation : {}/{}".format(len(step_result.observation.observed_gmu_status),
                                                       step_result.observation.observed_gmu_status))
 
         # child belief node = observation
         child_belief_node, ChildStatus = belief_node.child(action, step_result.observation)
-        self.logger.info("Status : {}".format(ChildStatus))
+        self.logger.debug("Status : {}".format(ChildStatus))
 
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
             child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
@@ -181,14 +180,14 @@ class POMCP(BeliefTreeSolver):
 
         belief_node.update_visit_count_specific_observation(action, step_result.observation, 1)
 
-        self.logger.info("update visit count of specific observation : {}".format(
+        self.logger.debug("update visit count of specific observation : {}".format(
             belief_node.get_visit_count_specific_observation(action, step_result.observation)
         ))
 
         return step_result.reward, delayed_reward
 
     def select_existing_step(self, belief_node, tree_depth, action, start_time, delayed_reward):
-        self.logger.info("select existing step")
+        self.logger.debug("select existing step")
         obsEntries = belief_node.get_child_obs_entries(action)
 
         max = 0
@@ -204,7 +203,7 @@ class POMCP(BeliefTreeSolver):
 
         reward = self.model.get_reward(selected_next_state)
 
-        self.logger.info("the number of particles : {}".format(len(selected_entry.child_node.state_particles)))
+        self.logger.debug("the number of particles : {}".format(len(selected_entry.child_node.state_particles)))
         self.logger.debug("selected observation : {}".format(selected_obs.observed_gmu_status))
         self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
         self.logger.debug("reward : {}".format(reward))
