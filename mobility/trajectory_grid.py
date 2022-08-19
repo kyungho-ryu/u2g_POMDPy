@@ -1,4 +1,4 @@
-from .utils import FixSizeOrderedDict
+from .utils import FixSizeOrderedDict,get_id_of_gmu
 from .mobility_config import MConfig
 
 
@@ -31,7 +31,8 @@ class TG () :
                     if candidate ==[] or k in candidate :
                         if last_index :
                             candidateOBJ = k
-                            if MOS[int(k[0][-1])].get_current_time() < int(k[1]) + MConfig.Min_remaining_trajectory:
+                            id = get_id_of_gmu(k[0])
+                            if MOS[id].get_current_time() <= int(k[1]) + MConfig.Min_remaining_trajectory:
                                 continue
                         else :
                             candidateOBJ = k[0], k[1]+1
@@ -46,7 +47,6 @@ class TG () :
         for i in range(len(trajectories)) :
             referenceOBJs = (find_candidate_objs(id, trajectories[i], referenceOBJs, MOS, i==len(trajectories)-1))
             if referenceOBJs == [] : return referenceOBJs
-        
         return referenceOBJs
 
     def get_densityCell(self, traj):

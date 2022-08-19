@@ -100,9 +100,9 @@ class POMCP(BeliefTreeSolver):
         self.logger.debug("state : {}".format(state.to_string()))
 
         # Time expired
-        if time.time() - start_time > self.model.action_selection_timeout:
-            console(4, module, "action selection timeout")
-            return 0
+        # if time.time() - start_time > self.model.action_selection_timeout:
+        #     console(4, module, "action selection timeout")
+        #     return 0
 
         # Search horizon reached
         if tree_depth >= self.model.max_depth:  # default = 100

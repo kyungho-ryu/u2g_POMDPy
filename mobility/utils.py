@@ -45,6 +45,8 @@ def get_state_transition_prob(previousRO, currentRO) :
 
     return union, intersection, state_transition_prob
 
+def get_id_of_gmu(ro) :
+    return int(ro[2:])
 
 def create_random_position_in_cell(x,y, cellWidth) :
     x = random.randint(cellWidth*x+1, cellWidth*(x+1)-1)
@@ -54,3 +56,4 @@ def create_random_position_in_cell(x,y, cellWidth) :
 
 def getGridIndex(_x, _y, MAX_XGRID_N):
     return _y * MAX_XGRID_N + _x
+

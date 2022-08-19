@@ -2,7 +2,7 @@ import pandas as pd
 from .trajectory_grid import TG
 from .SL_object import MO, State, Trajectory
 from .mobility_config import MConfig
-from .utils import set_coordinate, get_cellCoordinate, get_cellIndex, get_state_transition_prob, create_random_position_in_cell, getGridIndex
+from .utils import set_coordinate, get_cellCoordinate, get_cellIndex, get_state_transition_prob, create_random_position_in_cell, getGridIndex, get_id_of_gmu
 import logging, random, copy
 
 class SLModel :
@@ -22,8 +22,10 @@ class SLModel :
         self.tg = TG(self.logger)
         self.MOS = []
         self.NumObservedGMU = 0
+        self.NumGMU = NumOfMO
         self.initialize(NumOfMO, exceptedID)
 
+        self.init_traj = copy.deepcopy(self.traj)
         self.init_tg = copy.deepcopy(self.tg)
         self.init_MOS = copy.deepcopy(self.MOS)
 
@@ -56,61 +58,14 @@ class SLModel :
             self.logger.debug("GMU {}' trajectory updated until {} steps".format(i, self.traj[i].updated_time))
             self.MOS.append(mo)
 
-    def reset(self):
+    def reset(self, uavStatus):
         self.tg = copy.deepcopy(self.init_tg)
         self.MOS = copy.deepcopy(self.init_MOS)
+        self.traj = copy.deepcopy(self.init_traj)
 
-    def update_gmu_location(self, id, uavStatus):
-        cellCoordinate = self.MOS[id].get_cell_location()
+        for i in range(self.NumGMU) :
+            self.create_gmu_for_simulation(i, uavStatus)
 
-        if uavStatus[cellCoordinate[1]][cellCoordinate[0]] == 0 :
-            if self.MOS[id].observed == True :
-                t0Loc = self.MOS[id].backward_traj[-1]
-                ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
-                S = State()
-                eta = 1
-                k=1
-                result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
-
-                if result == [] :
-                    self.logger.error("There is no path of GMU [{}]".format(id))
-                    return -1, -1, -1, -1
-                elif result[5] == True :
-                    pass
-                else :
-                    self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
-            else :
-                S, t0Loc, RO, eta, k = self.MOS[id].get_mobility_model()
-                result = self.prediction_probabilistic_next_states(RO, MConfig.theta, t0Loc, S, eta, k)
-
-                if result == [] :
-                    self.logger.error("There is no path of GMU [{}]".format(id))
-                    return -1, -1, -1, -1
-                elif result[5] == True :
-                    pass
-                else :
-                    self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
-
-            # create a random position corresponding its cell
-            next_loc = create_random_position_in_cell(result[1][0], result[1][1], self.cellWidth)
-
-            self.logger.debug("[{}]' trajectory is predictied : {}".format(self.MOS[id].id, next_loc))
-            return self.MOS[id].id, next_loc, False, result
-        else :
-            if self.MOS[id].observed == False:
-                for _ in range(self.MOS[id].k) :
-                    updated_time = self.traj[id].updated_time + self.sampling_interval
-                    self.update_trajectory(self.MOS[id], id, updated_time)
-
-                self.MOS[id].reset_prediction()
-
-            else :
-                update_time = self.traj[id].updated_time + self.sampling_interval
-                self.update_trajectory(self.MOS[id], id, update_time)
-
-            self.logger.debug("[{}]' trajectory is updated : {}".format(self.MOS[id].id, self.MOS[id].get_location()))
-
-            return self.MOS[id].id, self.MOS[id].get_location(), True, None
 
     def create_gmu_for_simulation(self, id, uavStatus):
         cellCoordinate = self.MOS[id].get_cell_location()
@@ -144,6 +99,7 @@ class SLModel :
             self.logger.debug("[{}]' trajectory is updated : {}".format(self.MOS[id].id, self.MOS[id].get_location()))
 
             return self.MOS[id].id, self.MOS[id].get_location(), True, None
+
 
     def update_gmu_for_simulation(self, id, uavStatus):
         self.NumObservedGMU = 0
@@ -208,10 +164,11 @@ class SLModel :
             result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
 
             if result == []:
-                self.logger.error("There are no path of GMU [{}]".format(id))
+                self.logger.error("There are no path of GMU [{}], {}".format(id, k))
                 return -1, -1, -1, -1
             elif result[5] == True:
-                self.logger.error("There is no next path of GMU [{}]".format(id))
+                self.logger.error("There is no next path of GMU [{}] at k {}".format(id, k))
+                self.logger.error("result : {}".format(result))
                 return -1, -1, -1, -1
             # create a random position corresponding its cell
             index = getGridIndex(result[1][0], result[1][1], self.MAX_XGRID_N)
@@ -233,10 +190,12 @@ class SLModel :
 
         else :
             result = self.prediction_probabilistic_next_states(
-                args[0][2], MConfig.theta, args[0][0], args[0][1], args[0][3], args[0][4], id)
+                args[0][2], MConfig.theta, args[0][0], args[0][1], args[0][3], args[0][4])
 
         if result == [] :
             self.logger.info("ID :{}', There are no trajectories in having RO : {}".format(id, k))
+            print("ro", ro)
+            print("to", t0Loc)
             return -1, -1, -1, -1
 
         # create a random position corresponding its cell
@@ -262,33 +221,31 @@ class SLModel :
         if coordinate == -1:
             self.logger.error("over coordinate :", _coordinate)
             exit()
-        #
-        # if id == 3 :
-        #     print("test", mo.current_t, mo.id, mo.current_loc, coordinate)
 
         self.tg.add_new_trajectory(coordinate, mo.get_cell_location(), mo.id, mo.current_t)
         mo.update_location(_coordinate, coordinate)
         self.traj[id].update_time(update_time)
 
 
-    def test(self, ro, own_id, t0Loc):
-        id = int(ro[0][-1])
-        update_time = int(ro[1])
-        print(self.MOS[id].current_t)
+    # def test(self, ro, own_id, t0Loc):
+    #     id = int(ro[0][-1])
+    #     update_time = int(ro[1])
+    #     print(self.MOS[id].current_t)
+    #
+    #     prior_ro = ro[0], ro[1] -1
+    #     print("prior ro", prior_ro)
+    #     # print(self.get_reference_objects(own_id, self.MOS[own_id].backward_traj))
+    #     x, y = self.tg.leafCells[t0Loc].trajectories[prior_ro].get_loc()
+    #     print("x, y", x, y)
+    #
+    #     if ro in self.tg.leafCells[(x, y)].trajectories :
+    #         print("??")
+    #     else :
+    #         print(self.tg.leafCells[(x, y)].trajectories.keys())
+    #         print("XX")
+    #     print(self.tg.leafCells[t0Loc].trajectories.keys())
+    #     exit()
 
-        prior_ro = ro[0], ro[1] -1
-        print("prior ro", prior_ro)
-        # print(self.get_reference_objects(own_id, self.MOS[own_id].backward_traj))
-        x, y = self.tg.leafCells[t0Loc].trajectories[prior_ro].get_loc()
-        print("x, y", x, y)
-
-        if ro in self.tg.leafCells[(x, y)].trajectories :
-            print("??")
-        else :
-            print(self.tg.leafCells[(x, y)].trajectories.keys())
-            print("XX")
-        print(self.tg.leafCells[t0Loc].trajectories.keys())
-        exit()
     def test_update_trajectory(self, id, T):
         file = "/home/kyungho/project/POMDPy/mobility/trajectory/MO" + str(id) + "_traj.csv"
 
@@ -310,7 +267,7 @@ class SLModel :
 
     # Probabilistic Path Prediction Alogorithm
     # 6. PF AND CONSTRUCTION PROCESS
-    def prediction_probabilistic_next_states(self, RO, theta, t0Loc, _S, eta, k, id=-1) :
+    def prediction_probabilistic_next_states(self, RO, theta, t0Loc, _S, eta, k) :
         S = copy.deepcopy(_S)
         Length_init_RO = len(RO)
         if len(RO)<= 0 :
@@ -322,11 +279,9 @@ class SLModel :
             if eta > theta and k < self.get_max_path() :
                 for ro in RO :
                     if ro not in self.tg.leafCells[t0Loc].trajectories :
-                        self.logger.error("{}, {}".format(id, self.MOS[id].backward_traj[-1]))
                         self.logger.error("Current k: {}".format(k))
                         self.logger.error("not path : {}".format(ro))
                         self.logger.error("not t0Loc : {}".format(t0Loc))
-                        self.test(ro, id,self.MOS[id].backward_traj[-1])
 
                         continue
 
@@ -354,12 +309,23 @@ class SLModel :
             self.logger.debug("previousRO : {}".format(previousRO))
 
             new_t0Loc, new_RO , new_eta = self.calcurate_eta(eta, Length_init_RO, previousRO, totalDensity, S, k)
-            is_terminal = self.check_having_trajectory_RO(new_t0Loc, new_RO)
+            is_terminal = self.check_having_trajectory_RO(new_t0Loc, new_RO, k)
             return [S, new_t0Loc, new_RO , new_eta, k+1, is_terminal]
 
-    def check_having_trajectory_RO(self, loc, RO):
+    def check_having_trajectory_RO(self, loc, RO, k):
         for ro in RO :
             if ro not in self.tg.leafCells[loc].trajectories:
+                id = get_id_of_gmu(ro[0])
+                self.logger.error("don't have more trajectory : {} in {} at {}".format(ro, loc, k))
+                self.logger.error("t : {}".format(self.MOS[id].get_current_time()))
+                self.logger.error("t2 : {}".format(self.MOS[id].test))
+                self.logger.error("t3 : {}".format(self.MOS[id].test2))
+
+                for history in self.MOS[id].test :
+                    for new_ro in self.tg.leafCells[history].trajectories :
+                        if new_ro[0] == ro[0] and new_ro[1]>240:
+                            self.logger.error("t4 : {}/{}".format(new_ro, history))
+                # self.logger.error("t3 : {}".format(self.tg[))
                 return True
 
         return False
@@ -511,3 +477,12 @@ class SLModel :
 
     def get_num_observed_GMU(self):
         return self.NumObservedGMU
+
+    def get_gmu_env(self, Row, Column):
+        row = [0 for _ in range(Row)]
+        envMap = [row[:] for _ in range(Column)]
+        for i in range(self.NumGMU) :
+            x, y = self.MOS[i].get_cell_location()
+            envMap[y][x] +=1
+
+        return envMap

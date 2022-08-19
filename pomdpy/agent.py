@@ -142,10 +142,10 @@ class Agent:
                 eps, steps = self.run_pomcp(i + 1, eps, steps)
                 self.model.reset_for_epoch()
 
-            if self.experiment_results.time.running_total > self.model.timeout:
-                console(2, module, 'Timed out after ' + str(i) + ' epochs in ' +
-                        self.experiment_results.time.running_total + ' seconds')
-                break
+            # if self.experiment_results.time.running_total > self.model.timeout:
+            #     console(2, module, 'Timed out after ' + str(i) + ' epochs in ' +
+            #             self.experiment_results.time.running_total + ' seconds')
+            #     break
 
     def run_pomcp(self, epoch, eps, steps):
         epoch_start = time.time()
@@ -219,8 +219,8 @@ class Agent:
         # print_divider('large')
         # solver.history.show()
         self.results.show(epoch)
-        console(3, module, 'Total possible undiscounted return: ' + str(self.model.get_max_undiscounted_return()))
-        print_divider('medium')
+        #console(3, module, 'Total possible undiscounted return: ' + str(self.model.get_max_undiscounted_return()))
+        #print_divider('medium')
 
         self.experiment_results.time.add(self.results.time.running_total)
         self.experiment_results.undiscounted_return.count += (self.results.undiscounted_return.count - 1)

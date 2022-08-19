@@ -194,11 +194,11 @@ class U2GModel(Model) : # Model
 
         return totalEnergyConsumtion + totalDnRate
 
-    def draw_env(self):
-        self.logger.info("====U2G Network====")
-        for row in reversed(self.env_map) :
+    def draw_env(self, map, name):
+        self.logger.info("====U2G "+ name +" Deployment====")
+        for row in reversed(map) :
             self.logger.info("| {} |".format(row))
-        self.logger.info("===================")
+        self.logger.info("==========================")
 
 
     def make_next_state(self, state, action):
@@ -446,8 +446,12 @@ class U2GModel(Model) : # Model
         self.set_UAV_positions(self.uavs)
         self.set_envMap()
 
+        self.draw_env(self.env_map, "UAV")
+
         # reset GMU status
-        self.mobility_SLModel.reset()
+        self.mobility_SLModel.reset(self.env_map)
+        gmu_map = self.mobility_SLModel.get_gmu_env(Config.MAX_XGRID_N, Config.MAX_YGRID_N)
+        self.draw_env(gmu_map, "GMU")
 
     def update(self, sim_data):
         """
@@ -457,6 +461,8 @@ class U2GModel(Model) : # Model
         """
         self.update_uavs_for_simulation(sim_data.next_state)
         self.update_gmus_for_simulation()
+
+
 
     def update_uavs_for_simulation(self, next_state):
         self.uavs = copy.deepcopy(next_state.uavs)

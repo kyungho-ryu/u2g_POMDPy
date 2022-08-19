@@ -11,17 +11,17 @@ import numpy as np
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Set the run parameters.')
-    parser.add_argument('--env', type=str, help='Specify the env to solve')
+    parser.add_argument('--env', default="U2GModel", type=str, help='Specify the env to solve')
     parser.add_argument('--solver', default='POMCP-DPW', type=str,
                         help='Specify the solver to use {POMCP}')
     parser.add_argument('--seed', default=1993, type=int, help='Specify the random seed for numpy.random')
     parser.add_argument('--use_tf', dest='use_tf', action='store_true', help='Set if using TensorFlow')
     parser.add_argument('--discount', default=0.95, type=float, help='Specify the discount factor (default=0.95)')
-    parser.add_argument('--n_epochs', default=100, type=int, help='Num of epochs of the experiment to conduct')
+    parser.add_argument('--n_epochs', default=10000, type=int, help='Num of epochs of the experiment to conduct')
     parser.add_argument('--max_steps', default=200, type=int, help='Max num of steps per trial/episode/trajectory/epoch')
     parser.add_argument('--save', dest='save', action='store_true', help='Pickle the weights/alpha vectors')
     parser.add_argument('--test', default=10, type=int, help='Evaluate the agent every `test` epochs')
-    parser.add_argument('--epsilon_start', default=0.5, type=float)
+    parser.add_argument('--epsilon_start', default=1, type=float)
     parser.add_argument('--epsilon_minimum', default=0.1, type=float)
     parser.add_argument('--epsilon_decay', default=0.95, type=float)
     parser.add_argument('--epsilon_decay_step', default=20, type=int)
@@ -72,7 +72,6 @@ if __name__ == '__main__':
 
     if args['env'] == 'U2GModel':
         env = U2GModel(args)
-        env.draw_env()
         agent = Agent(env, solver)
         agent.discounted_return()
     else:

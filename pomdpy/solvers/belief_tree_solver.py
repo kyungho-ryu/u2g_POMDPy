@@ -51,7 +51,8 @@ class BeliefTreeSolver(Solver):
         :param start_time
         :return:
         """
-        pbar = tqdm(range(self.model.n_sims), ncols=70)
+        interval = int(self.model.n_sims /10)
+        pbar = tqdm(range(self.model.n_sims), ncols=70, miniters=interval)
         for _ in pbar: # default = 500
             # Reset the Simulator
             self.model.reset_for_simulation()
