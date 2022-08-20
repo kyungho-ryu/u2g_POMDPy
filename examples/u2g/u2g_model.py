@@ -10,7 +10,7 @@ from examples.u2g.util import getA2ADist, getLocStat, getNgbCellAvail
 from examples.u2g.energy import calA2GCommEnergy, calA2ACommEnergy, calA2GMaxCommEnergy, calA2AMaxCommEnergy
 import logging, random, copy
 
-from pomdpy.discrete_pomdp import DiscreteActionPool, DiscreteObservationPool
+from pomdpy.discrete_mapping_pomdp import DiscreteActionPool, DiscreteObservationPool
 
 
 module = "U2GModel"
@@ -208,10 +208,10 @@ class U2GModel(Model) : # Model
         gmus = []
         for gmu in state.gmus:
             if gmu.observed:
-                cellIndex, coordinate, observed, SL_params = \
+                cellIndex, coordinate, observed, SL_params, overed = \
                     self.mobility_SLModel.get_gmu_locIndex(gmu.id, gmu.k)
             else:
-                cellIndex, coordinate, observed, SL_params = \
+                cellIndex, coordinate, observed, SL_params, overed = \
                     self.mobility_SLModel.get_gmu_locIndex(gmu.id, gmu.k, gmu.get_SL_params(Config.GRID_W))
 
             if cellIndex == -1:
@@ -222,7 +222,7 @@ class U2GModel(Model) : # Model
 
             sample_states[cellIndex] += 1
             gmus.append(GMU(gmu.id, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
-            if SL_params[4] +1 > self.mobility_SLModel.get_max_path() or SL_params[5]:
+            if SL_params[4] +1 > self.mobility_SLModel.get_max_path() or SL_params[5] or overed:
                 _is_terminal = True
 
         self.updateCellInfo(gmus)
@@ -390,6 +390,17 @@ class U2GModel(Model) : # Model
     ''' ===================================================================  '''
     '''                             Sampling                                 '''
     ''' ===================================================================  '''
+
+    def sample_an_init_observation(self):
+        observation = [None for _ in range(Config.MAX_GRID_INDEX + 1)]
+        gmu_position = self.mobility_SLModel.get_gmu_position(Config.MAX_GRID_INDEX + 1)
+        for i in range(len(observation)):
+            if i in self.uavPosition:
+                observation[i] = gmu_position[i]
+
+        self.logger.debug("Observation : {}".format(observation))
+        return U2GObservation(observation)
+
 
     def sample_an_init_state(self):
         sample_states = [0 for _ in range(Config.MAX_GRID_INDEX+1)]
@@ -593,6 +604,7 @@ class U2GModel(Model) : # Model
         :param state:
         :return:
         """
+
         self.logger.debug("is terminal : {}".format(state.is_terminal))
         return state.is_terminal
 

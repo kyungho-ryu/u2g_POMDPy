@@ -5,8 +5,7 @@ import abc
 
 class BeliefStructure(with_metaclass(abc.ABCMeta, object)):
 
-    @abc.abstractmethod
-    def reset(self):
+    def reset(self, observation):
         """
         Reset the policy
         :return:

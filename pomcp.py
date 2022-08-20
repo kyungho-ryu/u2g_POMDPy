@@ -2,6 +2,7 @@
 from __future__ import print_function
 from pomdpy import Agent
 from pomdpy.solvers import POMCP
+from pomdpy.solvers import POMCPMapping
 from pomdpy.log import init_logger
 from mobility import SLModel
 from examples.u2g import U2GModel
@@ -68,7 +69,7 @@ if __name__ == '__main__':
     else :
         args["DPW"] = False
 
-    solver = POMCP
+    solver = POMCPMapping
 
     if args['env'] == 'U2GModel':
         env = U2GModel(args)

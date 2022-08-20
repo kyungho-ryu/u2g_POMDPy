@@ -30,9 +30,6 @@ def get_cellCoordinate(x, y, diameterofCell) :
         return x, y
 
 
-def get_cellIndex(x, y, scale) :
-    return x+scale*y
-
 def get_state_transition_prob(previousRO, currentRO) :
     RO = []
     for i in range(len(currentRO)) :

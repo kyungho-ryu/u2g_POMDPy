@@ -6,12 +6,12 @@ import time, logging
 import numpy as np
 from pomdpy.util import console, summary
 from pomdpy.action_selection import ucb_action, action_progWiden
-from .belief_tree_solver import BeliefTreeSolver
+from .belief_mapping_solver import BeliefMappingSolver
 
-module = "pomcp"
+module = "pomcp_mapping"
 
 
-class POMCP(BeliefTreeSolver):
+class POMCPMapping(BeliefMappingSolver):
 
     """
     Monte-Carlo Tree Search implementation, from POMCP
@@ -28,13 +28,13 @@ class POMCP(BeliefTreeSolver):
         :param model:
         :return:
         """
-        super(POMCP, self).__init__(agent)
+        super(POMCPMapping, self).__init__(agent)
         self.logger = logging.getLogger('POMDPy.Simulation')
         self.logger.setLevel("INFO")
-        self.fast_UCB = [[None for _ in range(POMCP.UCB_n)] for _ in range(POMCP.UCB_N)]
+        self.fast_UCB = [[None for _ in range(POMCPMapping.UCB_n)] for _ in range(POMCPMapping.UCB_N)]
 
-        for N in range(POMCP.UCB_N):
-            for n in range(POMCP.UCB_n):
+        for N in range(POMCPMapping.UCB_N):
+            for n in range(POMCPMapping.UCB_n):
                 if n is 0:
                     self.fast_UCB[N][n] = np.inf
                 else:
@@ -50,7 +50,7 @@ class POMCP(BeliefTreeSolver):
         :param agent:
         Implementation of abstract method
         """
-        return POMCP(agent)
+        return POMCPMapping(agent)
 
     def find_fast_ucb(self, total_visit_count, action_map_entry_visit_count, log_n):
         """
@@ -61,7 +61,7 @@ class POMCP(BeliefTreeSolver):
         :return:
         """
         assert self.fast_UCB is not None
-        if total_visit_count < POMCP.UCB_N and action_map_entry_visit_count < POMCP.UCB_n:
+        if total_visit_count < POMCPMapping.UCB_N and action_map_entry_visit_count < POMCPMapping.UCB_n:
             return self.fast_UCB[int(total_visit_count)][int(action_map_entry_visit_count)]
 
         if action_map_entry_visit_count == 0:
@@ -75,12 +75,14 @@ class POMCP(BeliefTreeSolver):
                 data structure is disabled, random rollout is used.
         """
         if self.disable_tree:   # False
-            self.rollout_search(self.belief_tree_index)
+            self.rollout_search(self.belief_mapping_index)
         else:
             self.monte_carlo_approx(eps, start_time)
+        action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index)
 
-        summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
-        return ucb_action(self, self.belief_tree_index, True)
+        summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, best_ucb_value, best_q_value, step)
+
+        return action
 
     def simulate(self, belief_node, eps, start_time):   # not use eps
         """
@@ -98,6 +100,7 @@ class POMCP(BeliefTreeSolver):
         state = belief_node.sample_particle()
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
+
         # Time expired
         # if time.time() - start_time > self.model.action_selection_timeout:
         #     console(4, module, "action selection timeout")

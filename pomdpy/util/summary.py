@@ -1,6 +1,10 @@
 import numpy as np
 
-def summary_simulationResult(writer, beliefTree, epoch) :
+def summary_simulationResult(writer, beliefTree, best_ucb_value, best_q_value, epoch) :
+    group = "Reward/"
+    writer.add_scalar(group + 'UCB', best_ucb_value, epoch)
+    writer.add_scalar(group + 'Q', best_q_value, epoch)
+
     tree_depth = 0
 
     obsList = [beliefTree]
@@ -40,6 +44,7 @@ def summary_simulationResult(writer, beliefTree, epoch) :
 
         writer.add_scalar(group+'N_ha', N_ha/LenAction,epoch)
         writer.add_scalar(group+'c_ha', C_ha/LenAction,epoch)
+
 
         obsList = newObsList
         tree_depth +=1

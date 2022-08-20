@@ -131,6 +131,9 @@ class Agent:
                 print('saved alpha vectors!')
 
     def multi_epoch(self):
+        # Create a new solver, purune belief tree
+        solver = self.solver_factory(self)
+
         eps = self.model.epsilon_start
         self.model.reset_for_epoch()
         steps = 1
@@ -140,7 +143,7 @@ class Agent:
             self.results = Results()
 
             if self.model.solver == 'POMCP-DPW':
-                eps, steps, NUM_create_child_belief_node = self.run_pomcp(i + 1, eps, steps, NUM_create_child_belief_node)
+                eps, steps, NUM_create_child_belief_node = self.run_pomcp(solver, i + 1, eps, steps, NUM_create_child_belief_node)
                 self.model.reset_for_epoch()
 
             # if self.experiment_results.time.running_total > self.model.timeout:
@@ -148,16 +151,14 @@ class Agent:
             #             self.experiment_results.time.running_total + ' seconds')
             #     break
 
-    def run_pomcp(self, epoch, eps, steps, NUM_create_child_belief_node):
+    def run_pomcp(self, solver, epoch, eps, steps, NUM_create_child_belief_node):
         epoch_start = time.time()
-        # Create a new solver, purune belief tree
-        solver = self.solver_factory(self)
 
         # -------------------------implement root belief tree-----------------------------------------------
 
         # Monte-Carlo start state
         # choice random state from particles (2000)
-        state = solver.belief_tree_index.sample_particle()
+        state = solver.belief_mapping_index.sample_particle()
         self.logger.debug("[{}]state:\n{}".format(epoch, state.to_string()))
         self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
 
@@ -200,11 +201,11 @@ class Agent:
             self.display_step_result(i, step_result)
 
             if not step_result.is_terminal:
-                create_child_belief_node = solver.update(state, step_result)
+                create_child_belief_node = solver.update(state, step_result, False)
                 if create_child_belief_node :
                     NUM_create_child_belief_node +=1
 
-            state = solver.belief_tree_index.sample_particle()
+            state = solver.belief_mapping_index.sample_particle()
 
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()

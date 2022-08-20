@@ -2,7 +2,7 @@ import pandas as pd
 from .trajectory_grid import TG
 from .SL_object import MO, State, Trajectory
 from .mobility_config import MConfig
-from .utils import set_coordinate, get_cellCoordinate, get_cellIndex, get_state_transition_prob, create_random_position_in_cell, getGridIndex, get_id_of_gmu
+from .utils import set_coordinate, get_cellCoordinate, get_state_transition_prob, create_random_position_in_cell, getGridIndex, get_id_of_gmu
 import logging, random, copy
 
 class SLModel :
@@ -28,7 +28,6 @@ class SLModel :
         self.init_traj = copy.deepcopy(self.traj)
         self.init_tg = copy.deepcopy(self.tg)
         self.init_MOS = copy.deepcopy(self.MOS)
-
 
 
     def initialize(self, NumOfMO, exceptedID):
@@ -133,8 +132,6 @@ class SLModel :
                     self.logger.error("There is no path of GMU [{}]".format(id))
                 elif result[5] == True :
                     self.logger.error("There are no next path of GMU [{}]".format(id))
-                else :
-                    self.MOS[id].set_prediction(S, t0Loc, RO, eta, k)
         else :
             self.NumObservedGMU +=1
             if self.MOS[id].observed == False:
@@ -197,8 +194,9 @@ class SLModel :
 
         if result == [] :
             self.logger.info("ID :{}', There are no trajectories in having RO : {}".format(id, k))
-            print("ro", ro)
-            print("to", t0Loc)
+            if k == 1:
+                self.logger.info("t0Loc : {}, RO : {}".format(t0Loc, ro))
+
             return -1, -1, -1, -1
 
         # create a random position corresponding its cell
@@ -206,7 +204,9 @@ class SLModel :
 
         # create a random position corresponding its cell
         next_loc = create_random_position_in_cell(result[1][0], result[1][1], self.cellWidth)
-        return index, next_loc, False, result
+
+        overed = self.check_gmu_trajectory_overed(id)
+        return index, next_loc, False, result, overed
 
 
     def get_traj(self, id, update_time):
@@ -228,26 +228,6 @@ class SLModel :
         self.tg.add_new_trajectory(coordinate, mo.get_cell_location(), mo.id, mo.current_t)
         mo.update_location(_coordinate, coordinate)
         self.traj[id].update_time(update_time)
-
-
-    # def test(self, ro, own_id, t0Loc):
-    #     id = int(ro[0][-1])
-    #     update_time = int(ro[1])
-    #     print(self.MOS[id].current_t)
-    #
-    #     prior_ro = ro[0], ro[1] -1
-    #     print("prior ro", prior_ro)
-    #     # print(self.get_reference_objects(own_id, self.MOS[own_id].backward_traj))
-    #     x, y = self.tg.leafCells[t0Loc].trajectories[prior_ro].get_loc()
-    #     print("x, y", x, y)
-    #
-    #     if ro in self.tg.leafCells[(x, y)].trajectories :
-    #         print("??")
-    #     else :
-    #         print(self.tg.leafCells[(x, y)].trajectories.keys())
-    #         print("XX")
-    #     print(self.tg.leafCells[t0Loc].trajectories.keys())
-    #     exit()
 
     def test_update_trajectory(self, id, T):
         file = "/home/kyungho/project/POMDPy/mobility/trajectory/MO" + str(id) + "_traj.csv"
@@ -289,8 +269,7 @@ class SLModel :
                         continue
 
                     x, y = self.tg.leafCells[t0Loc].trajectories[ro].get_loc()
-                    scale = (MConfig.xE - MConfig.x0) // self.cellWidth
-                    cellIndex = get_cellIndex(x, y, scale)
+                    cellIndex = getGridIndex(x, y, self.MAX_XGRID_N)
 
                     next_ro = ro[0], ro[1] + 1
                     self.logger.debug("{}' next loc : {}, {} -> cellIndex : {}".format(next_ro, x, y, cellIndex))
@@ -315,24 +294,6 @@ class SLModel :
             is_terminal = self.check_having_trajectory_RO(new_t0Loc, new_RO, k)
             return [S, new_t0Loc, new_RO , new_eta, k+1, is_terminal]
 
-    def check_having_trajectory_RO(self, loc, RO, k):
-        for ro in RO :
-            if ro not in self.tg.leafCells[loc].trajectories:
-                id = get_id_of_gmu(ro[0])
-                self.logger.error("don't have more trajectory : {} in {} at {}".format(ro, loc, k))
-                self.logger.error("t : {}".format(self.MOS[id].get_current_time()))
-                self.logger.error("t2 : {}".format(self.MOS[id].test))
-                self.logger.error("t3 : {}".format(self.MOS[id].test2))
-
-                for history in self.MOS[id].test :
-                    for new_ro in self.tg.leafCells[history].trajectories :
-                        if new_ro[0] == ro[0] and new_ro[1]>240:
-                            self.logger.error("t4 : {}/{}".format(new_ro, history))
-                # self.logger.error("t3 : {}".format(self.tg[))
-                return True
-
-        return False
-
     def prediction_probabilistic_path(self, RO, theta, id) :
         Length_init_RO = len(RO)
         if len(RO)<= 0 :
@@ -353,8 +314,7 @@ class SLModel :
                         self.logger.debug("not path : {}".format(ro))
                         continue
                     x, y = self.tg.leafCells[t0Loc].trajectories[ro].get_loc()
-                    scale = (MConfig.xE - MConfig.x0) // self.cellWidth
-                    cellIndex = get_cellIndex(x, y, scale)
+                    cellIndex = getGridIndex(x, y, self.MAX_XGRID_N)
 
                     next_ro = ro[0], ro[1] +1
                     self.logger.debug("{}' next loc : {}, {} -> cellIndex : {}".format(next_ro, x, y, cellIndex))
@@ -489,6 +449,40 @@ class SLModel :
             envMap[y][x] +=1
 
         return envMap
+
+    def get_gmu_position(self, MAX_GRID_INDEX):
+        gmu_position = [0 for _ in range(MAX_GRID_INDEX)]
+
+        for i in range(self.NumGMU) :
+            x, y = self.MOS[i].get_cell_location()
+            cellIndex = getGridIndex(x, y, self.MAX_XGRID_N)
+
+            gmu_position[cellIndex] +=1
+
+        return gmu_position
+
+    def check_gmu_trajectory_overed(self, id):
+        if self.MOS[id].get_current_time() + 1 > MConfig.MaxTrajectory:
+            return True
+
+        return False
+    def check_having_trajectory_RO(self, loc, RO, k):
+        for ro in RO :
+            if ro not in self.tg.leafCells[loc].trajectories:
+                id = get_id_of_gmu(ro[0])
+                self.logger.error("don't have more trajectory : {} in {} at {}".format(ro, loc, k))
+                self.logger.error("t : {}".format(self.MOS[id].get_current_time()))
+                self.logger.error("t2 : {}".format(self.MOS[id].test))
+                self.logger.error("t3 : {}".format(self.MOS[id].test2))
+
+                for history in self.MOS[id].test :
+                    for new_ro in self.tg.leafCells[history].trajectories :
+                        if new_ro[0] == ro[0] and new_ro[1]>240:
+                            self.logger.error("t4 : {}/{}".format(new_ro, history))
+                # self.logger.error("t3 : {}".format(self.tg[))
+                return True
+
+        return False
 
     def reset_NumObservedGMU(self):
         self.NumObservedGMU = 0
