@@ -145,7 +145,7 @@ class BeliefTreeSolver(Solver):
             num_steps += 1
         return discounted_reward_sum
 
-    def update(self, step_result, prune=True):
+    def update(self, state, step_result, prune=True):
         """
         Feed back the step result, updating the belief_tree,
         extending the history, updating particle sets, etc
@@ -156,7 +156,9 @@ class BeliefTreeSolver(Solver):
         """
         # Update the Simulator with the Step Result
         # This is important in case there are certain actions that change the state of the simulator
-        self.model.update(step_result)
+        create_child_belief_node = False
+
+        self.model.update(state, step_result)
 
         child_belief_node = self.belief_tree_index.get_child(step_result.action, step_result.observation)
 
@@ -170,13 +172,9 @@ class BeliefTreeSolver(Solver):
                 self.disable_tree = True
                 return
 
-            obs_mapping_entries = list(action_node.observation_map.child_map.values())
-
-            for entry in obs_mapping_entries:
-                if entry.child_node is not None:
-                    child_belief_node = entry.child_node
-                    console(2, module, "Had to grab nearest belief node...variance added")
-                    break
+            # child_belief_node = self.grab_nearest_belief_node(action_node)
+            child_belief_node = self.create_child(step_result.action, action_node, step_result.observation)
+            create_child_belief_node = True
 
         # If the new root does not yet have the max possible number of particles add some more
         if child_belief_node.state_particles.__len__() < self.model.max_particle_count:
@@ -203,4 +201,20 @@ class BeliefTreeSolver(Solver):
         if prune:
             self.prune(self.belief_tree_index)
 
+        return create_child_belief_node
 
+    def grab_nearest_belief_node(self, action_node):
+        obs_mapping_entries = list(action_node.observation_map.child_map.values())
+
+        for entry in obs_mapping_entries:
+            if entry.child_node is not None:
+                child_belief_node = entry.child_node
+                console(2, module, "Had to grab nearest belief node...variance added")
+
+                return child_belief_node
+
+
+    def create_child(self, action, action_node, obs):
+        child_belief_node, added = self.belief_tree_index.create_child(action, action_node, obs)
+
+        return child_belief_node

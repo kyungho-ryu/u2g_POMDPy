@@ -62,15 +62,17 @@ class SLModel :
         self.tg = copy.deepcopy(self.init_tg)
         self.MOS = copy.deepcopy(self.init_MOS)
         self.traj = copy.deepcopy(self.init_traj)
+        self.reset_NumObservedGMU()
 
         for i in range(self.NumGMU) :
             self.create_gmu_for_simulation(i, uavStatus)
 
 
     def create_gmu_for_simulation(self, id, uavStatus):
-        cellCoordinate = self.MOS[id].get_cell_location()
+        update_time = self.traj[id].updated_time + self.sampling_interval
+        actual_next_loc = self.get_traj(id, update_time)
 
-        if uavStatus[cellCoordinate[1]][cellCoordinate[0]] == 0 :
+        if uavStatus[actual_next_loc[1][1]][actual_next_loc[1][0]] == 0:
             t0Loc = self.MOS[id].backward_traj[-1]
             ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
             S = State()
@@ -85,7 +87,7 @@ class SLModel :
                 self.logger.error("There are no next path of GMU [{}]".format(id))
                 return -1, -1, -1, -1
             else:
-                self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
+                self.MOS[id].set_prediction(S, t0Loc, ro, eta, k)
 
             # create a random position corresponding its cell
             next_loc = create_random_position_in_cell(result[1][0], result[1][1], self.cellWidth)
@@ -101,11 +103,12 @@ class SLModel :
             return self.MOS[id].id, self.MOS[id].get_location(), True, None
 
 
-    def update_gmu_for_simulation(self, id, uavStatus):
-        self.NumObservedGMU = 0
-
+    def update_gmu_for_simulation(self, id, SL_parms, uavStatus):
         update_time = self.traj[id].updated_time + self.sampling_interval
         actual_next_loc = self.get_traj(id, update_time)
+
+        if self.MOS[id].observed == False :
+            self.MOS[id].set_prediction(SL_parms[1], SL_parms[0], SL_parms[2], SL_parms[3], SL_parms[4])
 
         if uavStatus[actual_next_loc[1][1]][actual_next_loc[1][0]] == 0 :
             if self.MOS[id].observed == True :
@@ -121,7 +124,7 @@ class SLModel :
                 elif result[5] == True :
                     self.logger.error("There are no next path of GMU [{}]".format(id))
                 else :
-                    self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
+                    self.MOS[id].set_prediction(S, t0Loc, ro, eta, k)
             else :
                 S, t0Loc, RO, eta, k = self.MOS[id].get_mobility_model()
                 result = self.prediction_probabilistic_next_states(RO, MConfig.theta, t0Loc, S, eta, k)
@@ -131,7 +134,7 @@ class SLModel :
                 elif result[5] == True :
                     self.logger.error("There are no next path of GMU [{}]".format(id))
                 else :
-                    self.MOS[id].set_prediction(result[0], result[1], result[2], result[3], result[4])
+                    self.MOS[id].set_prediction(S, t0Loc, RO, eta, k)
         else :
             self.NumObservedGMU +=1
             if self.MOS[id].observed == False:
@@ -486,3 +489,6 @@ class SLModel :
             envMap[y][x] +=1
 
         return envMap
+
+    def reset_NumObservedGMU(self):
+        self.NumObservedGMU = 0

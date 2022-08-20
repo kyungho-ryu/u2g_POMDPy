@@ -44,6 +44,13 @@ class U2GState(DiscreteState):
             self.set_activeUavs()
             self.set_servingGmusTraffics()
 
+    def get_gmus_prediction_length(self):
+        k = []
+        for i in range(len(self.gmus)) :
+            k.append(self.gmus[i].k)
+
+        return k
+
     def set_activeUavs(self):
         for i in range(len(self.uavs)) :
             if self.uavs[i].power == "on" :

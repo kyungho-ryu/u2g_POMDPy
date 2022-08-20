@@ -453,14 +453,14 @@ class U2GModel(Model) : # Model
         gmu_map = self.mobility_SLModel.get_gmu_env(Config.MAX_XGRID_N, Config.MAX_YGRID_N)
         self.draw_env(gmu_map, "GMU")
 
-    def update(self, sim_data):
+    def update(self, state, sim_data):
         """
         Update the state of the simulator with sim_data
         :param sim_data:
         :return:
         """
         self.update_uavs_for_simulation(sim_data.next_state)
-        self.update_gmus_for_simulation()
+        self.update_gmus_for_simulation(state.gmus)
 
 
 
@@ -470,9 +470,10 @@ class U2GModel(Model) : # Model
         self.uavPosition = copy.deepcopy(next_state.uav_position)
         self.set_envMap()
 
-    def update_gmus_for_simulation(self):
+    def update_gmus_for_simulation(self, gmus):
+        self.mobility_SLModel.reset_NumObservedGMU()
         for i in range(self.numGmus):
-            self.mobility_SLModel.update_gmu_for_simulation(i, self.env_map)
+            self.mobility_SLModel.update_gmu_for_simulation(i, gmus[i].get_SL_params(Config.GRID_W), self.env_map)
 
 
     def generate_step(self, state, action):

@@ -77,7 +77,7 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         """
 
     @abc.abstractmethod
-    def update(self, sim_data):
+    def update(self, state, sim_data):
         """
         Update the state of the simulator with sim_data
         :param sim_data:

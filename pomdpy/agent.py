@@ -134,12 +134,13 @@ class Agent:
         eps = self.model.epsilon_start
         self.model.reset_for_epoch()
         steps = 1
+        NUM_create_child_belief_node = 0
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()
 
             if self.model.solver == 'POMCP-DPW':
-                eps, steps = self.run_pomcp(i + 1, eps, steps)
+                eps, steps, NUM_create_child_belief_node = self.run_pomcp(i + 1, eps, steps, NUM_create_child_belief_node)
                 self.model.reset_for_epoch()
 
             # if self.experiment_results.time.running_total > self.model.timeout:
@@ -147,7 +148,7 @@ class Agent:
             #             self.experiment_results.time.running_total + ' seconds')
             #     break
 
-    def run_pomcp(self, epoch, eps, steps):
+    def run_pomcp(self, epoch, eps, steps, NUM_create_child_belief_node):
         epoch_start = time.time()
         # Create a new solver, purune belief tree
         solver = self.solver_factory(self)
@@ -158,6 +159,8 @@ class Agent:
         # choice random state from particles (2000)
         state = solver.belief_tree_index.sample_particle()
         self.logger.debug("[{}]state:\n{}".format(epoch, state.to_string()))
+        self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
+
         # print("Agent/state.position", state.position)
         # print("Agent/state.rock_states", state.rock_states)
         reward = 0
@@ -184,6 +187,7 @@ class Agent:
             if eps > self.model.epsilon_minimum:
                 eps *= self.model.epsilon_decay
 
+            self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
             # state = not real state
             step_result, is_legal = self.model.generate_step(state, action)
 
@@ -191,20 +195,24 @@ class Agent:
             discounted_reward += discount * step_result.reward
 
             discount *= self.model.discount
-            state = step_result.next_state
 
             # show the step result
             self.display_step_result(i, step_result)
 
             if not step_result.is_terminal:
-                solver.update(step_result)
+                create_child_belief_node = solver.update(state, step_result)
+                if create_child_belief_node :
+                    NUM_create_child_belief_node +=1
+
+            state = solver.belief_tree_index.sample_particle()
 
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()
             HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
 
+            prob_attach_existing_belief_node = 1 - (NUM_create_child_belief_node/steps)
             summary.summary_result(
-                self.model.writer, steps, reward, discounted_reward,
+                self.model.writer, steps, reward, discounted_reward, prob_attach_existing_belief_node,
                 self.model.get_simulationResult(step_result.next_state), time.time()- epoch_start
             )
             steps +=1
@@ -228,7 +236,7 @@ class Agent:
         self.experiment_results.discounted_return.count += (self.results.discounted_return.count - 1)
         self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
 
-        return eps, steps
+        return eps, steps, NUM_create_child_belief_node
 
     def run_value_iteration(self, solver, epoch):
         run_start_time = time.time()
