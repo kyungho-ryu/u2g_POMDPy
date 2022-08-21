@@ -16,7 +16,7 @@ class Config :
 
     NUM_UAV = 25
     NUM_GMU = 10
-    USER_DEMAND = 30000 * pow(10, 3) # 300 Kbps
+    USER_DEMAND = 300 * pow(10, 3) # 300 Kbps
 
     WoE = 0.5 # weight of energy consumption
     WoD = 0.5 # weight of data rate

@@ -112,24 +112,24 @@ class U2GModel(Model) : # Model
         self.uavStatus = getLocStat(self.uavs, Config.MAX_GRID_INDEX)  # uav obj. per cell
         self.logger.debug("UAV is deployed in cells : {}".format([len(self.uavStatus[uav]) for uav in self.uavStatus]))
 
-    def generate_GMU(self):
-
-        # generate gmu according to deployment of UAV
-        # include both gmus with real position and gmus with predicted position
-        for i in range(Config.NUM_GMU):
-            id, coordinate, observed, SL_params = self.mobility_SLModel.create_gmu_for_simulation(i, self.env_map)
-            self.gmus.append(GMU(id, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
-
-        self.numGmus = Config.NUM_GMU
-        self.logger.info("Create GMU :{}".format(self.numGmus))
-        # check cell location for uav, gmu
-        self.updateCellInfo(self.gmus)
-        for gmu in self.gmus:
-            self.logger.debug("GMU'{} - loc(x,y), cell :{}".format(gmu.id, gmu.get_location()))
-
-        # deployment status check
-        self.gmuStatus = getLocStat(self.gmus, Config.MAX_GRID_INDEX)
-        self.logger.info("Gmu is deployed in cells : {}".format([len(self.gmuStatus[gs]) for gs in self.gmuStatus]))
+    # def generate_GMU(self):
+    #
+    #     # generate gmu according to deployment of UAV
+    #     # include both gmus with real position and gmus with predicted position
+    #     for i in range(Config.NUM_GMU):
+    #         id, coordinate, observed, SL_params = self.mobility_SLModel.create_gmu_for_simulation(i, self.env_map)
+    #         self.gmus.append(GMU(id, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
+    #
+    #     self.numGmus = Config.NUM_GMU
+    #     self.logger.info("Create GMU :{}".format(self.numGmus))
+    #     # check cell location for uav, gmu
+    #     self.updateCellInfo(self.gmus)
+    #     for gmu in self.gmus:
+    #         self.logger.debug("GMU'{} - loc(x,y), cell :{}".format(gmu.id, gmu.get_location()))
+    #
+    #     # deployment status check
+    #     self.gmuStatus = getLocStat(self.gmus, Config.MAX_GRID_INDEX)
+    #     self.logger.info("Gmu is deployed in cells : {}".format([len(self.gmuStatus[gs]) for gs in self.gmuStatus]))
 
 
     def initUAVLoc(self, _luav):
@@ -553,8 +553,9 @@ class U2GModel(Model) : # Model
         totalEnergyConsumtion = state.totalA2GEnergy + state.totalA2AEnergy + state.totalPropEnergy
         scaledEnergyConsumtion, scaledDnRate = self.norm_rewards(totalEnergyConsumtion, state.TotalDnRate)
 
+        avgDnRage = state.TotalDnRate / Config.NUM_GMU / pow(10, 3)
         return [state.totalA2GEnergy, state.totalA2AEnergy, state.totalPropEnergy, totalEnergyConsumtion,
-                state.TotalDnRate, scaledEnergyConsumtion, scaledDnRate,
+                avgDnRage, scaledEnergyConsumtion, scaledDnRate,
                 len(state.activeUavsID), self.mobility_SLModel.get_num_observed_GMU()]
 
     def get_initial_belief_state(self):

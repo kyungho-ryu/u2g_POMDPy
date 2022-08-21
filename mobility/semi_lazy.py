@@ -2,7 +2,7 @@ import pandas as pd
 from .trajectory_grid import TG
 from .SL_object import MO, State, Trajectory
 from .mobility_config import MConfig
-from .utils import set_coordinate, get_cellCoordinate, get_state_transition_prob, create_random_position_in_cell, getGridIndex, get_id_of_gmu
+from .utils import set_coordinate, get_cellCoordinate, get_state_transition_prob, create_random_position_in_cell, getGridIndex, get_id_of_gmu, add_noise_to_trajectory
 import logging, random, copy
 
 class SLModel :
@@ -66,7 +66,6 @@ class SLModel :
         for i in range(self.NumGMU) :
             self.create_gmu_for_simulation(i, uavStatus)
 
-
     def create_gmu_for_simulation(self, id, uavStatus):
         update_time = self.traj[id].updated_time + self.sampling_interval
         actual_next_loc = self.get_traj(id, update_time)
@@ -87,10 +86,8 @@ class SLModel :
                 return -1, -1, -1, -1
             else:
                 self.MOS[id].set_prediction(S, t0Loc, ro, eta, k)
-
             # create a random position corresponding its cell
             next_loc = create_random_position_in_cell(result[1][0], result[1][1], self.cellWidth)
-
             self.logger.debug("[{}]' trajectory is predictied : {}".format(self.MOS[id].id, next_loc))
             return self.MOS[id].id, next_loc, False, result
         else :
@@ -125,7 +122,11 @@ class SLModel :
                 else :
                     self.MOS[id].set_prediction(S, t0Loc, ro, eta, k)
             else :
-                S, t0Loc, RO, eta, k = self.MOS[id].get_mobility_model()
+                try :
+                    S, t0Loc, RO, eta, k = self.MOS[id].get_mobility_model()
+                except :
+                    self.logger.error("TEST : {}".format(SL_parms))
+                    exit()
                 result = self.prediction_probabilistic_next_states(RO, MConfig.theta, t0Loc, S, eta, k)
 
                 if result == [] :
@@ -245,6 +246,11 @@ class SLModel :
         # 5. LOOKUP PROCESS
         RO = self.tg.lookup(self.MOS[id].id, backward_traj, self.MOS)
         self.logger.debug("Selected RO : {}".format(RO))
+
+        if RO == [] :
+            self.logger.info("There are no RO {} in {}".format(RO, id))
+            new_backward_traj = add_noise_to_trajectory(list(backward_traj))
+            get_id_of_gmu(id, new_backward_traj)
 
         return RO
 

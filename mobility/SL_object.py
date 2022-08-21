@@ -20,7 +20,7 @@ class MO() :
         self.S = []
         self.RO = []
         self.eta = 0
-        self.k = 1
+        self.k =  1
 
 
     def update_location(self, real_location, cell_location):
@@ -66,6 +66,7 @@ class MO() :
         self.RO = []
         self.eta = 0
         self.k = 1
+
 
 # class GMU(MO) :
 #     def __init__(self, _id):

@@ -54,3 +54,17 @@ def create_random_position_in_cell(x,y, cellWidth) :
 def getGridIndex(_x, _y, MAX_XGRID_N):
     return _y * MAX_XGRID_N + _x
 
+def add_noise_to_trajectory(trajectory) :
+    length = 2* len(trajectory) - 3
+    noise_index = random.randint(0, length)
+
+    x_index = int(noise_index//2)
+    y_index = int(noise_index%2)
+
+    oldX, oldY = trajectory[x_index]
+    if y_index == 0 :
+        trajectory[x_index] = oldX +1, oldY
+    else :
+        trajectory[x_index] = oldX, oldY +1
+
+    return trajectory

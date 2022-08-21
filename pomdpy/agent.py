@@ -133,9 +133,7 @@ class Agent:
     def multi_epoch(self):
         # Create a new solver, purune belief tree
         solver = self.solver_factory(self)
-
         eps = self.model.epsilon_start
-        self.model.reset_for_epoch()
         steps = 1
         NUM_create_child_belief_node = 0
         for i in range(self.model.n_epochs):
@@ -144,8 +142,7 @@ class Agent:
 
             if self.model.solver == 'POMCP-DPW':
                 eps, steps, NUM_create_child_belief_node = self.run_pomcp(solver, i + 1, eps, steps, NUM_create_child_belief_node)
-                self.model.reset_for_epoch()
-
+                solver.model.reset_for_epoch()
             # if self.experiment_results.time.running_total > self.model.timeout:
             #     console(2, module, 'Timed out after ' + str(i) + ' epochs in ' +
             #             self.experiment_results.time.running_total + ' seconds')
@@ -153,7 +150,6 @@ class Agent:
 
     def run_pomcp(self, solver, epoch, eps, steps, NUM_create_child_belief_node):
         epoch_start = time.time()
-
         # -------------------------implement root belief tree-----------------------------------------------
 
         # Monte-Carlo start state
@@ -190,7 +186,7 @@ class Agent:
 
             self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
             # state = not real state
-            step_result, is_legal = self.model.generate_step(state, action)
+            step_result, is_legal = solver.model.generate_step(state, action)
 
             reward += step_result.reward
             discounted_reward += discount * step_result.reward
@@ -211,9 +207,9 @@ class Agent:
             new_hist_entry = solver.history.add_entry()
             HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
 
-            prob_attach_existing_belief_node = 1 - (NUM_create_child_belief_node/steps)
+            # prob_attach_existing_belief_node = 1 - (NUM_create_child_belief_node/steps)
             summary.summary_result(
-                self.model.writer, steps, reward, discounted_reward, prob_attach_existing_belief_node,
+                self.model.writer, steps, reward, discounted_reward, steps-NUM_create_child_belief_node,
                 self.model.get_simulationResult(step_result.next_state), time.time()- epoch_start
             )
             steps +=1

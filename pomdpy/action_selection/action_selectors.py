@@ -40,6 +40,10 @@ def action_progWiden(mcts, current_node, temp_action, k, alpha):
     mapping = current_node.action_map
 
     # print("C : {}, kxN^alpha : {}".format(mapping.number_of_children, k * (mapping.total_visit_count**alpha)))
+    # if log :
+    #     print(mapping.get_number_of_action())
+    #     print(mapping.total_visit_count, k, alpha)
+    #     print(k * (mapping.total_visit_count**alpha))
     if mapping.get_number_of_action() <= k * (mapping.total_visit_count**alpha) :
 
         action, C, N =  mapping.create_current_action_node(temp_action)

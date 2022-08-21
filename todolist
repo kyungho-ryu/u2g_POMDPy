@@ -3,6 +3,9 @@
     : particle should be implemented as dequeue(), which have small capacity
     : and then, when real state transition is worked, oldest particles is get out.  (e.g., 5%. 10%)
 
+
+# need to implement line 11 and 16 in POMCPOW
+
 # POMDP
  - observation
     : GMU is observed when the UAV is in that cell, otherwise it is not observerd.
