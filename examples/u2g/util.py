@@ -100,3 +100,23 @@ def findServingUAV(_luavs):
             return u
     return None
 
+def getNgbCell(_gIdx, _locStat, MAX_XGRID_N, MAX_GRID_INDEX):
+    adjUavs = []
+    l, r, u, b = getNgbCellAvail(_gIdx, MAX_XGRID_N, MAX_GRID_INDEX) # 0, 5, 24
+    if l:
+        adjUavs.append(_locStat[_gIdx -1])
+    if r:
+        adjUavs.append(_locStat[_gIdx +1])
+    if u:
+        adjUavs.append(_locStat[_gIdx + MAX_XGRID_N])
+    if b:
+        adjUavs.append(_locStat[_gIdx - MAX_XGRID_N])
+    if l and u:
+        adjUavs.append(_locStat[_gIdx + MAX_XGRID_N - 1])
+    if l and b:
+        adjUavs.append(_locStat[_gIdx - MAX_XGRID_N - 1])
+    if r and u:
+        adjUavs.append(_locStat[_gIdx + MAX_XGRID_N + 1])
+    if r and b:
+        adjUavs.append(_locStat[_gIdx - MAX_XGRID_N + 1])
+    return adjUavs

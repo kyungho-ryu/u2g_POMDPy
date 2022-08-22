@@ -5,6 +5,7 @@ import random, logging
 import abc
 from pomdpy.util import console
 from pomdpy.pomdp.belief_mapping import BeliefMapping
+from pomdpy.action_selection import structure
 from pomdpy.solvers import Solver
 from tqdm import tqdm
 import io
@@ -126,7 +127,7 @@ class BeliefMappingSolver(Solver):
             action_mapping_entry.update_visit_count(1)
             action_mapping_entry.update_q_value(q_value)
 
-    def rollout(self, belief_node):
+    def rollout(self, belief_node, action_method):
         """
         Iterative random rollout search to finish expanding the episode starting at belief_node
         :param belief_node:
@@ -137,8 +138,14 @@ class BeliefMappingSolver(Solver):
         discounted_reward_sum = 0.0
         discount = 1.0
         num_steps = 0
-        while num_steps < self.model.max_depth and not is_terminal:
-            legal_action = self.model.sample_random_actions()
+        while num_steps < self.model.max_rollout_depth and not is_terminal:
+            if action_method == structure.action_method.NN.value:
+                pass
+            elif action_method == structure.action_method.Random.value:
+                legal_action = self.model.sample_random_actions()
+            elif action_method == structure.action_method.Near.value:
+                legal_action = self.model.sample_near_actions(state.uav_position)
+
             step_result, is_legal = self.model.generate_step(state, legal_action)
             is_terminal = step_result.is_terminal
             discounted_reward_sum += step_result.reward * discount

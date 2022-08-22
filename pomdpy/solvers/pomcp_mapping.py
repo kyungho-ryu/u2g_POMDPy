@@ -5,7 +5,7 @@ from past.utils import old_div
 import time, logging
 import numpy as np
 from pomdpy.util import console, summary
-from pomdpy.action_selection import ucb_action, action_progWiden
+from pomdpy.action_selection import ucb_action, action_progWiden, structure
 from .belief_mapping_solver import BeliefMappingSolver
 
 module = "pomcp_mapping"
@@ -112,12 +112,15 @@ class POMCPMapping(BeliefMappingSolver):
             return 0
 
         # use UCB table
-        if self.model.NN:
+        if self.model.action_method == structure.action_method.NN.value:
             pass
-        else:
+        elif self.model.action_method == structure.action_method.Random.value :
             temp_action = self.model.sample_random_actions()
+        elif self.model.action_method == structure.action_method.Near.value :
+            temp_action = self.model.sample_near_actions(state.uav_position)
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
+
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
         self.logger.debug(actionStatus)
 
@@ -211,7 +214,7 @@ class POMCPMapping(BeliefMappingSolver):
             tree_depth += 1
             if added:
                 reward = step_result.reward
-                delayed_reward = self.rollout(child_belief_node)
+                delayed_reward = self.rollout(child_belief_node, self.model.action_method)
             else:
                 reward, delayed_reward = self.select_existing_step_for_pow(
                     belief_node, tree_depth, action, observation, start_time, delayed_reward
@@ -268,7 +271,7 @@ class POMCPMapping(BeliefMappingSolver):
 
             tree_depth += 1
             if added:
-                delayed_reward = self.rollout(child_belief_node)
+                delayed_reward = self.rollout(child_belief_node, self.model.action_method)
             else:
                 delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time)
             tree_depth -= 1
@@ -388,7 +391,7 @@ class POMCPMapping(BeliefMappingSolver):
                     child_belief_node.state_particles.append(step_result.next_state)
                 delayed_reward = self.traverse(child_belief_node, tree_depth, start_time)
             else:
-                delayed_reward = self.rollout(belief_node)
+                delayed_reward = self.rollout(belief_node, self.model.action_method)
             tree_depth -= 1
         else:
             console(4, module, "Reached terminal state.")

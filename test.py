@@ -1,2 +1,10 @@
-a = [[2, 0, 0, 1, 2], [3, 1, 0, 2, 1], [1, 1, 2, 1, 2], [2, 1, 0, 1, 2], [0, 0, 0, 0, 1]]
-print(a[2][4])
+from enum import IntEnum, unique
+@unique
+class message_type(IntEnum) :
+    t1 = 0
+    t2=1
+    t3=2
+
+a = message_type(message_type.t1)
+print(a)
+print(a == message_type.t1.value)

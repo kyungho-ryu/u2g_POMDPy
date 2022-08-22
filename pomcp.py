@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--epsilon_minimum', default=0.1, type=float)
     parser.add_argument('--epsilon_decay', default=0.95, type=float)
     parser.add_argument('--epsilon_decay_step', default=20, type=int)
-    parser.add_argument('--n_sims', default=500, type=int,
+    parser.add_argument('--n_sims', default=200, type=int,
                         help='For POMCP, this is the num of MC sims to do at each belief node. '
                              'For SARSA, this is the number of rollouts to do per epoch')
     parser.add_argument('--timeout', default=3600, type=int, help='Max num of sec the experiment should run before '
@@ -42,16 +42,18 @@ if __name__ == '__main__':
                         'node can have in MCTS')
     parser.add_argument('--max_depth', default=100, type=int, help='Max depth for a DFS of the belief search tree in '
                         'MCTS')
+    parser.add_argument('--max_rollout_depth', default=5, type=int, help='Max depth for a DFS of the belief search tree in '
+                                                                   'MCTS')
     parser.add_argument('--action_selection_timeout', default=60, type=int, help='Max num of secs for action selection')
 
     # Using NN
-    parser.add_argument('--NN', default=False, type=bool, help='apply neural network for action selection ')
+    parser.add_argument('--action_method', default=1, type=int, help='a method for action selection')
 
     # Progressive Widening
     parser.add_argument('--DPW', type=bool, help='apply progrssive widening for action and observation')
-    parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')
+    parser.add_argument('--pw_a_k', default=0.5, type=int, help='coefficient for progrssive widening in action')
     parser.add_argument('--pw_a_alpha', default=0.5, type=float, help='coefficient for progrssive widening in action')
-    parser.add_argument('--pw_o_k', default=1, type=int, help='coefficient for progrssive widening in observation')
+    parser.add_argument('--pw_o_k', default=0.5, type=int, help='coefficient for progrssive widening in observation')
     parser.add_argument('--pw_o_alpha', default=0.5, type=float, help='coefficient for progrssive widening in observation')
 
     parser.set_defaults(preferred_actions=False)

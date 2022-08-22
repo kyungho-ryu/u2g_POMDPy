@@ -6,7 +6,7 @@ from examples.u2g.u2g_action import U2GAction
 from examples.u2g.u2g_state import U2GState, UAV, GMU
 from examples.u2g.u2g_observation import U2GObservation
 from examples.u2g.u2g_position_history import GMUData, PositionAndGMUData
-from examples.u2g.util import getA2ADist, getLocStat, getNgbCellAvail
+from examples.u2g.util import getA2ADist, getLocStat, getNgbCellAvail, getNgbCell
 from examples.u2g.energy import calA2GCommEnergy, calA2ACommEnergy, calA2GMaxCommEnergy, calA2AMaxCommEnergy
 import logging, random, copy
 
@@ -436,6 +436,18 @@ class U2GModel(Model) : # Model
             uav_deployment.append(cellIndex)
 
         return U2GAction(uav_deployment)
+
+    def sample_near_actions(self, uav_deployment):
+        new_uav_deployment = []
+
+        _locStat = [i for i in range(Config.MAX_GRID_INDEX+1)]
+        for i in range(len(uav_deployment)) :
+            candidate = getNgbCell(uav_deployment[i], _locStat, Config.MAX_XGRID_N, Config.MAX_GRID_INDEX)
+            cellIndex = random.choice(candidate)
+
+            new_uav_deployment.append(cellIndex)
+
+        return U2GAction(new_uav_deployment)
 
     # def sample_gmus(self):
     #     return [len(self.gmuStatus[gs]) for gs in self.gmuStatus]
