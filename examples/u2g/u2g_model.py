@@ -11,6 +11,7 @@ from examples.u2g.energy import calA2GCommEnergy, calA2ACommEnergy, calA2GMaxCom
 import logging, random, copy
 
 from pomdpy.discrete_mapping_pomdp import DiscreteActionPool, DiscreteObservationPool
+from collections import deque
 
 
 module = "U2GModel"
@@ -32,10 +33,12 @@ class U2GModel(Model) : # Model
         self.numUavs = Config.NUM_UAV
         self.numGmus = Config.NUM_GMU
         self.uavs = []
-        # self.gmus = []
         self.uavStatus = {}
         # self.gmuStatus = {}
         self.uavPosition = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]    # except gcc
+
+        self.future_gmus = deque()
+        self.future_gmuPosition = deque()
 
         # Uav object to keep the same position every epoch
         self.init_uavs = []
@@ -203,28 +206,8 @@ class U2GModel(Model) : # Model
 
     def make_next_state(self, state, action):
         # change GMU trajectory
-        _is_terminal = False
-        sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
-        gmus = []
-        for gmu in state.gmus:
-            if gmu.observed:
-                cellIndex, coordinate, observed, SL_params, overed = \
-                    self.mobility_SLModel.get_gmu_locIndex(gmu.id, gmu.k)
-            else:
-                cellIndex, coordinate, observed, SL_params, overed = \
-                    self.mobility_SLModel.get_gmu_locIndex(gmu.id, gmu.k, gmu.get_SL_params(Config.GRID_W))
-
-            if cellIndex == -1:
-                self.logger.error("have to be terminated previously")
-                print("test", gmu.id, gmu.k, gmu.get_SL_params(Config.GRID_W))
-                print("test", gmu.x, gmu.y)
-                exit()
-
-            sample_states[cellIndex] += 1
-            gmus.append(GMU(gmu.id, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
-            if SL_params[4] +1 > self.mobility_SLModel.get_max_path() or SL_params[5] or overed:
-                _is_terminal = True
-
+        gmus = self.future_gmus.popleft()
+        sample_states = self.future_gmuPosition.popleft()
         self.updateCellInfo(gmus)
 
         uavs = []
@@ -246,7 +229,7 @@ class U2GModel(Model) : # Model
         self.logger.debug("Next GMU state : {}".format(sample_states))
         self.logger.debug("Next UAV state : {}".format(uavs_deployment))
 
-        return U2GState(uavs_deployment, sample_states, uavs, gmus, _is_terminal)
+        return U2GState(uavs_deployment, sample_states, uavs, gmus)
 
 
     def make_observation(self, next_state):
@@ -289,7 +272,7 @@ class U2GModel(Model) : # Model
 
 
     def norm_rewards(self, _energyConsumtion, _dnRate):
-        energyConsumtion = 1 - _energyConsumtion / self.MaxEnergyConsumtion
+        energyConsumtion = -1 * (_energyConsumtion / self.MaxEnergyConsumtion)
         dnRate = _dnRate / self.MaxDnRate
 
         return energyConsumtion * Config.WoE, dnRate * Config.WoD
@@ -413,7 +396,7 @@ class U2GModel(Model) : # Model
         self.logger.debug("sample init state : {}".format(sample_states))
         self.logger.debug("UAV init position : {}".format(self.uavPosition))
 
-        return U2GState(self.uavPosition, sample_states, self.uavs, gmus, False, True)
+        return U2GState(self.uavPosition, sample_states, self.uavs, gmus, True)
 
     def sample_state_uninformed(self):
         """
@@ -456,11 +439,40 @@ class U2GModel(Model) : # Model
     '''                 Implementation of abstract Model class               '''
     ''' ===================================================================  '''
 
-    def reset_for_simulation(self):
+    def reset_for_simulation(self, gmus):
         """
         The Simulator (Model) should be reset before each simulation
         :return:
         """
+        for gmu in gmus :
+            if gmu.observed :
+                self.mobility_SLModel.reset_simulation_state(gmu.id, None)
+            else :
+                self.mobility_SLModel.reset_simulation_state(gmu.id, gmu.get_SL_params(Config.GRID_W))
+
+        is_termimal = False
+        self.future_gmus = deque()
+        self.future_gmuPosition = deque()
+        while not is_termimal :
+            gmus = []
+            sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
+            for i in range(self.numGmus):
+                cellIndex, coordinate, terminal, SL_params = self.mobility_SLModel.get_trajectory_for_simulation(i)
+
+                if cellIndex == -1:
+                    self.logger.error("have to be terminated previously")
+                    exit()
+
+                sample_states[cellIndex] += 1
+                gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, False, SL_params))
+
+                if terminal :
+                    is_termimal = True
+
+            self.future_gmus.append(gmus)
+            self.future_gmuPosition.append(sample_states)
+
+        self.logger.debug("Create gmu's trajectory until : {}".format(len(self.future_gmus)))
 
     def reset_for_epoch(self):
         # reset UAV status to same init position
@@ -519,7 +531,7 @@ class U2GModel(Model) : # Model
         result.action = action.copy()
         result.observation = self.make_observation(result.next_state)
         result.reward = self.make_reward(state, result.next_state)
-        result.is_terminal = self.is_terminal(result.next_state)
+        result.is_terminal = self.is_terminal()
 
         return result, True
 
@@ -533,7 +545,7 @@ class U2GModel(Model) : # Model
                 sample_states[cellIndex] += 1
                 gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
 
-            particles.append(U2GState(self.uavPosition, sample_states, self.uavs, gmus, False, True))
+            particles.append(U2GState(self.uavPosition, sample_states, self.uavs, gmus, True))
         return particles
 
 
@@ -611,15 +623,15 @@ class U2GModel(Model) : # Model
         """
 
 
-    def is_terminal(self, state):
+    def is_terminal(self):
         """
         Returns true iff the given state is terminal.
         :param state:
         :return:
         """
-
-        self.logger.debug("is terminal : {}".format(state.is_terminal))
-        return state.is_terminal
+        is_terminal = len(self.future_gmuPosition) == 0
+        self.logger.debug("is terminal : {}".format(is_terminal))
+        return is_terminal
 
     def is_valid(self, state):
         """
@@ -627,4 +639,3 @@ class U2GModel(Model) : # Model
         :param state:
         :return:
         """
-

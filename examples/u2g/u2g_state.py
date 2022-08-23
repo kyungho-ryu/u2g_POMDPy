@@ -15,7 +15,7 @@ class U2GState(DiscreteState):
     converted to a List
     """
 
-    def __init__(self, uav_position, gmu_position, uavs, gmus, _is_terminal, IS_ROOT=False):
+    def __init__(self, uav_position, gmu_position, uavs, gmus, IS_ROOT=False):
         self.logger  = logging.getLogger('POMDPy.State')
         self.logger.setLevel("INFO")
         self.uav_position = uav_position # list of uav cell position
@@ -38,18 +38,11 @@ class U2GState(DiscreteState):
         self.totalPropEnergy = 0
         self.TotalDnRate = 0
 
-        self.is_terminal = _is_terminal
 
         if not IS_ROOT :
             self.set_activeUavs()
             self.set_servingGmusTraffics()
 
-    def get_gmus_prediction_length(self):
-        k = []
-        for i in range(len(self.gmus)) :
-            k.append(self.gmus[i].k)
-
-        return k
 
     def set_activeUavs(self):
         for i in range(len(self.uavs)) :
@@ -144,6 +137,13 @@ class U2GState(DiscreteState):
         self.totalA2AEnergy = totalA2AEnergy
         self.totalPropEnergy = totalPropEnergy
 
+    def get_gmus_prediction_length(self):
+        k = []
+        for i in range(len(self.gmus)) :
+            k.append(self.gmus[i].k)
+
+        return k
+
     def get_gmu_dnRate(self):
         return self.TotalDnRate
 
@@ -217,7 +217,7 @@ class GMU:
         self.eta = 0
         self.k = 1
 
-        if not self.observed :
+        if not self.observed:
             self.set_SL_params(SL_params)
 
     def set_SL_params(self, SL_params):
@@ -227,7 +227,7 @@ class GMU:
         self.k = SL_params[4]
 
     def get_SL_params(self, diameterofCell):
-        return self.get_cellCoordinate(diameterofCell), self.S, self.RO, self.eta, self.k
+        return self.S, self.get_cellCoordinate(diameterofCell), self.RO, self.eta, self.k
 
     def get_cellCoordinate(self, diameterofCell):
         x, y = int(self.x // diameterofCell), int(self.y // diameterofCell)

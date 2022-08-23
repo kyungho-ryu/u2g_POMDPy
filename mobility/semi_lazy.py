@@ -23,11 +23,13 @@ class SLModel :
         self.MOS = []
         self.NumObservedGMU = 0
         self.NumGMU = NumOfMO
+        self.simulation_state = [None for _ in range(self.NumGMU)]
         self.initialize(NumOfMO, exceptedID)
 
         self.init_traj = copy.deepcopy(self.traj)
         self.init_tg = copy.deepcopy(self.tg)
         self.init_MOS = copy.deepcopy(self.MOS)
+
 
 
     def initialize(self, NumOfMO, exceptedID):
@@ -104,7 +106,7 @@ class SLModel :
         actual_next_loc = self.get_traj(id, update_time)
 
         if self.MOS[id].observed == False :
-            self.MOS[id].set_prediction(SL_parms[1], SL_parms[0], SL_parms[2], SL_parms[3], SL_parms[4])
+            self.MOS[id].set_prediction(SL_parms[0], SL_parms[1], SL_parms[2], SL_parms[3], SL_parms[4])
 
         if uavStatus[actual_next_loc[1][1]][actual_next_loc[1][0]] == 0 :
             if self.MOS[id].observed == True :
@@ -157,11 +159,7 @@ class SLModel :
             return index, self.MOS[id].get_location(), True, None
         else :
             S, t0Loc, ro, eta, k = self.MOS[id].get_mobility_model()
-            # t0Loc = self.MOS[id].backward_traj[-1]
-            # ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
-            # S = State()
-            # eta = 1
-            # k = 1
+
             result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
 
             if result == []:
@@ -180,25 +178,17 @@ class SLModel :
             return index, next_loc, False, result
 
 
-    def get_gmu_locIndex(self, id, k, *args):
-        if k==1 :
-            t0Loc = self.MOS[id].backward_traj[-1]
-            ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
-            S = State()
-            eta = 1
-            k = 1
-            result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
-
-        else :
-            result = self.prediction_probabilistic_next_states(
-                args[0][2], MConfig.theta, args[0][0], args[0][1], args[0][3], args[0][4])
+    def get_trajectory_for_simulation(self, id):
+        S, t0Loc, ro, eta, k = self.simulation_state[id]
+        result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
+        self.simulation_state[id] = result[0:5]
 
         if result == [] :
             self.logger.info("ID :{}', There are no trajectories in having RO : {}".format(id, k))
             if k == 1:
                 self.logger.info("t0Loc : {}, RO : {}".format(t0Loc, ro))
 
-            return -1, -1, -1, -1
+            return -1, -1, True, -1
 
         # create a random position corresponding its cell
         index = getGridIndex(result[1][0], result[1][1], self.MAX_XGRID_N)
@@ -207,7 +197,10 @@ class SLModel :
         next_loc = create_random_position_in_cell(result[1][0], result[1][1], self.cellWidth)
 
         overed = self.check_gmu_trajectory_overed(id)
-        return index, next_loc, False, result, overed
+        tree_depth_overd = self.check_tree_depth(result[4])
+        terminal = overed or tree_depth_overd or result[5]
+
+        return index, next_loc, terminal, result
 
 
     def get_traj(self, id, update_time):
@@ -244,7 +237,8 @@ class SLModel :
     def get_reference_objects(self, id, backward_traj):
         # find reference objects of mo0
         # 5. LOOKUP PROCESS
-        RO = self.tg.lookup(self.MOS[id].id, backward_traj, self.MOS)
+
+        RO = self.tg.lookup(self.MOS[id].id, backward_traj, self.MOS, self.NumGMU)
         self.logger.debug("Selected RO : {}".format(RO))
 
         if RO == [] :
@@ -467,11 +461,19 @@ class SLModel :
 
         return gmu_position
 
+
     def check_gmu_trajectory_overed(self, id):
         if self.MOS[id].get_current_time() + 1 > MConfig.MaxTrajectory:
             return True
 
         return False
+
+    def check_tree_depth(self, k):
+        if k + 1 > self.get_max_path():
+            return True
+
+        return False
+
     def check_having_trajectory_RO(self, loc, RO, k):
         for ro in RO :
             if ro not in self.tg.leafCells[loc].trajectories:
@@ -492,3 +494,14 @@ class SLModel :
 
     def reset_NumObservedGMU(self):
         self.NumObservedGMU = 0
+
+    def reset_simulation_state(self, id, SL_parms):
+        if SL_parms == None :
+            t0Loc = self.MOS[id].backward_traj[-1]
+            ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
+            S = State()
+            eta = 1
+            k = 1
+            self.simulation_state[id] = [S, t0Loc, ro, eta, k]
+        else :
+            self.simulation_state[id] = SL_parms

@@ -1,10 +1,12 @@
-from enum import IntEnum, unique
-@unique
-class message_type(IntEnum) :
-    t1 = 0
-    t2=1
-    t3=2
+from collections import deque
 
-a = message_type(message_type.t1)
-print(a)
-print(a == message_type.t1.value)
+backward_traj = deque()
+
+backward_traj.append(1)
+backward_traj.append(2)
+backward_traj.append(3)
+print(backward_traj.popleft())
+print(backward_traj.popleft())
+print(backward_traj.popleft())
+print(backward_traj.popleft())
+print(backward_traj)

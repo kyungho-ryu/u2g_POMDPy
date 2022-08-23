@@ -63,7 +63,7 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         self.writer = SummaryWriter(self.logs)
 
     @abc.abstractmethod
-    def reset_for_simulation(self):
+    def reset_for_simulation(self, gmus):
         """
         The Simulator (Model) should be reset before each simulation
         :return:

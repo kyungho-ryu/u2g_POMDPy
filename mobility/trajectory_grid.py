@@ -20,19 +20,20 @@ class TG () :
         self.leafCells[new_loc].visit()
 
     # find reference objects
-    def lookup(self, id, trajectories, MOS):
+    def lookup(self, id, trajectories, MOS, NUMMOS):
 
-        def find_candidate_objs (id, traj, candidate, MOS, last_index):   # candiate = id, t
+        def find_candidate_objs (id, traj, candidate, MOS, NUMMOS, last_index):   # candiate = id, t
             candidate_objs = []
             self.logger.debug("current selected {}:".format(candidate))
             self.logger.debug("candidate : {}".format(list(self.leafCells[traj].trajectories.keys())))
             for k, v in self.leafCells[traj].trajectories.items() :
-                if k[0] != id :
+                candidate_id = get_id_of_gmu(k[0])
+                if k[0] != id and candidate_id >= NUMMOS:
                     if candidate ==[] or k in candidate :
                         if last_index :
                             candidateOBJ = k
-                            id = get_id_of_gmu(k[0])
-                            if MOS[id].get_current_time() <= int(k[1]) + MConfig.Min_remaining_trajectory:
+
+                            if MOS[candidate_id].get_current_time() <= int(k[1]) + MConfig.Min_remaining_trajectory:
                                 continue
                         else :
                             candidateOBJ = k[0], k[1]+1
@@ -45,7 +46,7 @@ class TG () :
 
         self.logger.debug("{}'s backward trajesctories :{}".format(id, trajectories))
         for i in range(len(trajectories)) :
-            referenceOBJs = (find_candidate_objs(id, trajectories[i], referenceOBJs, MOS, i==len(trajectories)-1))
+            referenceOBJs = (find_candidate_objs(id, trajectories[i], referenceOBJs, MOS, NUMMOS, i==len(trajectories)-1))
             if referenceOBJs == [] : return referenceOBJs
         return referenceOBJs
 

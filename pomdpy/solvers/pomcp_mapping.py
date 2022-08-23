@@ -98,6 +98,8 @@ class POMCPMapping(BeliefMappingSolver):
 
         # choice random state from particles every simulation
         state = belief_node.sample_particle()
+        self.model.reset_for_simulation(state.gmus)
+
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
 
@@ -196,9 +198,6 @@ class POMCPMapping(BeliefMappingSolver):
         else :
             observation = self.select_existing_observation(belief_node, action)
             flg = False
-        # reward, delayed_reward = self.create_new_step_for_pow(
-        #     belief_node, tree_depth, step_result, is_legal, observation, action, start_time, delayed_reward
-        # )
 
         child_belief_node, ChildStatus = belief_node.child(action, observation)
         self.logger.debug("Status : {}".format(ChildStatus))
@@ -286,11 +285,6 @@ class POMCPMapping(BeliefMappingSolver):
 
         return step_result.reward, delayed_reward
 
-    def create_new_step_for_pow(self, belief_node, tree_depth, step_result, is_legal, observation, action, start_time, delayed_reward):
-        # child belief node = observation
-
-
-        return step_result.reward, delayed_reward
 
     def select_existing_step_for_dpw(self, belief_node, tree_depth, action, start_time, delayed_reward):
         self.logger.debug("select existing step")
@@ -314,7 +308,7 @@ class POMCPMapping(BeliefMappingSolver):
         self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
         self.logger.debug("reward : {}".format(reward))
 
-        if not self.model.is_terminal(selected_next_state) :
+        if not self.model.is_terminal() :
             tree_depth +=1
             delayed_reward = self.POCMP_DPW(selected_entry.child_node, tree_depth, start_time)
             tree_depth -=1
@@ -350,7 +344,7 @@ class POMCPMapping(BeliefMappingSolver):
         self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
         self.logger.debug("reward : {}".format(reward))
 
-        if not self.model.is_terminal(selected_next_state) :
+        if not self.model.is_terminal() :
             tree_depth +=1
             delayed_reward = self.POCMP_POW(child_node, tree_depth, start_time)
             tree_depth -=1

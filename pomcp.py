@@ -47,13 +47,13 @@ if __name__ == '__main__':
     parser.add_argument('--action_selection_timeout', default=60, type=int, help='Max num of secs for action selection')
 
     # Using NN
-    parser.add_argument('--action_method', default=1, type=int, help='a method for action selection')
+    parser.add_argument('--action_method', default=0, type=int, help='a method for action selection')
 
     # Progressive Widening
     parser.add_argument('--DPW', type=bool, help='apply progrssive widening for action and observation')
-    parser.add_argument('--pw_a_k', default=0.5, type=int, help='coefficient for progrssive widening in action')
+    parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')
     parser.add_argument('--pw_a_alpha', default=0.5, type=float, help='coefficient for progrssive widening in action')
-    parser.add_argument('--pw_o_k', default=0.5, type=int, help='coefficient for progrssive widening in observation')
+    parser.add_argument('--pw_o_k', default=1, type=int, help='coefficient for progrssive widening in observation')
     parser.add_argument('--pw_o_alpha', default=0.5, type=float, help='coefficient for progrssive widening in observation')
 
     parser.set_defaults(preferred_actions=False)

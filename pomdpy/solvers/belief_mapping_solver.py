@@ -60,7 +60,6 @@ class BeliefMappingSolver(Solver):
         pbar = tqdm(range(self.model.n_sims), ncols=70, miniters=interval)
         for _ in pbar: # default = 500
             # Reset the Simulator
-            self.model.reset_for_simulation()
             self.simulate(self.belief_mapping_index, eps, start_time)
             # pbar.set_postfix({'Simulation step ' : i})
     @abc.abstractmethod
