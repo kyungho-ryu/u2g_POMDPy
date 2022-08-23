@@ -59,6 +59,12 @@ class SLModel :
             self.logger.debug("GMU {}' trajectory updated until {} steps".format(i, self.traj[i].updated_time))
             self.MOS.append(mo)
 
+    def get_init_prior_gmu_locIndex(self, id):
+        xC, yC = self.MOS[id].get_cell_location()
+        index = getGridIndex(xC, yC, self.MAX_XGRID_N)
+
+        return index, self.MOS[id].get_location()
+
     def reset(self, uavStatus):
         self.tg = copy.deepcopy(self.init_tg)
         self.MOS = copy.deepcopy(self.init_MOS)

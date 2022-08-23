@@ -4,13 +4,13 @@
     : and then, when real state transition is worked, oldest particles is get out.  (e.g., 5%. 10%)
 
 
-# remove rollout
+(#) remove rollout
 # If there is no any connection with macro cell, give a large penelty.
     - as well as all of GMU are not dicorved
-# remove semi-lazy parameters in state
+(#) remove semi-lazy parameters in state
     -> trjectory prediction is only used for a simulation.
-# grap similar belief node
-# in particle sampling, give probability according to previous state.
+(#) grap similar belief node
+(#) in particle sampling, give probability according to previous state.
 
 
 

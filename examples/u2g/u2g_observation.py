@@ -13,6 +13,14 @@ class U2GObservation(DiscreteU2GObservation):
     def copy(self):
         return U2GObservation(self.observed_gmu_status)
 
+    def check_dissimilarity(self, other_u2g_observation):
+        dissimilarity = 0
+        for i in range(len(self.observed_gmu_status)) :
+            if self.observed_gmu_status[i] != other_u2g_observation.observed_gmu_status[i] :
+                dissimilarity +=1
+
+        return dissimilarity/len(self.observed_gmu_status)
+
     def __eq__(self, other_u2g_observation):
         key = self.get_key(self.observed_gmu_status)
         return key == other_u2g_observation

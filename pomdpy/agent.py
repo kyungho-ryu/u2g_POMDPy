@@ -4,7 +4,7 @@ import logging
 import os
 from pomdpy.pomdp import Statistic
 from pomdpy.pomdp.history import Histories, HistoryEntry
-from pomdpy.util import console, print_divider, summary
+from pomdpy.util import console, print_divider, summary, mapping
 from experiments.scripts.pickle_wrapper import save_pkl
 
 module = "agent"
@@ -136,25 +136,29 @@ class Agent:
         eps = self.model.epsilon_start
         steps = 1
         NUM_create_child_belief_node = 0
+        NUM_grab_nearest_child_belief_node = 0
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()
 
             if self.model.solver == 'POMCP-DPW':
-                eps, steps, NUM_create_child_belief_node = self.run_pomcp(solver, i + 1, eps, steps, NUM_create_child_belief_node)
+                eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node = \
+                    self.run_pomcp(solver, i + 1, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node)
                 solver.model.reset_for_epoch()
             # if self.experiment_results.time.running_total > self.model.timeout:
             #     console(2, module, 'Timed out after ' + str(i) + ' epochs in ' +
             #             self.experiment_results.time.running_total + ' seconds')
             #     break
 
-    def run_pomcp(self, solver, epoch, eps, steps, NUM_create_child_belief_node):
+    def run_pomcp(self, solver, epoch, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node):
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
 
         # Monte-Carlo start state
         # choice random state from particles (2000)
-        state = solver.belief_mapping_index.sample_particle()
+        prior_state = solver.model.get_an_init_prior_state()
+        prior_state_key = mapping.get_key(prior_state.as_list())
+        state = solver.belief_mapping_index.sample_particle(prior_state_key)
         self.logger.debug("[{}]state:\n{}".format(epoch, state.to_string()))
         self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
 
@@ -176,7 +180,7 @@ class Agent:
             print_divider('large')
             print('\tStep #' + str(i) + ' simulation is working\n')
 
-            action = solver.select_eps_greedy_action(epoch, steps, eps, start_time)
+            action = solver.select_eps_greedy_action(epoch, steps, eps, start_time, prior_state_key)
             print('\n')
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action.UAV_deployment))
 
@@ -197,11 +201,14 @@ class Agent:
             self.display_step_result(i, step_result)
 
             if not step_result.is_terminal:
-                create_child_belief_node = solver.update(state, step_result, False)
-                if create_child_belief_node :
+                result = solver.update(state, step_result, False)
+                if result == 1 :
                     NUM_create_child_belief_node +=1
+                elif result == 2 :
+                    NUM_grab_nearest_child_belief_node +=1
 
-            state = solver.belief_mapping_index.sample_particle()
+            prior_state_key = mapping.get_key(state.as_list())
+            state = solver.belief_mapping_index.sample_particle(prior_state_key)
 
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()
@@ -233,7 +240,7 @@ class Agent:
         self.experiment_results.discounted_return.count += (self.results.discounted_return.count - 1)
         self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
 
-        return eps, steps, NUM_create_child_belief_node
+        return eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node
 
     def run_value_iteration(self, solver, epoch):
         run_start_time = time.time()

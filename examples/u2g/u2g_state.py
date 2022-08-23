@@ -37,6 +37,7 @@ class U2GState(DiscreteState):
         self.totalA2AEnergy = 0
         self.totalPropEnergy = 0
         self.TotalDnRate = 0
+        self.connection_with_gcc = True
 
 
         if not IS_ROOT :
@@ -74,6 +75,7 @@ class U2GState(DiscreteState):
         for e in self.G.edges():
             self.gmuFlowsPerLink[e] = []
 
+        connection = False
         for i in self.G.nodes():
             if i != Config.NUM_UAV: # except to gateway
                 try :
@@ -81,6 +83,7 @@ class U2GState(DiscreteState):
                 except :
                     self.logger.debug("{} don't have any path".format(i))
                     continue
+                connection = True
                 aggGmuRate = getGMUCellTraffic(self.uavs[i].cell, self.gmuStatus)
                 self.srcUavRate[i] = aggGmuRate
                 pathEdges = path2Edges(list(_path))
@@ -103,6 +106,10 @@ class U2GState(DiscreteState):
 
         self.logger.debug("gmuFlowsPerLink : {}".format(self.gmuFlowsPerLink))
         self.logger.debug("a2aLinkStatus : {}".format(self.a2aLinkStatus))
+
+        if connection == False :
+            self.connection_with_gcc = False
+            return
 
         # control sending flowRate according to limited backhaul link capacity
         for e in self.a2aLinkStatus:

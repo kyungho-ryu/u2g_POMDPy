@@ -53,9 +53,8 @@ class U2GModel(Model) : # Model
 
         # Mobility model
         self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N)
-
+        self.init_gmus = self.get_an_init_prior_state()
         self.initialize()
-
 
 
     # initialize the maps of the grid
@@ -246,6 +245,9 @@ class U2GModel(Model) : # Model
         self.logger.debug("Previous UAV deployment : {}".format(state.uav_position))
         self.logger.debug("next UAV deployment : {}".format( next_state.uav_position))
         self.logger.debug("Active UAV : {}".format(next_state.get_activeUavs()))
+
+        if not self.state.connection_with_gcc :
+            return -10
 
         # 1. check gmu deploy and reallocate uavs during UAV_RELOC_PERIOD
         totalPropEnergy = self.calcurate_reallocate_uav_energy(
@@ -535,18 +537,15 @@ class U2GModel(Model) : # Model
 
         return result, True
 
-    def generate_particles(self,  n_particles):
-        particles = []
-        for _ in range(n_particles) :
-            sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
-            gmus = []
-            for i in range(self.numGmus):
-                cellIndex, coordinate, observed, SL_params = self.mobility_SLModel.get_init_gmu_locIndex(i)
-                sample_states[cellIndex] += 1
-                gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
+    def generate_particles(self):
+        sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
+        gmus = []
+        for i in range(self.numGmus):
+            cellIndex, coordinate, observed, SL_params = self.mobility_SLModel.get_init_gmu_locIndex(i)
+            sample_states[cellIndex] += 1
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
 
-            particles.append(U2GState(self.uavPosition, sample_states, self.uavs, gmus, True))
-        return particles
+        return U2GState(self.uavPosition, sample_states, self.uavs, gmus, True)
 
 
     # used for data in belief root node
@@ -622,6 +621,17 @@ class U2GModel(Model) : # Model
         :return:
         """
 
+    def get_an_init_prior_state(self):
+        sample_states = [0 for _ in range(Config.MAX_GRID_INDEX+1)]
+        gmus = []
+        for i in range(self.numGmus):
+            cellIndex, coordinate = self.mobility_SLModel.get_init_prior_gmu_locIndex(i)
+            sample_states[cellIndex] +=1
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, True, None))
+
+        self.logger.debug("prior init state : {}".format(sample_states))
+
+        return U2GState(self.uavPosition, sample_states, self.uavs, gmus, True)
 
     def is_terminal(self):
         """

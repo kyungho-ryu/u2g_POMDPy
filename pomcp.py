@@ -56,6 +56,10 @@ if __name__ == '__main__':
     parser.add_argument('--pw_o_k', default=1, type=int, help='coefficient for progrssive widening in observation')
     parser.add_argument('--pw_o_alpha', default=0.5, type=float, help='coefficient for progrssive widening in observation')
 
+    parser.add_argument('--grab_threshold', default=10, type=float, help='threshold for dissmilarity with nearest belief node')
+
+
+
     parser.set_defaults(preferred_actions=False)
     parser.set_defaults(use_tf=False)
     parser.set_defaults(save=False)

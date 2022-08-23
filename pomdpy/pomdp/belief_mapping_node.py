@@ -1,4 +1,5 @@
 from builtins import object
+from pomdpy.pomdp.particle import ParticlePool
 import random
 import logging
 
@@ -19,18 +20,22 @@ class BeliefMappingNode(object):
         self.solver = solver
         self.action_map = None
         self.belief_map = belief_map
-        self.state_particles = []   # The set of states that comprise the belief distribution of this belief node
+        self.particle_pool = ParticlePool()   # The set of states that comprise the belief distribution of this belief node
 
     def copy(self):
         bn = BeliefMappingNode(self.solver, self.belief_map)
         # share a reference to the action map
         bn.action_map = self.action_map
-        bn.state_particles = self.state_particles
+        bn.particle_pool = self.particle_pool
         return bn
 
+    def add_particle(self, particle, prior_state):
+        self.particle_pool.add_partcle(particle, prior_state)
+
+
     # Randomly select a History Entry
-    def sample_particle(self):
-        return random.choice(self.state_particles)
+    def sample_particle(self, prior_state):
+        return self.particle_pool.sample_particle(prior_state)
 
 
     def get_child(self, action, obs):
@@ -129,17 +134,3 @@ class BeliefMappingNode(object):
 
         return child_node, added
 
-    def create_child(self, action_node, obs):
-        child_node, added = action_node.create_or_get_child(obs, self.belief_map)
-
-        if added:   # if the child node was added - it is new
-            belief_node = self.belief_map.get_belief_node(obs)
-            if belief_node == None:
-                self.belief_map.create_belief_node(obs, child_node)
-                child_node.action_map = self.solver.action_pool.create_action_mapping(child_node)
-            else:
-                action_node.update_child(obs, belief_node)
-                self.loger.info("select existing child node : {}".format(child_node.state_particles))
-                child_node = belief_node
-
-        return child_node, added

@@ -3,6 +3,7 @@ from pomdpy.pomdp.belief_mapping_node import BeliefMappingNode
 from pomdpy.pomdp.belief_structure import BeliefStructure
 from pomdpy.util.mapping import get_key
 
+import copy
 class BeliefMapping(BeliefStructure):
     """
     Contains the BeliefTree class, which represents an entire belief tree.
@@ -48,10 +49,16 @@ class BeliefMapping(BeliefStructure):
         key = get_key(obs.observed_gmu_status)
         self.beliefMap[key] = beliefNode
 
-    def add_particle(self, obs, particle):
+    def copy_belief_node(self, obs, new_obs):
+        key = get_key(obs.observed_gmu_status)
+        new_key = get_key(new_obs.observed_gmu_status)
+
+        self.beliefMap[new_key] = copy.deepcopy(self.beliefMap[key])
+
+    def add_particle(self, obs, particle, prior_state_key):
         key = get_key(obs.observed_gmu_status)
 
-        self.beliefMap[key].state_particles.append(particle)
+        self.beliefMap[key].add_particle(particle, prior_state_key)
 
     def get_belief_node(self, obs):
         key = get_key(obs.observed_gmu_status)

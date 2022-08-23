@@ -186,7 +186,7 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         """
 
     @abc.abstractmethod
-    def is_terminal(self, state):
+    def is_terminal(self):
         """
         Returns true iff the given state is terminal.
         :param state:

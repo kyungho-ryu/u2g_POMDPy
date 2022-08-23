@@ -172,7 +172,8 @@ class POMCP(BeliefTreeSolver):
                     child_belief_node.state_particles.append(step_result.next_state)
                 delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time)
             else:
-                delayed_reward = self.rollout(belief_node)
+                # delayed_reward = self.rollout(belief_node)
+                delayed_reward = 0
             tree_depth -= 1
         else:
             console(4, module, "Reached terminal state.")

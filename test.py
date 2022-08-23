@@ -1,12 +1,6 @@
-from collections import deque
+import numpy as np
 
-backward_traj = deque()
+a = np.inf
 
-backward_traj.append(1)
-backward_traj.append(2)
-backward_traj.append(3)
-print(backward_traj.popleft())
-print(backward_traj.popleft())
-print(backward_traj.popleft())
-print(backward_traj.popleft())
-print(backward_traj)
+if 5 < a :
+    print("asd")

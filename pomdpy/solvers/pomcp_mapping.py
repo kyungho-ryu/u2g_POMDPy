@@ -4,7 +4,7 @@ from builtins import range
 from past.utils import old_div
 import time, logging
 import numpy as np
-from pomdpy.util import console, summary
+from pomdpy.util import console, summary, mapping
 from pomdpy.action_selection import ucb_action, action_progWiden, structure
 from .belief_mapping_solver import BeliefMappingSolver
 
@@ -69,7 +69,7 @@ class POMCPMapping(BeliefMappingSolver):
         else:
             return self.model.ucb_coefficient * np.sqrt(old_div(log_n, action_map_entry_visit_count))
 
-    def select_eps_greedy_action(self,epoch,step, eps, start_time):
+    def select_eps_greedy_action(self,epoch,step, eps, start_time, prior_state_key):
         """
         Starts off the Monte-Carlo Tree Search and returns the selected action. If the belief tree
                 data structure is disabled, random rollout is used.
@@ -77,27 +77,27 @@ class POMCPMapping(BeliefMappingSolver):
         if self.disable_tree:   # False
             self.rollout_search(self.belief_mapping_index)
         else:
-            self.monte_carlo_approx(eps, start_time)
+            self.monte_carlo_approx(eps, start_time, prior_state_key)
         action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index)
 
         summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, best_ucb_value, best_q_value, step)
 
         return action
 
-    def simulate(self, belief_node, eps, start_time):   # not use eps
+    def simulate(self, belief_node, eps, start_time, prior_state_key):   # not use eps
         """
         :param belief_node:
         :return:
         """
         if self.model.DPW :
-            return self.POCMP_DPW(belief_node, 0, start_time)
+            return self.POCMP_DPW(belief_node, 0, start_time, prior_state_key)
         else :
             return self.traverse(belief_node, 0, start_time)
-    def POCMP_DPW(self, belief_node, tree_depth, start_time):
+    def POCMP_DPW(self, belief_node, tree_depth, start_time, prior_state_key):
         delayed_reward = 0
 
         # choice random state from particles every simulation
-        state = belief_node.sample_particle()
+        state = belief_node.sample_particle(prior_state_key)
         self.model.reset_for_simulation(state.gmus)
 
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
@@ -136,7 +136,7 @@ class POMCPMapping(BeliefMappingSolver):
             )
         else :
             reward, delayed_reward = self.select_existing_step_for_dpw(
-                belief_node, tree_depth, action, start_time, delayed_reward
+                belief_node, tree_depth, state, action, start_time, delayed_reward
             )
 
         # delayed_reward is "Q maximal"
@@ -256,6 +256,7 @@ class POMCPMapping(BeliefMappingSolver):
         self.logger.debug("observation : {}/{}".format(len(step_result.observation.observed_gmu_status),
                                                       step_result.observation.observed_gmu_status))
 
+        step_result.observation.check_similarity(step_result.observation)
         # child belief node = observation
         child_belief_node, ChildStatus = belief_node.child(action, step_result.observation)
         self.logger.debug("Status : {}".format(ChildStatus))
@@ -265,14 +266,14 @@ class POMCPMapping(BeliefMappingSolver):
             child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
 
         if not step_result.is_terminal or not is_legal:
-            if child_belief_node.state_particles.__len__() < self.model.max_particle_count:
-                child_belief_node.state_particles.append(step_result.next_state)
+            prior_state_key = mapping.get_key(state.as_list())
+            child_belief_node.add_particle(step_result.next_state, prior_state_key)
 
             tree_depth += 1
             if added:
                 delayed_reward = self.rollout(child_belief_node, self.model.action_method)
             else:
-                delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time)
+                delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time, prior_state_key)
             tree_depth -= 1
         else:
             console(4, module, "Reached terminal state.")
@@ -286,7 +287,7 @@ class POMCPMapping(BeliefMappingSolver):
         return step_result.reward, delayed_reward
 
 
-    def select_existing_step_for_dpw(self, belief_node, tree_depth, action, start_time, delayed_reward):
+    def select_existing_step_for_dpw(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
         self.logger.debug("select existing step")
         obsEntries = belief_node.get_child_obs_entries(action)
 
@@ -299,7 +300,9 @@ class POMCPMapping(BeliefMappingSolver):
                 selected_entry = entry
 
         selected_obs = selected_entry.observation
-        selected_next_state = selected_entry.child_node.sample_particle()
+
+        prior_state_key = mapping.get_key(state.as_list())
+        selected_next_state = selected_entry.child_node.sample_particle(prior_state_key)
 
         reward = self.model.get_reward(selected_next_state)
 
@@ -310,7 +313,7 @@ class POMCPMapping(BeliefMappingSolver):
 
         if not self.model.is_terminal() :
             tree_depth +=1
-            delayed_reward = self.POCMP_DPW(selected_entry.child_node, tree_depth, start_time)
+            delayed_reward = self.POCMP_DPW(selected_entry.child_node, tree_depth, start_time, prior_state_key)
             tree_depth -=1
         else:
             console(4, module, "Reached terminal state.")

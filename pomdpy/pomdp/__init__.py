@@ -15,7 +15,8 @@ from .observation_pool import ObservationPool
 from .point import Point
 from .q_table import QTable
 from .statistic import Statistic
+from .particle import ParticlePool
 
 __all__ = ['action_mapping', 'action_node', 'action_pool', 'belief_node', 'belief_mapping_node',
            'belief_structure', 'belief_tree', 'belief_mapping', 'historical_data', 'history',
-           'model', 'observation_mapping', 'observation_pool', 'point', 'q_table', 'statistic']
+           'model', 'observation_mapping', 'observation_pool', 'point', 'q_table', 'statistic', 'particle']
