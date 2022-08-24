@@ -1,4 +1,6 @@
 from __future__ import division
+
+import time
 from builtins import range
 from past.utils import old_div
 from pomdpy.pomdp import ActionMapping, ActionMappingEntry
@@ -30,6 +32,15 @@ class DiscreteActionMapping(ActionMapping):
         action_map_copy.total_visit_count = self.total_visit_count
         return action_map_copy
 
+    def deep_copy(self):
+        action_map_copy = DiscreteActionMapping(self.owner, self.pool)
+        action_map_copy.number_of_children = self.number_of_bins
+        action_map_copy.entries = self.entries.copy()
+        action_map_copy.number_of_children = self.number_of_children
+        action_map_copy.total_visit_count = self.total_visit_count
+        return action_map_copy
+
+
     def get_action_node(self, action):
         key = self.get_key(action.UAV_deployment)
         return self.entries.get(key).child_node
@@ -44,7 +55,6 @@ class DiscreteActionMapping(ActionMapping):
         entry.is_legal = True
         key = self.get_key(action.UAV_deployment)
         self.entries.__setitem__(key, entry)
-
         return action, len(self.entries), self.total_visit_count
 
     def create_action_node(self, action):

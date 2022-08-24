@@ -128,7 +128,7 @@ class POMCP(BeliefTreeSolver):
             )
         else :
             reward, delayed_reward = self.select_existing_step(
-                belief_node, tree_depth, action, start_time, delayed_reward
+                belief_node, tree_depth, state, action, start_time, delayed_reward
             )
 
         # delayed_reward is "Q maximal"
@@ -186,7 +186,7 @@ class POMCP(BeliefTreeSolver):
 
         return step_result.reward, delayed_reward
 
-    def select_existing_step(self, belief_node, tree_depth, action, start_time, delayed_reward):
+    def select_existing_step(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
         self.logger.debug("select existing step")
         obsEntries = belief_node.get_child_obs_entries(action)
 
@@ -201,7 +201,7 @@ class POMCP(BeliefTreeSolver):
         selected_obs = selected_entry.observation
         selected_next_state = selected_entry.child_node.sample_particle()
 
-        reward = self.model.get_reward(selected_next_state)
+        reward = self.model.get_reward(state, selected_next_state)
 
         self.logger.debug("the number of particles : {}".format(len(selected_entry.child_node.state_particles)))
         self.logger.debug("selected observation : {}".format(selected_obs.observed_gmu_status))

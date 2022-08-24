@@ -24,7 +24,7 @@ def summary_simulationResult(writer, beliefTree, best_ucb_value, best_q_value, e
             actionMapping = obsList[i].action_map
             N_h += actionMapping.total_visit_count
             C_h += actionMapping.get_number_of_action()
-            particle += len(obsList[i].state_particles)
+            particle += obsList[i].get_num_total_particle()
 
             for actionEntry in actionMapping.get_all_entries() :
                 if actionEntry.child_node == None :

@@ -5,7 +5,7 @@
 
 
 (#) remove rollout
-# If there is no any connection with macro cell, give a large penelty.
+(#) If there is no any connection with macro cell, give a large penelty.
     - as well as all of GMU are not dicorved
 (#) remove semi-lazy parameters in state
     -> trjectory prediction is only used for a simulation.

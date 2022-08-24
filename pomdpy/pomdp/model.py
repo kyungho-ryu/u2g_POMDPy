@@ -231,7 +231,7 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         """
 
     @abc.abstractmethod
-    def generate_particles(self, n_particles):
+    def generate_particles(self):
         """
         Generates new state particles based on the state particles of the previous node,
         * as well as on the action and observation.

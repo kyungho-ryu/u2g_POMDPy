@@ -199,7 +199,7 @@ class BeliefMappingSolver(Solver):
             child_belief_node.add_particle(particle, prior_state_key)
 
         # Failed to continue search- ran out of particles
-        if child_belief_node is None or child_belief_node.state_particles.__len__() == 0:
+        if child_belief_node is None :
             console(1, module, "Couldn't refill particles, must use random rollout to finish episode")
             self.disable_tree = True
             return
@@ -217,7 +217,7 @@ class BeliefMappingSolver(Solver):
         candidate_entry = []
         for entry in obs_mapping_entries:
             if entry.child_node is not None:
-                dissimilarity = entry.observation.check_similarity(new_observation)
+                dissimilarity = entry.observation.check_dissimilarity(new_observation)
 
                 if min == dissimilarity or len(candidate_entry) == 0:
                     candidate_entry.append(entry)
@@ -233,11 +233,9 @@ class BeliefMappingSolver(Solver):
         else :
             selected_entry = random.choice(candidate_entry)
             child_belief_node = selected_entry.child_node
-            self.belief_mapping.copy_belief_node(selected_entry.observation, new_observation)
+            # self.belief_mapping.copy_belief_node(selected_entry.observation, new_observation)
 
-            test = self.belief_mapping.get_belief_node(new_observation)
             console(2, module, "Had to grab nearest belief node...variance added")
-            console(2, module, "test" + str(test.action_map))
 
             return child_belief_node
 

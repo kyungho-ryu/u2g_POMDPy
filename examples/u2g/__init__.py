@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from .grid_position import GridPosition
 from .u2g_model import U2GModel
 from .u2g_state import U2GState, UAV, GMU
+from .u2g_reward import U2GReward
 from .u2g_position_history import GMUData, PositionAndGMUData
 # from .rock_action import RockAction
 # from .rock_model import RockModel

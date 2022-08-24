@@ -99,7 +99,6 @@ class POMCPMapping(BeliefMappingSolver):
         # choice random state from particles every simulation
         state = belief_node.sample_particle(prior_state_key)
         self.model.reset_for_simulation(state.gmus)
-
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
 
@@ -122,7 +121,6 @@ class POMCPMapping(BeliefMappingSolver):
             temp_action = self.model.sample_near_actions(state.uav_position)
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
-
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
         self.logger.debug(actionStatus)
 
@@ -256,7 +254,6 @@ class POMCPMapping(BeliefMappingSolver):
         self.logger.debug("observation : {}/{}".format(len(step_result.observation.observed_gmu_status),
                                                       step_result.observation.observed_gmu_status))
 
-        step_result.observation.check_similarity(step_result.observation)
         # child belief node = observation
         child_belief_node, ChildStatus = belief_node.child(action, step_result.observation)
         self.logger.debug("Status : {}".format(ChildStatus))
@@ -266,12 +263,12 @@ class POMCPMapping(BeliefMappingSolver):
             child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
 
         if not step_result.is_terminal or not is_legal:
-            prior_state_key = mapping.get_key(state.as_list())
+            prior_state_key = state.get_key()
             child_belief_node.add_particle(step_result.next_state, prior_state_key)
 
             tree_depth += 1
             if added:
-                delayed_reward = self.rollout(child_belief_node, self.model.action_method)
+                delayed_reward = 0
             else:
                 delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time, prior_state_key)
             tree_depth -= 1
@@ -301,12 +298,12 @@ class POMCPMapping(BeliefMappingSolver):
 
         selected_obs = selected_entry.observation
 
-        prior_state_key = mapping.get_key(state.as_list())
+        prior_state_key = state.get_key()
         selected_next_state = selected_entry.child_node.sample_particle(prior_state_key)
 
-        reward = self.model.get_reward(selected_next_state)
+        reward = self.model.get_reward(state, action, selected_next_state)
 
-        self.logger.debug("the number of particles : {}".format(len(selected_entry.child_node.state_particles)))
+        self.logger.debug("the number of particles : {}".format(selected_entry.child_node.get_num_total_particle()))
         self.logger.debug("selected observation : {}".format(selected_obs.observed_gmu_status))
         self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
         self.logger.debug("reward : {}".format(reward))

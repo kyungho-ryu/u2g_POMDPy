@@ -1,7 +1,7 @@
 from __future__ import print_function
 from builtins import object
-from pomdpy.discrete_pomdp import DiscreteU2GAction
-
+from pomdpy.discrete_mapping_pomdp import DiscreteU2GAction
+import hashlib
 
 class U2GAction(DiscreteU2GAction):
     """
@@ -24,3 +24,6 @@ class U2GAction(DiscreteU2GAction):
 
     def distance_to(self, other_point):
         pass
+
+    def get_key(self):
+        return hashlib.sha256(self.to_string().encode()).hexdigest()

@@ -22,18 +22,25 @@ class ParticlePool :
 
 
     def sample_particle(self, prior_state):
-        if self.NumParticle[prior_state] < MinParticle:
+        if prior_state not in self.particle :
+            particle = random.choice(list(self.particle.values()))
+            return particle.random_particle()
+        elif self.NumParticle[prior_state] < MinParticle:
             particle = random.choice(list(self.particle.values()))
             return particle.random_particle()
         else :
             return self.particle[prior_state].random_particle()
 
 
+    def get_num_total_particle(self):
+        return self.TotalParticle
 class Particle :
     def __init__(self, ):
-        self.state = deque(maxlen=100)
+        self.state = []
 
     def add_particle(self, state):
+        if len(self.state) >= 100 :
+            self.state.pop(0)
         self.state.append(state)
 
     def random_particle(self):

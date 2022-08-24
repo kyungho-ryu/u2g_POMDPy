@@ -1,6 +1,3 @@
-import numpy as np
-
-a = np.inf
-
-if 5 < a :
-    print("asd")
+a = [12,3,4,5]
+a.pop(0)
+print(a)

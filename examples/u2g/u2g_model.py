@@ -1,3 +1,5 @@
+import time
+
 from pomdpy.pomdp import Model, StepResult
 from mobility.semi_lazy import SLModel
 from examples.u2g import energy
@@ -6,9 +8,12 @@ from examples.u2g.u2g_action import U2GAction
 from examples.u2g.u2g_state import U2GState, UAV, GMU
 from examples.u2g.u2g_observation import U2GObservation
 from examples.u2g.u2g_position_history import GMUData, PositionAndGMUData
-from examples.u2g.util import getA2ADist, getLocStat, getNgbCellAvail, getNgbCell
+from examples.u2g.util import getA2ADist, getLocStat, getNgbCellAvail, getNgbCell, uavTopoUpdate, findServingUAV, getGMUCellTraffic, path2Edges, controlSrcRate, getServingUAV
 from examples.u2g.energy import calA2GCommEnergy, calA2ACommEnergy, calA2GMaxCommEnergy, calA2AMaxCommEnergy
-import logging, random, copy
+from examples.u2g.channel import calA2ALinkRate, setA2GDefaultRadioResource
+import logging, random, copy, collections
+import networkx as nx
+
 
 from pomdpy.discrete_mapping_pomdp import DiscreteActionPool, DiscreteObservationPool
 from collections import deque
@@ -170,6 +175,98 @@ class U2GModel(Model) : # Model
 
         self.env_map = envMap
 
+    def set_activeUavs(self, next_state) :
+        G = nx.Graph()
+        activeUavs = []
+        activeUavsID = []
+        for i in range(len(next_state.uavs)):
+            if next_state.uavs[i].power == "on":
+                activeUavs.append(next_state.uavs[i])
+                activeUavsID.append(next_state.uavs[i].id)
+
+        self.logger.debug("Active Uavs : {}".format(activeUavsID))
+        uavTopoUpdate(G, activeUavs, next_state.uavStatus, Config.MAX_XGRID_N, Config.MAX_GRID_INDEX)
+
+        return G, activeUavs, activeUavsID
+
+    def set_servingGmusTraffics(self, G, state, next_state):
+        a2aLinkStatus = self.calA2ALinkCapa(G, next_state.uavs)
+
+        # predict a2g traffics
+        NUM_non_discovery = 0
+        for _cell in state.gmuStatus:
+            if state.gmuStatus[_cell]:
+                sUav = findServingUAV(next_state.uavStatus[_cell])
+                if sUav:
+                    setA2GDefaultRadioResource(sUav, state.gmuStatus[_cell])
+                else:
+                    NUM_non_discovery += len(state.gmuStatus[_cell])
+                    self.logger.debug('There is no serving UAV in cell :{}'.format(_cell))
+                    self.logger.debug('Those GMU cannot receive service : {}'.format([g.id for g in state.gmuStatus[_cell]]))
+
+
+        if self.discovery_penalty :
+            probability = (1 - NUM_non_discovery / self.numGmus)
+            if self.discovery_penalty_threshold > probability :
+                self.logger.debug("Over discovery penalty threshold  : {}".format(probability))
+
+                return self.penalty, None, None
+
+        gmuFlowsPerLink = {}
+        srcUavRate = collections.defaultdict(int)  # uId: UAV backhaul rate
+
+        for e in G.edges():
+            gmuFlowsPerLink[e] = []
+
+        connection = False
+        for i in G.nodes():
+            if i != Config.NUM_UAV: # except to gateway
+                try :
+                    _path = nx.shortest_path(G, source=i, target=Config.NUM_UAV, weight='weight')
+                except :
+                    self.logger.debug("{} don't have any path".format(i))
+                    continue
+                connection = True
+                aggGmuRate = getGMUCellTraffic(next_state.uavs[i].cell, state.gmuStatus)
+                srcUavRate[i] = aggGmuRate
+                pathEdges = path2Edges(list(_path))
+
+                self.logger.debug("{}' path : {}, aggGmuRate : {}".format(i, _path, aggGmuRate))
+
+                # accumulate weight for next routing diversification
+                for e in pathEdges:
+                    if e not in list(G.edges()):
+                        x1, y1 = e
+                        e = (y1, x1)
+
+                    gmuFlowsPerLink[e].append(i)
+                    a2aLinkStatus[e]['load'] += aggGmuRate
+                    tmp = list(dict(G.get_edge_data(*e)).values())
+                    if tmp:
+                        G.add_edge(e[0], e[1], weight=aggGmuRate + tmp[0])
+                    else:
+                        G.add_edge(e[0], e[1], weight=aggGmuRate)
+
+        self.logger.debug("gmuFlowsPerLink : {}".format(gmuFlowsPerLink))
+        self.logger.debug("a2aLinkStatus : {}".format(a2aLinkStatus))
+
+        if connection == False and self.connection_penalty :
+            self.logger.debug("There is no any connection with GCC")
+            return  self.penalty, None, None
+
+        # control sending flowRate according to limited backhaul link capacity
+        for e in a2aLinkStatus:
+            if a2aLinkStatus[e]['max'] < a2aLinkStatus[e]['load']:
+                if len(gmuFlowsPerLink[e]) >= 1:  # multiple flows
+                    controlSrcRate(srcUavRate, gmuFlowsPerLink[e], a2aLinkStatus[e]['max'])
+
+        TotalDnRate = self.re_allocate_gmu_dnRate(state.gmuStatus, next_state.uavs, srcUavRate)
+
+        self.logger.debug('total throughput : {}, average : {}'.format(
+            sum(srcUavRate.values()), sum(srcUavRate.values()) / len(state.gmus))
+        )
+
+        return TotalDnRate, a2aLinkStatus, G
 
     def getGridCenter(self, _gIdx):
         _yGrid = _gIdx // Config.MAX_XGRID_N
@@ -183,18 +280,26 @@ class U2GModel(Model) : # Model
         _yGrid = int(_y // Config.GRID_W)
         return _yGrid * Config.MAX_XGRID_N + _xGrid
 
-    def get_reward(self, next_state):
-        totalDnRate = next_state.get_gmu_dnRate()
-        totalEnergyConsumtion = next_state.get_total_energy_consumption()
+    def get_reward(self, state, action, next_state):
+        key = action.get_key()
+        if state.check_already_exisit_reward(key) :
+            totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalDnRate = state.get_reward(key)
+            totalEnergyConsumtion = totalA2GEnergy + totalA2AEnergy + totalPropEnergy
 
-        self.logger.debug("GMU's dnRate : {}".format(totalDnRate))
-        self.logger.debug("TotalEnergyConsumtion : {}".format(totalEnergyConsumtion))
+            self.logger.debug("GMU's dnRate : {}".format(totalDnRate))
+            self.logger.debug("TotalEnergyConsumtion : {}".format(totalEnergyConsumtion))
 
-        totalEnergyConsumtion, totalDnRate = self.norm_rewards(totalEnergyConsumtion, totalDnRate)
+            totalEnergyConsumtion, totalDnRate = self.norm_rewards(totalEnergyConsumtion, totalDnRate)
 
-        self.logger.debug("total rewards : {}/{}".format(totalEnergyConsumtion, totalDnRate))
+            self.logger.debug("total rewards : {}/{}".format(totalEnergyConsumtion, totalDnRate))
 
-        return totalEnergyConsumtion + totalDnRate
+            TotalReward = totalEnergyConsumtion + totalDnRate
+        else :
+            TotalReward = self.make_reward(state, action, next_state)
+
+        return TotalReward
+
+
 
     def draw_env(self, map, name):
         self.logger.info("====U2G "+ name +" Deployment====")
@@ -241,30 +346,39 @@ class U2GModel(Model) : # Model
         self.logger.debug("Observation : {}".format(observation))
         return U2GObservation(observation)
 
-    def make_reward(self, state, next_state):
+    def make_reward(self, state, action, next_state):
         self.logger.debug("Previous UAV deployment : {}".format(state.uav_position))
         self.logger.debug("next UAV deployment : {}".format( next_state.uav_position))
-        self.logger.debug("Active UAV : {}".format(next_state.get_activeUavs()))
 
-        if not self.state.connection_with_gcc :
-            return -10
+        key = action.get_key()
+        if state.check_already_exisit_reward(key) :
+            totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalDnRate = state.get_reward(key)
+            totalEnergyConsumtion = totalA2GEnergy + totalA2AEnergy + totalPropEnergy
+            self.logger.debug("Already exisit reward for an action, Reward: {}/{}".format(totalEnergyConsumtion, totalDnRate))
+        else :
+            # 1. check gmu deploy and reallocate uavs during UAV_RELOC_PERIOD
+            totalPropEnergy = self.calcurate_reallocate_uav_energy(state.uav_position, next_state.uav_position)
 
-        # 1. check gmu deploy and reallocate uavs during UAV_RELOC_PERIOD
-        totalPropEnergy = self.calcurate_reallocate_uav_energy(
-            next_state.uavs, state.uav_position, next_state.uav_position
-        )
+            # 2. Calcurate energy consumption
+            G, activeUavs, activeUavsID = self.set_activeUavs(next_state)
+            totalDnRate, a2aLinkStatus, G = self.set_servingGmusTraffics(G, state, next_state)
+            self.logger.debug("GMU's dnRate : {}".format(totalDnRate))
 
-        # 2. Calcurate energy consumption
-        totalA2GEnergy, totalA2AEnergy = self.calcurate_energy_consumption(next_state)
+            if totalDnRate == self.penalty :
+                state.set_reward(key, self.penalty)
 
-        totalEnergyConsumtion = totalA2GEnergy + totalA2AEnergy + totalPropEnergy
-        self.logger.debug('total energy: {}, active UAVs: {}'.format(
-            totalEnergyConsumtion, len(next_state.G.nodes()))
-        )
-        next_state.set_energy_consumtion(totalA2GEnergy, totalA2AEnergy, totalPropEnergy)
+                return self.penalty
 
-        totalDnRate = next_state.get_gmu_dnRate()
-        self.logger.debug("GMU's dnRate : {}".format(totalDnRate))
+            totalA2GEnergy, totalA2AEnergy = self.calcurate_energy_consumption(
+                state.gmuStatus, next_state, a2aLinkStatus, G
+            )
+
+            totalEnergyConsumtion = totalA2GEnergy + totalA2AEnergy + totalPropEnergy
+            self.logger.debug('total energy: {}, active UAVs: {}'.format(
+                totalEnergyConsumtion, len(G.nodes()))
+            )
+            state.set_reward(key, totalDnRate, totalA2GEnergy,
+                             totalA2AEnergy, totalPropEnergy, len(activeUavsID))
 
         totalEnergyConsumtion, totalDnRate = self.norm_rewards(totalEnergyConsumtion, totalDnRate)
 
@@ -278,6 +392,33 @@ class U2GModel(Model) : # Model
         dnRate = _dnRate / self.MaxDnRate
 
         return energyConsumtion * Config.WoE, dnRate * Config.WoD
+
+    def re_allocate_gmu_dnRate(self, gmuStatus, uavs, srcUavRate):
+        _dnRate = 0
+        for _cell in gmuStatus:
+            if gmuStatus[_cell]:
+                _uav = getServingUAV(_cell, uavs)
+                if _uav == None :
+                    continue
+
+                _rate = srcUavRate[_uav.id] / len(gmuStatus[_cell])
+                for g in gmuStatus[_cell]:
+                    g.dnRate = _rate
+                    _dnRate += _rate
+
+        TotalDnRate = _dnRate
+
+        return TotalDnRate
+
+    def calA2ALinkCapa(self, G, uavs):
+        a2aLinkStatus = {}
+        for e in list(G.edges()):
+            a2aLinkStatus[e] = {'max': 0, 'load': 0}
+            a2aLinkStatus[e]['max'] = calA2ALinkRate(uavs[e[0]], uavs[e[1]])
+
+        self.logger.debug("A2A Link State : {}".format(a2aLinkStatus))
+
+        return a2aLinkStatus
 
     def calcurate_max_uav_energy(self, MAX_GRID_INDEX, NUM_UAV):
         totalPropEnergy = 0
@@ -306,38 +447,38 @@ class U2GModel(Model) : # Model
         return totalPowerConsumption
 
 
-    def calcurate_reallocate_uav_energy(self, uavs, previous_uav_status, uav_status):
+    def calcurate_reallocate_uav_energy(self, previous_uav_status, uav_status):
         totalPropEnergy = 0
         for i in range(len(uav_status)) :
-            if 'off' != uavs[i].power :
-                _vel = self.calUAVFlightSpeed(previous_uav_status[i], uav_status[i])
-                if _vel == 0 :
-                    totalPropEnergy += (self.p0+self.p1) * Config.UAV_RELOC_PERIOD
-                else :
-                    totalPropEnergy += energy.calUavFowardEnergy(self.p0, self.p1, _vel) * Config.UAV_RELOC_PERIOD
+            # if 'off' != uavs[i].power :
+            _vel = self.calUAVFlightSpeed(previous_uav_status[i], uav_status[i])
+            if _vel == 0 :
+                totalPropEnergy += (self.p0+self.p1) * Config.UAV_RELOC_PERIOD
+            else :
+                totalPropEnergy += energy.calUavFowardEnergy(self.p0, self.p1, _vel) * Config.UAV_RELOC_PERIOD
 
         self.logger.debug("Total prop energy : {}".format(totalPropEnergy))
 
         return totalPropEnergy
 
-    def calcurate_energy_consumption(self, state):
+    def calcurate_energy_consumption(self, gmuStatus, next_state, a2aLinkStatus, G):
         # 3.1 a2g energy
         totalA2GEnergy = 0
-        for _u in state.uavs:
-            if _u.power == 'on' and _u.bGateway == False and state.gmuStatus[_u.cell]:
-                totalA2GEnergy += calA2GCommEnergy(_u, state.gmuStatus[_u.cell])
+        for _u in next_state.uavs:
+            if _u.power == 'on' and _u.bGateway == False and gmuStatus[_u.cell]:
+                totalA2GEnergy += calA2GCommEnergy(_u, gmuStatus[_u.cell])
 
         self.logger.debug('total a2g energy: {}'.format(totalA2GEnergy))
 
         # 3.2 a2a energy
         totalA2AEnergy = 0
-        for _u in state.uavs:
+        for _u in next_state.uavs:
             if _u.power == 'on':
-                _ngbs = list(state.G.neighbors(_u.id))
+                _ngbs = list(G.neighbors(_u.id))
                 for _ngb in _ngbs:
-                    e = (_u.id, _ngb) if (_u.id, _ngb) in state.a2aLinkStatus else (_ngb, _u.id)
+                    e = (_u.id, _ngb) if (_u.id, _ngb) in a2aLinkStatus else (_ngb, _u.id)
                     totalA2AEnergy += calA2ACommEnergy(
-                        _u, state.uavs[_ngb], min(state.a2aLinkStatus[e]['max'], state.a2aLinkStatus[e]['load'])
+                        _u, next_state.uavs[_ngb], min(a2aLinkStatus[e]['max'], a2aLinkStatus[e]['load'])
                     )
 
         self.logger.debug('total a2a energy: {}'.format(totalA2AEnergy))
@@ -355,21 +496,17 @@ class U2GModel(Model) : # Model
         next_cell = next_state[index].cell
         _cx, _cy = self.GRID_CENTER[current_cell]
         _nx, _ny = self.GRID_CENTER[next_cell]
+
         if next_cell not in exisiting_cells.keys() :
             exisiting_cells[next_cell] = [next_cell, index, getA2ADist(_cx, _cy, _nx, _ny)]
         else :
             new_dist = getA2ADist(_cx, _cy, _nx, _ny)
             if new_dist < exisiting_cells[next_cell][2] :
                 next_state[exisiting_cells[next_cell][1]].power = 'off'
-                next_state[index].x = _cx
-                next_state[index].y = _cy
-
                 exisiting_cells[next_cell][1] = index
                 exisiting_cells[next_cell][2] = new_dist
             else :
                 next_state[index].power = 'off'
-                next_state[index].x =  _cx
-                next_state[index].y =  _cy
 
 
     ''' ===================================================================  '''
@@ -394,11 +531,11 @@ class U2GModel(Model) : # Model
             cellIndex, coordinate, observed, SL_params = self.mobility_SLModel.get_init_gmu_locIndex(i)
             sample_states[cellIndex] +=1
             gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
-
+        self.updateCellInfo(gmus)
         self.logger.debug("sample init state : {}".format(sample_states))
         self.logger.debug("UAV init position : {}".format(self.uavPosition))
 
-        return U2GState(self.uavPosition, sample_states, self.uavs, gmus, True)
+        return U2GState(self.uavPosition, sample_states, self.uavs, gmus)
 
     def sample_state_uninformed(self):
         """
@@ -470,7 +607,7 @@ class U2GModel(Model) : # Model
 
                 if terminal :
                     is_termimal = True
-
+            self.updateCellInfo(gmus)
             self.future_gmus.append(gmus)
             self.future_gmuPosition.append(sample_states)
 
@@ -532,7 +669,7 @@ class U2GModel(Model) : # Model
         result.next_state = self.make_next_state(state, action)
         result.action = action.copy()
         result.observation = self.make_observation(result.next_state)
-        result.reward = self.make_reward(state, result.next_state)
+        result.reward = self.make_reward(state, action, result.next_state)
         result.is_terminal = self.is_terminal()
 
         return result, True
@@ -544,8 +681,8 @@ class U2GModel(Model) : # Model
             cellIndex, coordinate, observed, SL_params = self.mobility_SLModel.get_init_gmu_locIndex(i)
             sample_states[cellIndex] += 1
             gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
-
-        return U2GState(self.uavPosition, sample_states, self.uavs, gmus, True)
+        self.updateCellInfo(gmus)
+        return U2GState(self.uavPosition, sample_states, self.uavs, gmus)
 
 
     # used for data in belief root node
@@ -572,14 +709,17 @@ class U2GModel(Model) : # Model
         :return:
         """
 
-    def get_simulationResult(self, state):
-        totalEnergyConsumtion = state.totalA2GEnergy + state.totalA2AEnergy + state.totalPropEnergy
-        scaledEnergyConsumtion, scaledDnRate = self.norm_rewards(totalEnergyConsumtion, state.TotalDnRate)
+    def get_simulationResult(self, state, action):
+        key = action.get_key()
+        totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalDnRate = state.get_reward(key)
+        totalEnergyConsumtion = totalA2GEnergy + totalA2AEnergy + totalPropEnergy
+        scaledEnergyConsumtion, scaledDnRate = self.norm_rewards(totalEnergyConsumtion, totalDnRate)
 
-        avgDnRage = state.TotalDnRate / Config.NUM_GMU / pow(10, 3)
-        return [state.totalA2GEnergy, state.totalA2AEnergy, state.totalPropEnergy, totalEnergyConsumtion,
-                avgDnRage, scaledEnergyConsumtion, scaledDnRate,
-                len(state.activeUavsID), self.mobility_SLModel.get_num_observed_GMU()]
+        NumActiveUav = state.get_num_active_uavs(key)
+        avgDnRage = totalDnRate / Config.NUM_GMU / pow(10, 3)
+        return [totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalEnergyConsumtion,
+                avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav,
+                self.mobility_SLModel.get_num_observed_GMU()]
 
     def get_initial_belief_state(self):
         """
@@ -629,9 +769,10 @@ class U2GModel(Model) : # Model
             sample_states[cellIndex] +=1
             gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, True, None))
 
+        self.updateCellInfo(gmus)
         self.logger.debug("prior init state : {}".format(sample_states))
 
-        return U2GState(self.uavPosition, sample_states, self.uavs, gmus, True)
+        return U2GState(self.uavPosition, sample_states, self.uavs, gmus)
 
     def is_terminal(self):
         """

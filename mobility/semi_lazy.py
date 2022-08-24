@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 from .trajectory_grid import TG
 from .SL_object import MO, State, Trajectory
@@ -243,10 +245,8 @@ class SLModel :
     def get_reference_objects(self, id, backward_traj):
         # find reference objects of mo0
         # 5. LOOKUP PROCESS
-
         RO = self.tg.lookup(self.MOS[id].id, backward_traj, self.MOS, self.NumGMU)
         self.logger.debug("Selected RO : {}".format(RO))
-
         if RO == [] :
             self.logger.info("There are no RO {} in {}".format(RO, id))
             new_backward_traj = add_noise_to_trajectory(list(backward_traj))

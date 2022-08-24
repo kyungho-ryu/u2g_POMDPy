@@ -52,6 +52,7 @@ def calA2GLinkRate(uavLoc, gmuLoc, channel_bw):
 def setA2GDefaultRadioResource(uav, lGmu):
     subChBand = BAND_A2G / len(lGmu)  # even allocation for each GMU
     for g in lGmu:
+        g.dnRate = 0
         linkCapa = calA2GLinkRate(uav, g, subChBand)
         g.dnRate = g.demand if g.demand <= linkCapa else linkCapa
 

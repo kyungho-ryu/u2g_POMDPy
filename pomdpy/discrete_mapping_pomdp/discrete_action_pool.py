@@ -1,5 +1,5 @@
 from pomdpy.pomdp import ActionPool
-from pomdpy.discrete_pomdp import DiscreteActionMapping
+from pomdpy.discrete_mapping_pomdp import DiscreteActionMapping
 import numpy as np
 
 

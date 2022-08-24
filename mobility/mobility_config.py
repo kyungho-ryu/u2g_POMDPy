@@ -4,7 +4,7 @@ class MConfig :
     # H = np.inf
     H = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000
     initialTrip = 2
-    Batch = 70
+    Batch = 30
     BatchInitialTrip = 280
 
     MaxTrajectory =  299

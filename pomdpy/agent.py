@@ -4,7 +4,7 @@ import logging
 import os
 from pomdpy.pomdp import Statistic
 from pomdpy.pomdp.history import Histories, HistoryEntry
-from pomdpy.util import console, print_divider, summary, mapping
+from pomdpy.util import console, print_divider, summary
 from experiments.scripts.pickle_wrapper import save_pkl
 
 module = "agent"
@@ -157,7 +157,7 @@ class Agent:
         # Monte-Carlo start state
         # choice random state from particles (2000)
         prior_state = solver.model.get_an_init_prior_state()
-        prior_state_key = mapping.get_key(prior_state.as_list())
+        prior_state_key = prior_state.get_key()
         state = solver.belief_mapping_index.sample_particle(prior_state_key)
         self.logger.debug("[{}]state:\n{}".format(epoch, state.to_string()))
         self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
@@ -207,9 +207,6 @@ class Agent:
                 elif result == 2 :
                     NUM_grab_nearest_child_belief_node +=1
 
-            prior_state_key = mapping.get_key(state.as_list())
-            state = solver.belief_mapping_index.sample_particle(prior_state_key)
-
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()
             HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
@@ -217,9 +214,14 @@ class Agent:
             # prob_attach_existing_belief_node = 1 - (NUM_create_child_belief_node/steps)
             summary.summary_result(
                 self.model.writer, steps, reward, discounted_reward, steps-NUM_create_child_belief_node,
-                self.model.get_simulationResult(step_result.next_state), time.time()- epoch_start
+                self.model.get_simulationResult(state, action), time.time()- epoch_start
             )
+
+            prior_state_key = state.get_key()
+            state = solver.belief_mapping_index.sample_particle(prior_state_key)
+
             steps +=1
+
             if step_result.is_terminal or not is_legal:
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
                 break

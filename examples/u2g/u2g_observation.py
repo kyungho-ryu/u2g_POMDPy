@@ -1,6 +1,6 @@
 from __future__ import print_function
 from builtins import str
-from pomdpy.discrete_pomdp import DiscreteU2GObservation
+from pomdpy.discrete_mapping_pomdp import DiscreteU2GObservation
 import hashlib
 
 class U2GObservation(DiscreteU2GObservation):
