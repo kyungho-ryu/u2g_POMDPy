@@ -24,8 +24,12 @@ class TG () :
 
         def find_candidate_objs (id, traj, candidate, MOS, NUMMOS, last_index):   # candiate = id, t
             candidate_objs = []
+            if traj not in self.leafCells :
+                return candidate_objs
+
             self.logger.debug("current selected {}:".format(candidate))
             self.logger.debug("candidate : {}".format(list(self.leafCells[traj].trajectories.keys())))
+
             for k, v in self.leafCells[traj].trajectories.items() :
                 candidate_id = get_id_of_gmu(k[0])
                 if k[0] != id and candidate_id >= NUMMOS:
