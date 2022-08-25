@@ -250,9 +250,10 @@ class SLModel :
         if RO == [] :
             self.logger.info("There are no RO {} in {}".format(RO, id))
             new_backward_traj = add_noise_to_trajectory(list(backward_traj))
-            get_id_of_gmu(id, new_backward_traj)
 
-        return RO
+            return self.get_reference_objects(id, new_backward_traj)
+        else :
+            return RO
 
     # Probabilistic Path Prediction Alogorithm
     # 6. PF AND CONSTRUCTION PROCESS

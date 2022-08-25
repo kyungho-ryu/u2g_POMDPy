@@ -17,7 +17,10 @@ class U2GObservation(DiscreteU2GObservation):
         dissimilarity = 0
         for i in range(len(self.observed_gmu_status)) :
             if self.observed_gmu_status[i] != other_u2g_observation.observed_gmu_status[i] :
-                dissimilarity +=1
+                if self.observed_gmu_status[i] > 0 and other_u2g_observation.observed_gmu_status[i] > 0 :
+                    continue
+                else:
+                    dissimilarity +=1
 
         return dissimilarity/len(self.observed_gmu_status)
 

@@ -35,11 +35,12 @@ class BeliefMappingSolver(Solver):
         self.belief_mapping.reset(observation)
         self.belief_mapping.initialize(observation)
 
+        prior_state = self.model.get_an_init_prior_state()
+        prior_state_key = mapping.get_key(prior_state.as_list())
+
         # generate state particles for root node belief state estimation
         # This is for simulation
         self.model.reset_for_epoch()
-        prior_state = self.model.get_an_init_prior_state()
-        prior_state_key = mapping.get_key(prior_state.as_list())
         for i in range(self.model.n_start_states):
             particle = self.model.sample_an_init_state()    # create random rock state
             self.belief_mapping.add_particle(observation, particle, prior_state_key)

@@ -137,27 +137,32 @@ class Agent:
         steps = 1
         NUM_create_child_belief_node = 0
         NUM_grab_nearest_child_belief_node = 0
+        prior_state = solver.model.get_an_init_prior_state()
+        prior_state_key = prior_state.get_key()
+        observation = solver.model.sample_an_init_observation()
+
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()
 
             if self.model.solver == 'POMCP-DPW':
                 eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node = \
-                    self.run_pomcp(solver, i + 1, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node)
-                solver.model.reset_for_epoch()
-            # if self.experiment_results.time.running_total > self.model.timeout:
-            #     console(2, module, 'Timed out after ' + str(i) + ' epochs in ' +
-            #             self.experiment_results.time.running_total + ' seconds')
-            #     break
+                    self.run_pomcp(solver, i + 1, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node, prior_state_key)
 
-    def run_pomcp(self, solver, epoch, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node):
+                solver.model.reset_for_epoch()
+
+                for i in range(self.model.n_start_states):
+                    particle = self.model.sample_an_init_state()  # create random rock state
+                    solver.belief_mapping.add_particle(observation, particle, prior_state_key)
+
+
+    def run_pomcp(self, solver, epoch, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node, prior_state_key):
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
 
         # Monte-Carlo start state
         # choice random state from particles (2000)
-        prior_state = solver.model.get_an_init_prior_state()
-        prior_state_key = prior_state.get_key()
+
         state = solver.belief_mapping_index.sample_particle(prior_state_key)
         self.logger.debug("[{}]state:\n{}".format(epoch, state.to_string()))
         self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
@@ -213,7 +218,7 @@ class Agent:
 
             # prob_attach_existing_belief_node = 1 - (NUM_create_child_belief_node/steps)
             summary.summary_result(
-                self.model.writer, steps, reward, discounted_reward, steps-NUM_create_child_belief_node,
+                self.model.writer, steps, step_result.reward, discounted_reward, steps-NUM_create_child_belief_node,
                 self.model.get_simulationResult(state, action), time.time()- epoch_start
             )
 

@@ -58,7 +58,8 @@ class U2GModel(Model) : # Model
 
         # Mobility model
         self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N)
-        self.init_gmus = self.get_an_init_prior_state()
+        self.init_prior_state = self.set_an_init_prior_state()
+        self.init_observation = None
         self.initialize()
 
 
@@ -175,6 +176,19 @@ class U2GModel(Model) : # Model
 
         self.env_map = envMap
 
+    def set_an_init_prior_state(self):
+        sample_states = [0 for _ in range(Config.MAX_GRID_INDEX+1)]
+        gmus = []
+        for i in range(self.numGmus):
+            cellIndex, coordinate = self.mobility_SLModel.get_init_prior_gmu_locIndex(i)
+            sample_states[cellIndex] +=1
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, True, None))
+
+        self.updateCellInfo(gmus)
+        self.logger.debug("prior init state : {}".format(sample_states))
+
+        return U2GState(self.uavPosition, sample_states, self.uavs, gmus)
+
     def set_activeUavs(self, next_state) :
         G = nx.Graph()
         activeUavs = []
@@ -267,6 +281,7 @@ class U2GModel(Model) : # Model
         )
 
         return TotalDnRate, a2aLinkStatus, G
+
 
     def getGridCenter(self, _gIdx):
         _yGrid = _gIdx // Config.MAX_XGRID_N
@@ -388,7 +403,7 @@ class U2GModel(Model) : # Model
 
 
     def norm_rewards(self, _energyConsumtion, _dnRate):
-        energyConsumtion = -1 * (_energyConsumtion / self.MaxEnergyConsumtion)
+        energyConsumtion = 1 - (_energyConsumtion / self.MaxEnergyConsumtion)
         dnRate = _dnRate / self.MaxDnRate
 
         return energyConsumtion * Config.WoE, dnRate * Config.WoD
@@ -502,10 +517,15 @@ class U2GModel(Model) : # Model
         else :
             new_dist = getA2ADist(_cx, _cy, _nx, _ny)
             if new_dist < exisiting_cells[next_cell][2] :
+                next_state[exisiting_cells[next_cell][1]].x = _cx
+                next_state[exisiting_cells[next_cell][1]].y = _cy
                 next_state[exisiting_cells[next_cell][1]].power = 'off'
+
                 exisiting_cells[next_cell][1] = index
                 exisiting_cells[next_cell][2] = new_dist
             else :
+                next_state[index].x = _cx
+                next_state[index].y = _cy
                 next_state[index].power = 'off'
 
 
@@ -514,14 +534,17 @@ class U2GModel(Model) : # Model
     ''' ===================================================================  '''
 
     def sample_an_init_observation(self):
-        observation = [None for _ in range(Config.MAX_GRID_INDEX + 1)]
-        gmu_position = self.mobility_SLModel.get_gmu_position(Config.MAX_GRID_INDEX + 1)
-        for i in range(len(observation)):
-            if i in self.uavPosition:
-                observation[i] = gmu_position[i]
+        if self.init_observation == None :
+            observation = [None for _ in range(Config.MAX_GRID_INDEX + 1)]
+            gmu_position = self.mobility_SLModel.get_gmu_position(Config.MAX_GRID_INDEX + 1)
+            for i in range(len(observation)):
+                if i in self.uavPosition:
+                    observation[i] = gmu_position[i]
 
-        self.logger.debug("Observation : {}".format(observation))
-        return U2GObservation(observation)
+            self.logger.debug("Observation : {}".format(observation))
+            self.init_observation = U2GObservation(observation)
+
+        return self.init_observation
 
 
     def sample_an_init_state(self):
@@ -761,18 +784,9 @@ class U2GModel(Model) : # Model
         :return:
         """
 
+
     def get_an_init_prior_state(self):
-        sample_states = [0 for _ in range(Config.MAX_GRID_INDEX+1)]
-        gmus = []
-        for i in range(self.numGmus):
-            cellIndex, coordinate = self.mobility_SLModel.get_init_prior_gmu_locIndex(i)
-            sample_states[cellIndex] +=1
-            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, True, None))
-
-        self.updateCellInfo(gmus)
-        self.logger.debug("prior init state : {}".format(sample_states))
-
-        return U2GState(self.uavPosition, sample_states, self.uavs, gmus)
+        return self.init_prior_state
 
     def is_terminal(self):
         """

@@ -35,9 +35,15 @@ class DiscreteActionMapping(ActionMapping):
     def deep_copy(self):
         action_map_copy = DiscreteActionMapping(self.owner, self.pool)
         action_map_copy.number_of_children = self.number_of_bins
-        action_map_copy.entries = self.entries.copy()
         action_map_copy.number_of_children = self.number_of_children
         action_map_copy.total_visit_count = self.total_visit_count
+
+        # for k, v in self.entries.items() :
+        #     Action = U2GAction(v.deployment)
+        #     self.create_current_action_node(Action)
+        #     action_map_copy.entries = self.entries.copy()
+
+
         return action_map_copy
 
 
