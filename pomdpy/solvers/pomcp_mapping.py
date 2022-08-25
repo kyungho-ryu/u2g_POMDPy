@@ -6,6 +6,7 @@ import time, logging
 import numpy as np
 from pomdpy.util import console, summary, mapping
 from pomdpy.action_selection import ucb_action, action_progWiden, structure
+from pomdpy.solvers.structure import SolverType
 from .belief_mapping_solver import BeliefMappingSolver
 
 module = "pomcp_mapping"
@@ -89,8 +90,10 @@ class POMCPMapping(BeliefMappingSolver):
         :param belief_node:
         :return:
         """
-        if self.model.DPW :
+        if self.model.solver_type ==  SolverType.POMCP_DPW.value:
             return self.POCMP_DPW(belief_node, 0, start_time, prior_state_key)
+        elif self.model.solver_type ==  SolverType.POMCP_POW.value:
+            return self.POCMP_POW(belief_node, 0, start_time, prior_state_key)
         else :
             return self.traverse(belief_node, 0, start_time)
     def POCMP_DPW(self, belief_node, tree_depth, start_time, prior_state_key):
@@ -156,18 +159,14 @@ class POMCPMapping(BeliefMappingSolver):
         # Add RAVE ?
         return q_value
 
-    def POCMP_POW(self, belief_node, tree_depth, start_time):
+    def POCMP_POW(self, belief_node, tree_depth, start_time, prior_state_key):
         delayed_reward = 0
 
         # choice random state from particles every simulation
-        state = belief_node.sample_particle()
+        state = belief_node.sample_particle(prior_state_key)
+        self.model.reset_for_simulation(state.gmus)
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
-
-        # Time expired
-        # if time.time() - start_time > self.model.action_selection_timeout:
-        #     console(4, module, "action selection timeout")
-        #     return 0
 
         # Search horizon reached
         if tree_depth >= self.model.max_depth:  # default = 100
@@ -175,10 +174,12 @@ class POMCPMapping(BeliefMappingSolver):
             return 0
 
         # use UCB table
-        if self.model.NN:
+        if self.model.action_method == structure.action_method.NN.value:
             pass
-        else:
+        elif self.model.action_method == structure.action_method.Random.value:
             temp_action = self.model.sample_random_actions()
+        elif self.model.action_method == structure.action_method.Near.value:
+            temp_action = self.model.sample_near_actions(state.uav_position)
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
@@ -204,17 +205,18 @@ class POMCPMapping(BeliefMappingSolver):
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
             child_belief_node, added = belief_node.create_or_get_child(action, observation)
 
-        if child_belief_node.state_particles.__len__() < self.model.max_particle_count:
-            child_belief_node.state_particles.append(step_result.next_state)
-
         if not step_result.is_terminal or not is_legal:
+            prior_state_key = state.get_key()
+            child_belief_node.add_particle(step_result.next_state, prior_state_key)
+
             tree_depth += 1
             if added:
                 reward = step_result.reward
-                delayed_reward = self.rollout(child_belief_node, self.model.action_method)
+                # delayed_reward = self.rollout(child_belief_node, self.model.action_method)
+                delayed_reward = 0
             else:
                 reward, delayed_reward = self.select_existing_step_for_pow(
-                    belief_node, tree_depth, action, observation, start_time, delayed_reward
+                    belief_node, tree_depth, state, action, observation, start_time, delayed_reward, prior_state_key
                 )
                 # delayed_reward = self.POCMP_POW(child_belief_node, tree_depth, start_time)
             tree_depth -= 1
@@ -334,19 +336,19 @@ class POMCPMapping(BeliefMappingSolver):
 
         return selected_obs
 
-    def select_existing_step_for_pow(self, belief_node, tree_depth, action, obs, start_time, delayed_reward):
+    def select_existing_step_for_pow(self, belief_node, tree_depth, state, action, obs, start_time, delayed_reward, prior_state_key):
         self.logger.debug("select existing step")
         child_node = belief_node.get_child(action, obs)
 
-        selected_next_state = child_node.sample_particle()
-        reward = self.model.get_reward(selected_next_state)
+        selected_next_state = child_node.sample_particle(prior_state_key)
+        reward = self.model.get_reward(state, action, selected_next_state)
 
         self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
         self.logger.debug("reward : {}".format(reward))
 
         if not self.model.is_terminal() :
             tree_depth +=1
-            delayed_reward = self.POCMP_POW(child_node, tree_depth, start_time)
+            delayed_reward = self.POCMP_POW(child_node, tree_depth, start_time, prior_state_key)
             tree_depth -=1
         else:
             console(4, module, "Reached terminal state.")

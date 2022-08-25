@@ -6,6 +6,7 @@ from pomdpy.solvers import POMCPMapping
 from pomdpy.log import init_logger
 from mobility import SLModel
 from examples.u2g import U2GModel
+from pomdpy.solvers.structure import SolverType
 import argparse
 import numpy as np
 
@@ -47,10 +48,10 @@ if __name__ == '__main__':
     parser.add_argument('--action_selection_timeout', default=60, type=int, help='Max num of secs for action selection')
 
     # Using NN
+    parser.add_argument('--solver_type', type=int, help='')
     parser.add_argument('--action_method', default=0, type=int, help='a method for action selection')
 
     # Progressive Widening
-    parser.add_argument('--DPW', type=bool, help='apply progrssive widening for action and observation')
     parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')
     parser.add_argument('--pw_a_alpha', default=0.5, type=float, help='coefficient for progrssive widening in action')
     parser.add_argument('--pw_o_k', default=1, type=int, help='coefficient for progrssive widening in observation')
@@ -76,9 +77,9 @@ if __name__ == '__main__':
     np.random.seed(args['seed'])
 
     if args['solver'] == "POMCP-DPW" :
-        args["DPW"] = True
-    else :
-        args["DPW"] = False
+        args["solver_type"] = SolverType.POMCP_DPW.value
+    elif args['solver'] == "POMCP-POW" :
+        args["solver_type"] = SolverType.POMCP_POW.value
 
     solver = POMCPMapping
 

@@ -242,16 +242,22 @@ class SLModel :
         self.logger.debug("GMU {}' trajectory updated until {} steps".format(id, self.traj[id].updated_time))
         self.MOS.append(mo)
 
-    def get_reference_objects(self, id, backward_traj):
+    def get_reference_objects(self, id, backward_traj, repeat=0):
         # find reference objects of mo0
         # 5. LOOKUP PROCESS
         RO = self.tg.lookup(self.MOS[id].id, backward_traj, self.MOS, self.NumGMU)
         self.logger.debug("Selected RO : {}".format(RO))
-        if RO == [] :
-            self.logger.info("There are no RO {} in {}".format(RO, id))
-            new_backward_traj = add_noise_to_trajectory(list(backward_traj))
+        if RO ==[] :
+            # self.logger.info("There are no RO {} in {}".format(RO, id))
+            repeat +=1
+            start = len(self.MOS[id].candidate_backward_traj) - (repeat + len(backward_traj))
+            end = len(self.MOS[id].candidate_backward_traj) - repeat
 
-            return self.get_reference_objects(id, new_backward_traj)
+            new_backward_traj = list(self.MOS[id].candidate_backward_traj)[start:end]
+            if new_backward_traj == [] or repeat >=4:
+                new_backward_traj = add_noise_to_trajectory(list(self.MOS[id].backward_traj))
+
+            return self.get_reference_objects(id, new_backward_traj, repeat)
         else :
             return RO
 

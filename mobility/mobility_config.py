@@ -3,7 +3,7 @@ class MConfig :
     # trajectories buffer size
     # H = np.inf
     H = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-    initialTrip = 2
+    initialTrip = 5
     Batch = 30
     BatchInitialTrip = 280
 

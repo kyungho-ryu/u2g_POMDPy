@@ -12,8 +12,7 @@ class MO() :
         self.cell_index_of_y = -1
         self.current_t = 0
         self.backward_traj = deque(maxlen=MConfig.BH)
-        self.test = deque(maxlen=5)
-        self.test2 = deque(maxlen=5)
+        self.candidate_backward_traj = deque(maxlen=5)
 
         self.observed = True
         self.tNLoc = []
@@ -30,8 +29,7 @@ class MO() :
         self.cell_index_of_y = cell_location[1]
         self.current_t += 1
         self.backward_traj.append(cell_location)
-        self.test.append(cell_location)
-        self.test2.append(self.current_t)
+        self.candidate_backward_traj.append(cell_location)
 
     def get_location(self):
         return [self.x, self.y]
