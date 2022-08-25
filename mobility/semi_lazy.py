@@ -82,7 +82,7 @@ class SLModel :
 
         if uavStatus[actual_next_loc[1][1]][actual_next_loc[1][0]] == 0:
             t0Loc = self.MOS[id].backward_traj[-1]
-            ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
+            ro, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
             S = State()
             eta = 1
             k=1
@@ -119,7 +119,7 @@ class SLModel :
         if uavStatus[actual_next_loc[1][1]][actual_next_loc[1][0]] == 0 :
             if self.MOS[id].observed == True :
                 t0Loc = self.MOS[id].backward_traj[-1]
-                ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
+                ro, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
                 S = State()
                 eta = 1
                 k=1
@@ -248,7 +248,7 @@ class SLModel :
         RO = self.tg.lookup(self.MOS[id].id, backward_traj, self.MOS, self.NumGMU)
         self.logger.debug("Selected RO : {}".format(RO))
         if RO ==[] :
-            # self.logger.info("There are no RO {} in {}".format(RO, id))
+            self.logger.info("There are no RO {} in {}".format(RO, id))
             repeat +=1
             start = len(self.MOS[id].candidate_backward_traj) - (repeat + len(backward_traj))
             end = len(self.MOS[id].candidate_backward_traj) - repeat
@@ -259,7 +259,7 @@ class SLModel :
 
             return self.get_reference_objects(id, new_backward_traj, repeat)
         else :
-            return RO
+            return RO, backward_traj[-1]
 
     # Probabilistic Path Prediction Alogorithm
     # 6. PF AND CONSTRUCTION PROCESS
@@ -511,7 +511,7 @@ class SLModel :
     def reset_simulation_state(self, id, SL_parms):
         if SL_parms == None :
             t0Loc = self.MOS[id].backward_traj[-1]
-            ro = self.get_reference_objects(id, self.MOS[id].backward_traj)
+            ro, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
             S = State()
             eta = 1
             k = 1

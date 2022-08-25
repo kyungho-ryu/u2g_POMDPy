@@ -145,7 +145,7 @@ class Agent:
             # Reset the epoch stats
             self.results = Results()
 
-            if self.model.solver == 'POMCP-DPW':
+            if self.model.solver == 'POMCP-DPW' or self.model.solver=="POMCP-POW":
                 eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node = \
                     self.run_pomcp(solver, i + 1, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node, prior_state_key)
 
