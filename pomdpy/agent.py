@@ -140,7 +140,7 @@ class Agent:
         prior_state = solver.model.get_an_init_prior_state()
         prior_state_key = prior_state.get_key()
         observation = solver.model.sample_an_init_observation()
-
+        init_belief_mapping_index = solver.belief_mapping_index
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()
@@ -150,7 +150,7 @@ class Agent:
                     self.run_pomcp(solver, i + 1, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node, prior_state_key)
 
                 solver.model.reset_for_epoch()
-
+                solver.belief_mapping_index = init_belief_mapping_index
                 for i in range(self.model.n_start_states):
                     particle = self.model.sample_an_init_state()  # create random rock state
                     solver.belief_mapping.add_particle(observation, particle, prior_state_key)
@@ -227,8 +227,11 @@ class Agent:
 
             steps +=1
 
-            if step_result.is_terminal or not is_legal:
+            if step_result.is_terminal or not is_legal :
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
+                break
+
+            if steps % 10 ==0:
                 break
 
         self.results.time.add(time.time() - epoch_start)

@@ -222,6 +222,7 @@ class POMCPMapping(BeliefMappingSolver):
             tree_depth -= 1
         else:
             console(4, module, "Reached terminal state.")
+            reward = step_result.reward
 
         if flg :
             belief_node.update_visit_count_specific_observation(action, step_result.observation, 1)

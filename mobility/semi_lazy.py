@@ -115,7 +115,8 @@ class SLModel :
 
         if self.MOS[id].observed == False :
             self.MOS[id].set_prediction(SL_parms[0], SL_parms[1], SL_parms[2], SL_parms[3], SL_parms[4])
-
+            if SL_parms[0] == [] :
+                self.logger.error("?? erorr :{}, {}".format(id, SL_parms))
         if uavStatus[actual_next_loc[1][1]][actual_next_loc[1][0]] == 0 :
             if self.MOS[id].observed == True :
                 t0Loc = self.MOS[id].backward_traj[-1]
