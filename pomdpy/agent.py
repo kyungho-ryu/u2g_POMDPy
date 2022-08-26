@@ -231,8 +231,6 @@ class Agent:
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
                 break
 
-            if steps % 10 ==0:
-                break
 
         self.results.time.add(time.time() - epoch_start)
         self.results.update_reward_results(reward, discounted_reward)
