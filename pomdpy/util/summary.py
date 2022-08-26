@@ -1,10 +1,6 @@
 import numpy as np
 
-def summary_simulationResult(writer, beliefTree, best_ucb_value, best_q_value, epoch) :
-    group = "Reward/"
-    writer.add_scalar(group + 'UCB', best_ucb_value, epoch)
-    writer.add_scalar(group + 'Q', best_q_value, epoch)
-
+def summary_simulationResult(writer, beliefTree, epoch) :
     tree_depth = 0
 
     obsList = [beliefTree]
@@ -52,28 +48,37 @@ def summary_simulationResult(writer, beliefTree, best_ucb_value, best_q_value, e
     writer.add_scalar("depth", tree_depth, epoch)
 
 
-def summary_result(writer, epoch, reward, discounted_reward,
-                   prob_attach_existing_belief_node, dissimilarity, simulationResult, time) :
+def summary_result(writer, epoch, init_reward, reward, discounted_reward, last_reward,
+                   ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
+                   dissimilarity, totalA2GEnergy, totalA2AEnergy, totalPropEnergy,
+                   totalEnergyConsumtion, avgDnRage, scaledEnergyConsumtion, scaledDnRate,
+                   NumActiveUav, NumObservedGMU, count, time) :
     group = "Reward/"
-    writer.add_scalar(group+'R', reward, epoch)
-    writer.add_scalar(group+'discounted_R', discounted_reward, epoch)
+    writer.add_scalar(group+'R', reward/count, epoch)
+    writer.add_scalar(group+'initR', init_reward, epoch)
+    writer.add_scalar(group+'lastR', last_reward, epoch)
+    writer.add_scalar(group+'discounted_R', discounted_reward/count, epoch)
+    writer.add_scalar(group + 'UCB', ucb_value/count, epoch)
+    writer.add_scalar(group + 'Q', q_value/count, epoch)
+
 
     group = "Energy/"
-    writer.add_scalar(group + 'A2GEnergy', simulationResult[0], epoch)
-    writer.add_scalar(group + 'A2AEnergy', simulationResult[1], epoch)
-    writer.add_scalar(group + 'PropEnergy', simulationResult[2], epoch)
+    writer.add_scalar(group + 'A2GEnergy', totalA2GEnergy/count, epoch)
+    writer.add_scalar(group + 'A2AEnergy', totalA2AEnergy/count, epoch)
+    writer.add_scalar(group + 'PropEnergy', totalPropEnergy/count, epoch)
 
     group = "TotalReward/"
-    writer.add_scalar(group + 'energy', simulationResult[3], epoch)
-    writer.add_scalar(group + 'dataRate', simulationResult[4], epoch)
-    writer.add_scalar(group + 'scaledEnergy', simulationResult[5], epoch)
-    writer.add_scalar(group + 'scaledDataRate', simulationResult[6], epoch)
+    writer.add_scalar(group + 'energy', totalEnergyConsumtion/count, epoch)
+    writer.add_scalar(group + 'dataRate', avgDnRage/count, epoch)
+    writer.add_scalar(group + 'scaledEnergy', scaledEnergyConsumtion/count, epoch)
+    writer.add_scalar(group + 'scaledDataRate', scaledDnRate/count, epoch)
 
 
     group = "etc/"
-    writer.add_scalar(group + 'activeUav', simulationResult[7], epoch)
-    writer.add_scalar(group + 'observedGMU', simulationResult[8], epoch)
-    writer.add_scalar(group + 'attachProbabality', prob_attach_existing_belief_node, epoch)
+    writer.add_scalar(group + 'activeUav', NumActiveUav/count, epoch)
+    writer.add_scalar(group + 'observedGMU', NumObservedGMU/count, epoch)
+    writer.add_scalar(group + 'attachProbabality', count - NUM_create_child_belief_node, epoch)
+    writer.add_scalar(group + 'GrabProbabality', NUM_grab_nearest_child_belief_node, epoch)
     writer.add_scalar(group + 'dissimilarity', dissimilarity, epoch)
 
     writer.add_scalar("Time", time, epoch)

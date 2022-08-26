@@ -85,9 +85,9 @@ class POMCPMapping(BeliefMappingSolver):
             self.monte_carlo_approx(eps, start_time, prior_state_key)
         action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index)
 
-        summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, best_ucb_value, best_q_value, step)
+        summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
 
-        return action
+        return action, best_ucb_value, best_q_value
 
     def simulate(self, belief_node, eps, start_time, prior_state_key):   # not use eps
         """

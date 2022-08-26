@@ -135,8 +135,6 @@ class Agent:
         solver = self.solver_factory(self)
         eps = self.model.epsilon_start
         steps = 1
-        NUM_create_child_belief_node = 0
-        NUM_grab_nearest_child_belief_node = 0
         prior_state = solver.model.get_an_init_prior_state()
         prior_state_key = prior_state.get_key()
         observation = solver.model.sample_an_init_observation()
@@ -146,8 +144,7 @@ class Agent:
             self.results = Results()
 
             if self.model.solver == 'POMCP-DPW' or self.model.solver=="POMCP-POW":
-                eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node = \
-                    self.run_pomcp(solver, i + 1, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node, prior_state_key)
+                eps, steps = self.run_pomcp(solver, i + 1, eps, steps, prior_state_key)
 
                 solver.model.reset_for_epoch()
                 solver.belief_mapping_index = init_belief_mapping_index
@@ -156,7 +153,7 @@ class Agent:
                     solver.belief_mapping.add_particle(observation, particle, prior_state_key)
 
 
-    def run_pomcp(self, solver, epoch, eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node, prior_state_key):
+    def run_pomcp(self, solver, epoch, eps, steps, prior_state_key):
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
 
@@ -169,10 +166,26 @@ class Agent:
 
         # print("Agent/state.position", state.position)
         # print("Agent/state.rock_states", state.rock_states)
+        average_reward = 0
+        NUM_create_child_belief_node = 0
+        NUM_grab_nearest_child_belief_node = 0
+        dissimilarity = 0
         reward = 0
-        discounted_reward = 0
-        discount = 1.0
-
+        discounted_reward =0
+        discount=0
+        initial_reward = 0
+        totalA2GEnergy = 0
+        totalA2AEnergy = 0
+        totalPropEnergy = 0
+        totalEnergyConsumtion = 0
+        avgDnRage = 0
+        scaledEnergyConsumtion = 0
+        scaledDnRate = 0
+        NumActiveUav = 0
+        NumObservedGMU = 0
+        count = 0
+        ucb_value = 0
+        q_value = 0
         print_divider('large')
         print('\tEpoch #' + str(epoch))
 
@@ -185,7 +198,10 @@ class Agent:
             print_divider('large')
             print('\tStep #' + str(i) + ' simulation is working\n')
 
-            action = solver.select_eps_greedy_action(epoch, steps, eps, start_time, prior_state_key)
+            action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, steps, eps, start_time, prior_state_key)
+            ucb_value += best_ucb_value
+            q_value += best_q_value
+
             print('\n')
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action.UAV_deployment))
 
@@ -206,35 +222,51 @@ class Agent:
             self.display_step_result(i, step_result)
 
             if not step_result.is_terminal:
-                result, dissimilarity = solver.update(state, step_result, False)
-                if result == 1 :
+                result, new_dissimilarity = solver.update(state, step_result, False)
+                if result ==1 :
                     NUM_create_child_belief_node +=1
-                elif result == 2 :
+                if result == 2 :
                     NUM_grab_nearest_child_belief_node +=1
             else :
-                dissimilarity = solver.get_dissimilarity(step_result)
+                new_dissimilarity = solver.get_dissimilarity(step_result)
+
+            dissimilarity += new_dissimilarity
 
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()
             HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
 
-            # prob_attach_existing_belief_node = 1 - (NUM_create_child_belief_node/steps)
-            summary.summary_result(
-                self.model.writer, steps, step_result.reward, discounted_reward,
-                steps-NUM_create_child_belief_node, dissimilarity,
-                self.model.get_simulationResult(state, action), time.time()- epoch_start
-            )
+            if initial_reward == 0 :
+                initial_reward = step_result.reward
 
+            _totalA2GEnergy, _totalA2AEnergy, _totalPropEnergy, _totalEnergyConsumtion, _avgDnRage, \
+            _scaledEnergyConsumtion, _scaledDnRate, _NumActiveUav, _NumObservedGMU = self.model.get_simulationResult(state, action)
+            totalA2GEnergy +=_totalA2GEnergy
+            totalA2AEnergy += _totalA2AEnergy
+            totalPropEnergy +=_totalPropEnergy
+            totalEnergyConsumtion += _totalEnergyConsumtion
+            avgDnRage +=_avgDnRage
+            scaledEnergyConsumtion +=_scaledEnergyConsumtion
+            scaledDnRate += _scaledDnRate
+            NumActiveUav +=_NumActiveUav
+            NumObservedGMU +=_NumObservedGMU
+            count +=1
             prior_state_key = state.get_key()
             state = solver.belief_mapping_index.sample_particle(prior_state_key)
 
-            steps +=1
 
             if step_result.is_terminal or not is_legal :
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
                 break
+        steps += 1
 
-
+        summary.summary_result(
+            self.model.writer, steps, initial_reward, reward, discounted_reward, step_result.reward,
+            ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
+            dissimilarity,totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalEnergyConsumtion,
+            avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav, NumObservedGMU, count,
+            (time.time() - epoch_start)
+        )
         self.results.time.add(time.time() - epoch_start)
         self.results.update_reward_results(reward, discounted_reward)
 
@@ -251,7 +283,7 @@ class Agent:
         self.experiment_results.discounted_return.count += (self.results.discounted_return.count - 1)
         self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
 
-        return eps, steps, NUM_create_child_belief_node, NUM_grab_nearest_child_belief_node
+        return eps, steps
 
     def run_value_iteration(self, solver, epoch):
         run_start_time = time.time()

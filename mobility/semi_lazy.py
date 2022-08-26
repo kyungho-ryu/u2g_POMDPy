@@ -74,6 +74,7 @@ class SLModel :
         self.reset_NumObservedGMU()
 
         for i in range(self.NumGMU) :
+            self.reset_simulation_state(i)
             self.create_gmu_for_simulation(i, uavStatus)
 
     def create_gmu_for_simulation(self, id, uavStatus):
@@ -509,13 +510,17 @@ class SLModel :
     def reset_NumObservedGMU(self):
         self.NumObservedGMU = 0
 
-    def reset_simulation_state(self, id, SL_parms):
+    def set_simulation_state(self, id, SL_parms):
         if SL_parms == None :
-            t0Loc = self.MOS[id].backward_traj[-1]
-            ro, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
-            S = State()
-            eta = 1
-            k = 1
-            self.simulation_state[id] = [S, t0Loc, ro, eta, k]
+            if id not in self.simulation_state :
+                t0Loc = self.MOS[id].backward_traj[-1]
+                ro, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
+                S = State()
+                eta = 1
+                k = 1
+                self.simulation_state[id] = [S, t0Loc, ro, eta, k]
         else :
             self.simulation_state[id] = SL_parms
+
+    def reset_simulation_state(self, id):
+        self.simulation_state[id] = [None for _ in range(self.NumGMU)]

@@ -608,9 +608,9 @@ class U2GModel(Model) : # Model
         """
         for gmu in gmus :
             if gmu.observed :
-                self.mobility_SLModel.reset_simulation_state(gmu.id, None)
+                self.mobility_SLModel.set_simulation_state(gmu.id, None)
             else :
-                self.mobility_SLModel.reset_simulation_state(gmu.id, gmu.get_SL_params(Config.GRID_W))
+                self.mobility_SLModel.set_simulation_state(gmu.id, gmu.get_SL_params(Config.GRID_W))
 
         is_termimal = False
         self.future_gmus = deque()
@@ -633,7 +633,6 @@ class U2GModel(Model) : # Model
             self.updateCellInfo(gmus)
             self.future_gmus.append(gmus)
             self.future_gmuPosition.append(sample_states)
-
         self.logger.debug("Create gmu's trajectory until : {}".format(len(self.future_gmus)))
 
     def reset_for_epoch(self):
