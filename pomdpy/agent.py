@@ -151,7 +151,7 @@ class Agent:
 
                 solver.model.reset_for_epoch()
                 solver.belief_mapping_index = init_belief_mapping_index
-                for i in range(self.model.n_start_states):
+                for i in range(self.model.min_particle_count):
                     particle = self.model.sample_an_init_state()  # create random rock state
                     solver.belief_mapping.add_particle(observation, particle, prior_state_key)
 

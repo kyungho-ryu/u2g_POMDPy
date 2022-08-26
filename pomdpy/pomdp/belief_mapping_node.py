@@ -137,7 +137,7 @@ class BeliefMappingNode(object):
                 child_node.action_map = self.solver.action_pool.create_action_mapping(child_node)
             else :
                 action_node.update_child(obs, belief_node)
-                self.loger.info("select existing child node : {}".format(child_node.state_particles))
+                self.loger.info("select existing child node")
                 child_node = belief_node
 
         return child_node, added
@@ -152,7 +152,7 @@ class BeliefMappingNode(object):
                 child_node.action_map = self.solver.action_pool.create_action_mapping(child_node)
             else :
                 action_node.update_child(obs, belief_node)
-                self.loger.info("select existing child node : {}".format(child_node.state_particles))
+                self.loger.info("select existing child node")
                 child_node = belief_node
 
 

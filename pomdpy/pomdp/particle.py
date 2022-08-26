@@ -2,7 +2,7 @@ import random
 from collections import deque
 
 
-MinParticle = 100
+MinParticle = 10
 
 class ParticlePool :
     def __init__(self) :
@@ -39,7 +39,7 @@ class Particle :
         self.state = []
 
     def add_particle(self, state):
-        if len(self.state) >= 100 :
+        if len(self.state) >= 20 :
             self.state.pop(0)
         self.state.append(state)
 

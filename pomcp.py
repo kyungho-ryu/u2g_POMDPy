@@ -35,9 +35,9 @@ if __name__ == '__main__':
     parser.add_argument('--preferred_actions', dest='preferred_actions', action='store_true', help='For RockSample, '
                                                     'specify whether smart actions should be used')
     parser.add_argument('--ucb_coefficient', default=3.0, type=float, help='Coefficient for UCB algorithm used by MCTS')
-    parser.add_argument('--n_start_states', default=100, type=int, help='Num of state particles to generate for root '
+    parser.add_argument('--n_start_states', default=50, type=int, help='Num of state particles to generate for root '
                         'belief node in MCTS')
-    parser.add_argument('--min_particle_count', default=50, type=int, help='Lower bound on num of particles a belief '
+    parser.add_argument('--min_particle_count', default=10, type=int, help='Lower bound on num of particles a belief '
                         'node can have in MCTS')
     parser.add_argument('--max_particle_count', default=100, type=int, help='Upper bound on num of particles a belief '
                         'node can have in MCTS')
