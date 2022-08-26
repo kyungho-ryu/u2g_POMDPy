@@ -43,6 +43,7 @@ class POMCPMapping(BeliefMappingSolver):
                     # 3.0 * root(log(n+1) / n)
                     # if the numer of visit is increase, value is decrease
 
+        self.simuration_result = {"depth":0}
     @staticmethod
     def reset(agent):
         """
@@ -75,6 +76,9 @@ class POMCPMapping(BeliefMappingSolver):
         Starts off the Monte-Carlo Tree Search and returns the selected action. If the belief tree
                 data structure is disabled, random rollout is used.
         """
+
+        self.simuration_result = {"depth":0}
+
         if self.disable_tree:   # False
             self.rollout_search(self.belief_mapping_index)
         else:
@@ -156,6 +160,11 @@ class POMCPMapping(BeliefMappingSolver):
 
         action_mapping_entry.update_q_value(q_value)
         self.logger.debug(" Q value : {}".format(q_value))
+
+        # if belief_node not in self.simuration_result :
+        #     self.simuration_result[belief_node] = [C_A, N_A, N_O, C_O, belief_node.get_num_total_particle()]
+        # else :
+
         # Add RAVE ?
         return q_value
 

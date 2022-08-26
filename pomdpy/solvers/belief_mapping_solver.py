@@ -174,7 +174,7 @@ class BeliefMappingSolver(Solver):
         self.model.update(state, step_result)
 
         child_belief_node = self.belief_mapping_index.get_child(step_result.action, step_result.observation)
-
+        dissimilarity = 0
         # If the child_belief_node is None because the step result randomly produced a different observation,
         # grab any of the beliefs extending from the belief node's action node
         if child_belief_node is None:
@@ -185,7 +185,7 @@ class BeliefMappingSolver(Solver):
                 self.disable_tree = True
                 return
 
-            child_belief_node = self.grab_nearest_belief_node(action_node, step_result.observation)
+            child_belief_node, dissimilarity = self.grab_nearest_belief_node(action_node, step_result.observation)
             if child_belief_node is None :
                 child_belief_node = self.create_child(action_node, step_result.observation)
                 result = 1
@@ -209,7 +209,7 @@ class BeliefMappingSolver(Solver):
         if prune:
             self.prune(self.belief_mapping_index)
 
-        return result
+        return result, dissimilarity
 
     def grab_nearest_belief_node(self, action_node, new_observation):
         obs_mapping_entries = list(action_node.observation_map.child_map.values())
@@ -230,7 +230,7 @@ class BeliefMappingSolver(Solver):
         console(2, module, "Min dissmilarity : " + str(min))
 
         if min > self.model.grab_threshold :
-            return None
+            return None, min
         else :
             selected_entry = random.choice(candidate_entry)
             child_belief_node = selected_entry.child_node
@@ -238,7 +238,7 @@ class BeliefMappingSolver(Solver):
 
             console(2, module, "Had to grab nearest belief node...variance added")
 
-            return child_belief_node
+            return child_belief_node, min
 
 
     def create_child(self, action_node, obs):
@@ -247,3 +247,16 @@ class BeliefMappingSolver(Solver):
         return child_belief_node
 
 
+    def get_dissimilarity(self, step_result):
+        child_belief_node = self.belief_mapping_index.get_child(step_result.action, step_result.observation)
+        dissimilarity = 0
+        if child_belief_node is None:
+            action_node = self.belief_mapping_index.action_map.get_action_node(step_result.action)
+            if action_node is None:
+                console(2, module, "Reached branch with no leaf nodes, using random rollout to finish the episode")
+                self.disable_tree = True
+                return
+
+            child_belief_node, dissimilarity = self.grab_nearest_belief_node(action_node, step_result.observation)
+
+        return dissimilarity

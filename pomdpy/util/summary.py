@@ -35,7 +35,7 @@ def summary_simulationResult(writer, beliefTree, best_ucb_value, best_q_value, e
                 newObsList += actionEntry.child_node.get_child_all_nodes()
                 LenAction +=1
 
-        if len(newObsList) == 0 :
+        if len(newObsList) == 0 or tree_depth == 2:
             break
 
         writer.add_scalar(group+'N_h', N_h/len(obsList), epoch)
@@ -52,7 +52,8 @@ def summary_simulationResult(writer, beliefTree, best_ucb_value, best_q_value, e
     writer.add_scalar("depth", tree_depth, epoch)
 
 
-def summary_result(writer, epoch, reward, discounted_reward, prob_attach_existing_belief_node, simulationResult, time) :
+def summary_result(writer, epoch, reward, discounted_reward,
+                   prob_attach_existing_belief_node, dissimilarity, simulationResult, time) :
     group = "Reward/"
     writer.add_scalar(group+'R', reward, epoch)
     writer.add_scalar(group+'discounted_R', discounted_reward, epoch)
@@ -73,6 +74,7 @@ def summary_result(writer, epoch, reward, discounted_reward, prob_attach_existin
     writer.add_scalar(group + 'activeUav', simulationResult[7], epoch)
     writer.add_scalar(group + 'observedGMU', simulationResult[8], epoch)
     writer.add_scalar(group + 'attachProbabality', prob_attach_existing_belief_node, epoch)
+    writer.add_scalar(group + 'dissimilarity', dissimilarity, epoch)
 
     writer.add_scalar("Time", time, epoch)
 

@@ -206,11 +206,13 @@ class Agent:
             self.display_step_result(i, step_result)
 
             if not step_result.is_terminal:
-                result = solver.update(state, step_result, False)
+                result, dissimilarity = solver.update(state, step_result, False)
                 if result == 1 :
                     NUM_create_child_belief_node +=1
                 elif result == 2 :
                     NUM_grab_nearest_child_belief_node +=1
+            else :
+                dissimilarity = solver.get_dissimilarity(step_result)
 
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()
@@ -218,7 +220,8 @@ class Agent:
 
             # prob_attach_existing_belief_node = 1 - (NUM_create_child_belief_node/steps)
             summary.summary_result(
-                self.model.writer, steps, step_result.reward, discounted_reward, steps-NUM_create_child_belief_node,
+                self.model.writer, steps, step_result.reward, discounted_reward,
+                steps-NUM_create_child_belief_node, dissimilarity,
                 self.model.get_simulationResult(state, action), time.time()- epoch_start
             )
 
