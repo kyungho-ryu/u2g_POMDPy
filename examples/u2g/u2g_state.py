@@ -75,6 +75,10 @@ class U2GState(DiscreteState):
         _list = [self.uav_position, self.gmu_position]
         return _list
 
+    def as_DRL_state(self):
+        _list = self.uav_position + self.gmu_position
+        return _list
+
     def get_key(self):
         return hashlib.sha256(str(self.as_list()).encode()).hexdigest()
 

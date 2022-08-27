@@ -25,7 +25,9 @@ class SLModel :
         self.MOS = []
         self.NumObservedGMU = 0
         self.NumGMU = NumOfMO
+        self.simulation_init_state = [None for _ in range(self.NumGMU)]
         self.simulation_state = [None for _ in range(self.NumGMU)]
+        self.simulation_terminal = False
         self.initialize(NumOfMO, exceptedID)
 
         self.init_traj = copy.deepcopy(self.traj)
@@ -110,8 +112,8 @@ class SLModel :
             return self.MOS[id].id, self.MOS[id].get_location(), True, None
 
 
-    def update_gmu_for_simulation(self, id, SL_parms, uavStatus):
-        update_time = self.traj[id].updated_time + self.sampling_interval
+    def update_gmuStatus(self, id, SL_parms, uavStatus):
+        update_time = self.traj[id].updated_time + (self.sampling_interval*SL_parms[4])
         actual_next_loc = self.get_traj(id, update_time)
 
         if self.MOS[id].observed == False :
@@ -155,10 +157,31 @@ class SLModel :
                 self.MOS[id].reset_prediction()
 
             else :
-                self.update_trajectory(self.MOS[id], id, update_time)
+                updated_time = self.traj[id].updated_time + self.sampling_interval
+                self.update_trajectory(self.MOS[id], id, updated_time)
 
             self.logger.debug("[{}]' trajectory is updated : {}".format(self.MOS[id].id, self.MOS[id].get_location()))
 
+
+    def update_trajectory_for_simulation(self, id):
+        S, t0Loc, ro, eta, k = self.simulation_state[id]
+        result = self.prediction_probabilistic_next_states(ro, MConfig.theta, t0Loc, S, eta, k)
+        self.simulation_state[id] = result[0:5]
+
+        if result == [] :
+            self.logger.info("ID :{}', There are no trajectories in having RO : {}".format(id, k))
+            if k == 1:
+                self.logger.info("t0Loc : {}, RO : {}".format(t0Loc, ro))
+
+            return -1, -1, True, -1
+
+
+        overed = self.check_gmu_trajectory_overed(id)
+        tree_depth_overd = self.check_tree_depth(result[4])
+        terminal = overed or tree_depth_overd or result[5]
+
+        if not self.simulation_terminal :
+            self.simulation_terminal = terminal
 
 
     def get_init_gmu_locIndex(self, id):
@@ -210,7 +233,33 @@ class SLModel :
         tree_depth_overd = self.check_tree_depth(result[4])
         terminal = overed or tree_depth_overd or result[5]
 
-        return index, next_loc, terminal, result
+        if not self.simulation_terminal :
+            self.simulation_terminal = terminal
+
+        return index, next_loc, result
+
+    def get_real_trajectory(self, id):
+        if self.MOS[id].observed :
+            xC, yC = self.MOS[id].get_cell_location()
+        else :
+            update_time = self.traj[id].updated_time + (self.sampling_interval * self.MOS[id].k)
+            actual_next_loc = self.get_traj(id, update_time)
+            xC, yC = actual_next_loc[1]
+
+        return xC, yC
+
+    def get_real_locIndex(self, id):
+        if self.MOS[id].observed :
+            xC, yC = self.MOS[id].get_cell_location()
+            index = getGridIndex(xC, yC, self.MAX_XGRID_N)
+
+            return index, self.MOS[id].get_location()
+        else :
+            update_time = self.traj[id].updated_time + (self.sampling_interval * self.MOS[id].k)
+            actual_next_loc = self.get_traj(id, update_time)
+            index = getGridIndex(actual_next_loc[1][0], actual_next_loc[1][1], self.MAX_XGRID_N)
+
+            return index, actual_next_loc[0]
 
 
     def get_traj(self, id, update_time):
@@ -512,15 +561,19 @@ class SLModel :
 
     def set_simulation_state(self, id, SL_parms):
         if SL_parms == None :
-            if id not in self.simulation_state :
+            if id not in self.simulation_init_state :
                 t0Loc = self.MOS[id].backward_traj[-1]
                 ro, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
                 S = State()
                 eta = 1
                 k = 1
-                self.simulation_state[id] = [S, t0Loc, ro, eta, k]
+                self.simulation_init_state[id] = [S, t0Loc, ro, eta, k]
         else :
-            self.simulation_state[id] = SL_parms
+            self.simulation_init_state[id] = SL_parms
+
+        self.simulation_state[id] = copy.deepcopy(self.simulation_init_state[id])
+        self.simulation_terminal = False
 
     def reset_simulation_state(self, id):
         self.simulation_state[id] = [None for _ in range(self.NumGMU)]
+        self.simulation_init_state[id] = [None for _ in range(self.NumGMU)]

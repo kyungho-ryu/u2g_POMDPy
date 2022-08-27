@@ -134,7 +134,8 @@ class Agent:
         # Create a new solver, purune belief tree
         solver = self.solver_factory(self)
         eps = self.model.epsilon_start
-        steps = 1
+        simulation_steps = 0
+        steps = 0
         prior_state = solver.model.get_an_init_prior_state()
         prior_state_key = prior_state.get_key()
         observation = solver.model.sample_an_init_observation()
@@ -143,17 +144,16 @@ class Agent:
             # Reset the epoch stats
             self.results = Results()
 
-            if self.model.solver == 'POMCP-DPW' or self.model.solver=="POMCP-POW":
-                eps, steps = self.run_pomcp(solver, i + 1, eps, steps, prior_state_key)
+            eps, steps, simulation_steps = self.run_pomcp(solver, i + 1, eps, simulation_steps, steps, prior_state_key)
 
-                solver.model.reset_for_epoch()
-                solver.belief_mapping_index = init_belief_mapping_index
-                for i in range(self.model.min_particle_count):
-                    particle = self.model.sample_an_init_state()  # create random rock state
-                    solver.belief_mapping.add_particle(observation, particle, prior_state_key)
+            solver.model.reset_for_epoch()
+            solver.belief_mapping_index = init_belief_mapping_index
+            for i in range(self.model.min_particle_count):
+                particle = self.model.sample_an_init_state()  # create random rock state
+                solver.belief_mapping.add_particle(observation, particle, prior_state_key)
 
 
-    def run_pomcp(self, solver, epoch, eps, steps, prior_state_key):
+    def run_pomcp(self, solver, epoch, eps, simulation_steps, steps, prior_state_key):
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
 
@@ -169,23 +169,24 @@ class Agent:
         average_reward = 0
         NUM_create_child_belief_node = 0
         NUM_grab_nearest_child_belief_node = 0
-        dissimilarity = 0
-        reward = 0
-        discounted_reward =0
-        discount=0
+        dissimilarity = []
+        reward = []
+        discounted_reward = []
+        discount=1
         initial_reward = 0
-        totalA2GEnergy = 0
-        totalA2AEnergy = 0
-        totalPropEnergy = 0
-        totalEnergyConsumtion = 0
-        avgDnRage = 0
-        scaledEnergyConsumtion = 0
-        scaledDnRate = 0
-        NumActiveUav = 0
-        NumObservedGMU = 0
+        totalA2GEnergy = []
+        totalA2AEnergy = []
+        totalPropEnergy = []
+        totalEnergyConsumtion = []
+        avgDnRage = []
+        scaledEnergyConsumtion = []
+        scaledDnRate = []
+        NumActiveUav = []
+        NumObservedGMU = []
         count = 0
-        ucb_value = 0
-        q_value = 0
+        ucb_value = []
+        q_value = []
+        prediction_error = []
         print_divider('large')
         print('\tEpoch #' + str(epoch))
 
@@ -198,9 +199,9 @@ class Agent:
             print_divider('large')
             print('\tStep #' + str(i) + ' simulation is working\n')
 
-            action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, steps, eps, start_time, prior_state_key)
-            ucb_value += best_ucb_value
-            q_value += best_q_value
+            action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time, prior_state_key)
+            ucb_value.append(best_ucb_value)
+            q_value.append(best_q_value)
 
             print('\n')
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action.UAV_deployment))
@@ -211,12 +212,13 @@ class Agent:
 
             self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
             # state = not real state
-            step_result, is_legal = solver.model.generate_step(state, action)
+            step_result, is_legal = solver.model.generate_step(state, action, simulation=False)
 
-            reward += step_result.reward
-            discounted_reward += discount * step_result.reward
+            reward.append(step_result.reward)
+            discounted_reward.append(discount * step_result.reward)
 
             discount *= self.model.discount
+            prediction_error.append(solver.model.get_dissimilarity_of_gmu_prediction(state.gmus))
 
             # show the step result
             self.display_step_result(i, step_result)
@@ -230,7 +232,7 @@ class Agent:
             else :
                 new_dissimilarity = solver.get_dissimilarity(step_result)
 
-            dissimilarity += new_dissimilarity
+            dissimilarity.append(new_dissimilarity)
 
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()
@@ -241,19 +243,21 @@ class Agent:
 
             _totalA2GEnergy, _totalA2AEnergy, _totalPropEnergy, _totalEnergyConsumtion, _avgDnRage, \
             _scaledEnergyConsumtion, _scaledDnRate, _NumActiveUav, _NumObservedGMU = self.model.get_simulationResult(state, action)
-            totalA2GEnergy +=_totalA2GEnergy
-            totalA2AEnergy += _totalA2AEnergy
-            totalPropEnergy +=_totalPropEnergy
-            totalEnergyConsumtion += _totalEnergyConsumtion
-            avgDnRage +=_avgDnRage
-            scaledEnergyConsumtion +=_scaledEnergyConsumtion
-            scaledDnRate += _scaledDnRate
-            NumActiveUav +=_NumActiveUav
-            NumObservedGMU +=_NumObservedGMU
+            totalA2GEnergy.append(_totalA2GEnergy)
+            totalA2AEnergy.append(_totalA2AEnergy)
+            totalPropEnergy.append(_totalPropEnergy)
+            totalEnergyConsumtion.append(_totalEnergyConsumtion)
+            avgDnRage.append(_avgDnRage)
+            scaledEnergyConsumtion.append(_scaledEnergyConsumtion)
+            scaledDnRate.append(_scaledDnRate)
+            NumActiveUav.append(_NumActiveUav)
+            NumObservedGMU.append(_NumObservedGMU)
+
             count +=1
             prior_state_key = state.get_key()
             state = solver.belief_mapping_index.sample_particle(prior_state_key)
 
+            simulation_steps +=1
 
             if step_result.is_terminal or not is_legal :
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
@@ -264,8 +268,8 @@ class Agent:
             self.model.writer, steps, initial_reward, reward, discounted_reward, step_result.reward,
             ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
             dissimilarity,totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalEnergyConsumtion,
-            avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav, NumObservedGMU, count,
-            (time.time() - epoch_start)
+            avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav, NumObservedGMU, prediction_error,
+            count, (time.time() - epoch_start)
         )
         self.results.time.add(time.time() - epoch_start)
         self.results.update_reward_results(reward, discounted_reward)
@@ -283,7 +287,7 @@ class Agent:
         self.experiment_results.discounted_return.count += (self.results.discounted_return.count - 1)
         self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
 
-        return eps, steps
+        return eps, steps, simulation_steps
 
     def run_value_iteration(self, solver, epoch):
         run_start_time = time.time()

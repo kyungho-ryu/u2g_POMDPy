@@ -1,5 +1,5 @@
-import time
-
+import time, math
+import numpy as np
 from pomdpy.pomdp import Model, StepResult
 from mobility.semi_lazy import SLModel
 from examples.u2g import energy
@@ -41,9 +41,6 @@ class U2GModel(Model) : # Model
         self.uavStatus = {}
         # self.gmuStatus = {}
         self.uavPosition = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]    # except gcc
-
-        self.future_gmus = deque()
-        self.future_gmuPosition = deque()
 
         # Uav object to keep the same position every epoch
         self.init_uavs = []
@@ -203,20 +200,20 @@ class U2GModel(Model) : # Model
 
         return G, activeUavs, activeUavsID
 
-    def set_servingGmusTraffics(self, G, state, next_state):
+    def set_servingGmusTraffics(self, G, gmuStatus, next_state):
         a2aLinkStatus = self.calA2ALinkCapa(G, next_state.uavs)
 
         # predict a2g traffics
         NUM_non_discovery = 0
-        for _cell in state.gmuStatus:
-            if state.gmuStatus[_cell]:
+        for _cell in gmuStatus:
+            if gmuStatus[_cell]:
                 sUav = findServingUAV(next_state.uavStatus[_cell])
                 if sUav:
-                    setA2GDefaultRadioResource(sUav, state.gmuStatus[_cell])
+                    setA2GDefaultRadioResource(sUav, gmuStatus[_cell])
                 else:
-                    NUM_non_discovery += len(state.gmuStatus[_cell])
+                    NUM_non_discovery += len(gmuStatus[_cell])
                     self.logger.debug('There is no serving UAV in cell :{}'.format(_cell))
-                    self.logger.debug('Those GMU cannot receive service : {}'.format([g.id for g in state.gmuStatus[_cell]]))
+                    self.logger.debug('Those GMU cannot receive service : {}'.format([g.id for g in gmuStatus[_cell]]))
 
 
         if self.discovery_penalty :
@@ -241,7 +238,7 @@ class U2GModel(Model) : # Model
                     self.logger.debug("{} don't have any path".format(i))
                     continue
                 connection = True
-                aggGmuRate = getGMUCellTraffic(next_state.uavs[i].cell, state.gmuStatus)
+                aggGmuRate = getGMUCellTraffic(next_state.uavs[i].cell, gmuStatus)
                 srcUavRate[i] = aggGmuRate
                 pathEdges = path2Edges(list(_path))
 
@@ -274,11 +271,7 @@ class U2GModel(Model) : # Model
                 if len(gmuFlowsPerLink[e]) >= 1:  # multiple flows
                     controlSrcRate(srcUavRate, gmuFlowsPerLink[e], a2aLinkStatus[e]['max'])
 
-        TotalDnRate = self.re_allocate_gmu_dnRate(state.gmuStatus, next_state.uavs, srcUavRate)
-
-        self.logger.debug('total throughput : {}, average : {}'.format(
-            sum(srcUavRate.values()), sum(srcUavRate.values()) / len(state.gmus))
-        )
+        TotalDnRate = self.re_allocate_gmu_dnRate(gmuStatus, next_state.uavs, srcUavRate)
 
         return TotalDnRate, a2aLinkStatus, G
 
@@ -325,8 +318,17 @@ class U2GModel(Model) : # Model
 
     def make_next_state(self, state, action):
         # change GMU trajectory
-        gmus = self.future_gmus.popleft()
-        sample_states = self.future_gmuPosition.popleft()
+        gmus = []
+        sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
+        for i in range(self.numGmus):
+            cellIndex, coordinate, SL_params = self.mobility_SLModel.get_trajectory_for_simulation(i)
+
+            if cellIndex == -1:
+                self.logger.error("have to be terminated previously")
+                exit()
+
+            sample_states[cellIndex] += 1
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, False, SL_params))
         self.updateCellInfo(gmus)
 
         uavs = []
@@ -376,7 +378,7 @@ class U2GModel(Model) : # Model
 
             # 2. Calcurate energy consumption
             G, activeUavs, activeUavsID = self.set_activeUavs(next_state)
-            totalDnRate, a2aLinkStatus, G = self.set_servingGmusTraffics(G, state, next_state)
+            totalDnRate, a2aLinkStatus, G = self.set_servingGmusTraffics(G, state.gmuStatus, next_state)
             self.logger.debug("GMU's dnRate : {}".format(totalDnRate))
 
             if totalDnRate == self.penalty :
@@ -401,6 +403,43 @@ class U2GModel(Model) : # Model
 
         return totalEnergyConsumtion + totalDnRate
 
+    def make_reward_for_realState(self, state, next_state):
+        self.logger.debug("Previous UAV deployment : {}".format(state.uav_position))
+        self.logger.debug("next UAV deployment : {}".format(next_state.uav_position))
+
+        sample_states = [0 for _ in range(Config.MAX_GRID_INDEX+1)]
+        gmus = []
+        for i in range(self.numGmus):
+            cellIndex, coordinate = self.mobility_SLModel.get_real_locIndex(i)
+            sample_states[cellIndex] +=1
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, True, None))
+
+        # index, self.MOS[id].get_location(), True, None
+        self.updateCellInfo(gmus)
+
+        totalPropEnergy = self.calcurate_reallocate_uav_energy(state.uav_position, next_state.uav_position)
+
+        # 2. Calcurate energy consumption
+        G, activeUavs, activeUavsID = self.set_activeUavs(next_state)
+
+        prior_state = U2GState(self.uavPosition, sample_states, self.uavs, gmus)
+        totalDnRate, a2aLinkStatus, G = self.set_servingGmusTraffics(G, prior_state.gmuStatus, next_state)
+        self.logger.debug("GMU's dnRate : {}".format(totalDnRate))
+
+        totalA2GEnergy, totalA2AEnergy = self.calcurate_energy_consumption(
+            state.gmuStatus, next_state, a2aLinkStatus, G
+        )
+
+        totalEnergyConsumtion = totalA2GEnergy + totalA2AEnergy + totalPropEnergy
+        self.logger.debug('total energy: {}, active UAVs: {}'.format(
+            totalEnergyConsumtion, len(G.nodes()))
+        )
+
+        totalEnergyConsumtion, totalDnRate = self.norm_rewards(totalEnergyConsumtion, totalDnRate)
+
+        self.logger.debug("total rewards : {}/{}".format(totalEnergyConsumtion, totalDnRate))
+
+        return totalEnergyConsumtion + totalDnRate
 
     def norm_rewards(self, _energyConsumtion, _dnRate):
         energyConsumtion = 1 - (_energyConsumtion / self.MaxEnergyConsumtion)
@@ -612,28 +651,28 @@ class U2GModel(Model) : # Model
             else :
                 self.mobility_SLModel.set_simulation_state(gmu.id, gmu.get_SL_params(Config.GRID_W))
 
-        is_termimal = False
-        self.future_gmus = deque()
-        self.future_gmuPosition = deque()
-        while not is_termimal :
-            gmus = []
-            sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
-            for i in range(self.numGmus):
-                cellIndex, coordinate, terminal, SL_params = self.mobility_SLModel.get_trajectory_for_simulation(i)
 
-                if cellIndex == -1:
-                    self.logger.error("have to be terminated previously")
-                    exit()
-
-                sample_states[cellIndex] += 1
-                gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, False, SL_params))
-
-                if terminal :
-                    is_termimal = True
-            self.updateCellInfo(gmus)
-            self.future_gmus.append(gmus)
-            self.future_gmuPosition.append(sample_states)
-        self.logger.debug("Create gmu's trajectory until : {}".format(len(self.future_gmus)))
+        # is_termimal = False
+        # self.future_gmus = deque()
+        # self.future_gmuPosition = deque()
+        # while not is_termimal :
+        #     gmus = []
+        #     sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
+        #     for i in range(self.numGmus):
+        #         cellIndex, coordinate, terminal, SL_params = self.mobility_SLModel.get_trajectory_for_simulation(i)
+        #
+        #         if cellIndex == -1:
+        #             self.logger.error("have to be terminated previously")
+        #             exit()
+        #
+        #         sample_states[cellIndex] += 1
+        #         gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, False, SL_params))
+        #         if terminal :
+        #             is_termimal = True
+        #     self.updateCellInfo(gmus)
+        #     self.future_gmus.append(gmus)
+        #     self.future_gmuPosition.append(sample_states)
+        # self.logger.debug("Create gmu's trajectory until : {}".format(len(self.future_gmus)))
 
     def reset_for_epoch(self):
         # reset UAV status to same init position
@@ -655,24 +694,27 @@ class U2GModel(Model) : # Model
         :param sim_data:
         :return:
         """
-        self.update_uavs_for_simulation(sim_data.next_state)
-        self.update_gmus_for_simulation(state.gmus)
+        self.update_uavStatus(sim_data.next_state)
+        self.update_gmuStatus(state.gmus)
 
 
 
-    def update_uavs_for_simulation(self, next_state):
+    def update_uavStatus(self, next_state):
         self.uavs = copy.deepcopy(next_state.uavs)
         self.uavStatus = copy.deepcopy(next_state.uavStatus)
         self.uavPosition = copy.deepcopy(next_state.uav_position)
         self.set_envMap()
 
-    def update_gmus_for_simulation(self, gmus):
+    def update_gmuStatus(self, gmus):
         self.mobility_SLModel.reset_NumObservedGMU()
         for i in range(self.numGmus):
-            self.mobility_SLModel.update_gmu_for_simulation(i, gmus[i].get_SL_params(Config.GRID_W), self.env_map)
+            self.mobility_SLModel.update_gmuStatus(i, gmus[i].get_SL_params(Config.GRID_W), self.env_map)
 
+    def update_gmu_for_simulation(self):
+        for i in range(self.numGmus):
+            self.mobility_SLModel.update_trajectory_for_simulation(i)
 
-    def generate_step(self, state, action):
+    def generate_step(self, state, action, simulation=True):
         """
         Generates a full StepResult, including the next state, an observation, and the reward
         *
@@ -691,7 +733,10 @@ class U2GModel(Model) : # Model
         result.next_state = self.make_next_state(state, action)
         result.action = action.copy()
         result.observation = self.make_observation(result.next_state)
-        result.reward = self.make_reward(state, action, result.next_state)
+        if simulation :
+            result.reward = self.make_reward(state, action, result.next_state)
+        else :
+            result.reward = self.make_reward_for_realState(state, result.next_state)
         result.is_terminal = self.is_terminal()
 
         return result, True
@@ -731,6 +776,21 @@ class U2GModel(Model) : # Model
         :return:
         """
 
+
+    def get_dissimilarity_of_gmu_prediction(self, gmus):
+        error = []
+        for gmu in gmus :
+            prediction_cell = gmu.get_cellCoordinate(Config.GRID_W)
+            real_cell = self.mobility_SLModel.get_real_trajectory(gmu.id)
+            error_x = prediction_cell[0] - real_cell[0]
+            error_y = prediction_cell[1] - real_cell[1]
+
+            error.append(math.sqrt(math.pow(error_x, 2) + math.pow(error_y, 2)))
+
+        result = np.mean(error)
+        return result
+
+
     def get_simulationResult(self, state, action):
         key = action.get_key()
         totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalDnRate = state.get_reward(key)
@@ -755,6 +815,12 @@ class U2GModel(Model) : # Model
         :return: list of enumerated states (discrete) or range of states (continuous)
         """
 
+    def get_state_space(self):
+        return [0, Config.MAX_GRID_INDEX]
+
+    def get_state_dimension(self):
+        return 2 * (Config.MAX_GRID_INDEX + 1)
+
     def get_all_actions(self):
         """
         :return: initial action list which is updated when child belief node is created
@@ -766,6 +832,13 @@ class U2GModel(Model) : # Model
         :return: initial action list which is updated when child belief node is created
         """
         return U2GAction
+
+    def get_action_space(self):
+        return [0, Config.MAX_GRID_INDEX]
+
+    def get_action_dimension(self):
+        return Config.MAX_GRID_INDEX + 1
+
     def get_all_observations(self):
         """
         :return: list of enumerated observations (discrete) or range of observations (continuous)
@@ -793,7 +866,7 @@ class U2GModel(Model) : # Model
         :param state:
         :return:
         """
-        is_terminal = len(self.future_gmuPosition) == 0
+        is_terminal = self.mobility_SLModel.simulation_terminal
         self.logger.debug("is terminal : {}".format(is_terminal))
         return is_terminal
 

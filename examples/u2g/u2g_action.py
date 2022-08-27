@@ -27,3 +27,6 @@ class U2GAction(DiscreteU2GAction):
 
     def get_key(self):
         return hashlib.sha256(self.to_string().encode()).hexdigest()
+
+    def __del__(self):
+        print(f'destroy {id(self)}')

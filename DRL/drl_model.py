@@ -1,6 +1,6 @@
 import numpy as np
 from gym import spaces
-from a2c import ActorCritic
+from DRL.a2c import ActorCritic
 import torch.optim as optim
 import torch, logging
 
@@ -13,21 +13,21 @@ max_train_steps = 60000
 PRINT_INTERVAL = update_interval * 100
 
 class DRLModel :
-    def __init__(self):
+    def __init__(self, state_dim, state_space, action_dim, action_space):
         self.logger = logging.getLogger('POMDPy.DRLModel')
         self.logger.setLevel("INFO")
-        self.state_dim = 50
-        self.state_high = np.array([np.float32(24)] * self.state_dim)
-        self.state_low = np.float32(np.zeros([self.state_dim]))
+        self.state_dim = state_dim
+        self.state_high = np.array([np.float32(state_space[1])] * self.state_dim)
+        self.state_low = np.array([np.float32(state_space[0])] * self.state_dim)
         self.state_space = spaces.Box(self.state_low, self.state_high, dtype=np.float32)
 
-        self.action_dim = 25
-        self.action_high = np.array([np.float32(24)] * self.action_dim)
-        self.action_low = np.array([np.float32(0)] * self.action_dim)
+        self.action_dim = action_dim
+        self.action_high = np.array([np.float32(state_space[1])] * self.action_dim)
+        self.action_low = np.array([np.float32(state_space[0])] * self.action_dim)
         self.action_space = spaces.Box(self.action_low, self.action_high, dtype=np.float32)
 
-        self.logger.info("State space : {}".format(self.state_space.shape[0]))
-        self.logger.info("action space : {}".format(self.action_space.shape[0]))
+        self.logger.info("State dimension, space : {}, {}".format((self.state_low[0], self.state_high[0]), self.state_space.shape[0]))
+        self.logger.info("action dimension, space : {}, {}".format((self.action_low[0], self.action_high[0]), self.action_space.shape[0]))
 
         self.net_A2C = ActorCritic(self.state_space.shape[0], self.action_space.shape[0])
         self.optimizer = optim.Adam(self.net_A2C.parameters(), lr=learning_rate)

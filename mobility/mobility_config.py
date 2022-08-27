@@ -5,7 +5,8 @@ class MConfig :
     H = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000
     initialTrip = 2
     Batch = 30
-    BatchInitialTrip = 280
+    # BatchInitialTrip = 280
+    BatchInitialTrip = 150
 
     MaxTrajectory =  299
     # backward trajectory size

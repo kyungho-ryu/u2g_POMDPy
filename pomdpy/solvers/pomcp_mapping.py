@@ -8,7 +8,7 @@ from pomdpy.util import console, summary, mapping
 from pomdpy.action_selection import ucb_action, action_progWiden, structure
 from pomdpy.solvers.structure import SolverType
 from .belief_mapping_solver import BeliefMappingSolver
-
+from DRL.drl_model import DRLModel
 module = "pomcp_mapping"
 
 
@@ -33,6 +33,13 @@ class POMCPMapping(BeliefMappingSolver):
         self.logger = logging.getLogger('POMDPy.Simulation')
         self.logger.setLevel("INFO")
         self.fast_UCB = [[None for _ in range(POMCPMapping.UCB_n)] for _ in range(POMCPMapping.UCB_N)]
+
+        state_space = self.model.get_state_space()
+        state_dimension = self.model.get_state_dimension()
+        action_space = self.model.get_action_space()
+        action_dimension = self.model.get_action_dimension()
+
+        self.A2CModel = DRLModel(state_dimension, state_space, action_dimension, action_space)
 
         for N in range(POMCPMapping.UCB_N):
             for n in range(POMCPMapping.UCB_n):
@@ -85,6 +92,7 @@ class POMCPMapping(BeliefMappingSolver):
             self.monte_carlo_approx(eps, start_time, prior_state_key)
         action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index)
 
+
         summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
 
         return action, best_ucb_value, best_q_value
@@ -94,18 +102,21 @@ class POMCPMapping(BeliefMappingSolver):
         :param belief_node:
         :return:
         """
-        if self.model.solver_type ==  SolverType.POMCP_DPW.value:
+        if self.model.solver_type ==  SolverType.POMCP_DPW.value or \
+                self.model.solver_type ==  SolverType.POMCP_DPW_WITH_NN.value:
             return self.POCMP_DPW(belief_node, 0, start_time, prior_state_key)
-        elif self.model.solver_type ==  SolverType.POMCP_POW.value:
+        elif self.model.solver_type ==  SolverType.POMCP_POW.value or \
+                self.model.solver_type ==  SolverType.POMCP_POW_WITH_NN.value:
             return self.POCMP_POW(belief_node, 0, start_time, prior_state_key)
         else :
             return self.traverse(belief_node, 0, start_time)
     def POCMP_DPW(self, belief_node, tree_depth, start_time, prior_state_key):
         delayed_reward = 0
-
         # choice random state from particles every simulation
         state = belief_node.sample_particle(prior_state_key)
-        self.model.reset_for_simulation(state.gmus)
+        if tree_depth == 0 :
+            self.model.reset_for_simulation(state.gmus)
+
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
 
@@ -120,21 +131,23 @@ class POMCPMapping(BeliefMappingSolver):
             return 0
 
         # use UCB table
-        if self.model.action_method == structure.action_method.NN.value:
-            pass
-        elif self.model.action_method == structure.action_method.Random.value :
+        if self.model.ActionType == structure.ActionType.NN.value:
+            temp_action = self.A2CModel.get_action(np.array(state.as_DRL_state()))
+        elif self.model.ActionType == structure.ActionType.Random.value :
             temp_action = self.model.sample_random_actions()
-        elif self.model.action_method == structure.action_method.Near.value :
+        elif self.model.ActionType == structure.ActionType.Near.value :
             temp_action = self.model.sample_near_actions(state.uav_position)
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
         self.logger.debug(actionStatus)
 
+        # action = 0
+        # print("asd")
+        # exit()
         # update visit count of child belief node
         N_O = belief_node.get_visit_count_observation(action)
         C_O = belief_node.get_number_observation(action)
-
         if C_O <= self.model.pw_o_k * (N_O**self.model.pw_o_alpha) :
             reward, delayed_reward = self.create_new_step_for_dpw(
                 belief_node, tree_depth, state, action, start_time, delayed_reward
@@ -143,7 +156,6 @@ class POMCPMapping(BeliefMappingSolver):
             reward, delayed_reward = self.select_existing_step_for_dpw(
                 belief_node, tree_depth, state, action, start_time, delayed_reward
             )
-
         # delayed_reward is "Q maximal"
         # current_q_value is the Q value of the current belief-action pair
         action_mapping_entry = belief_node.action_map.get_entry(action.UAV_deployment)
@@ -183,11 +195,11 @@ class POMCPMapping(BeliefMappingSolver):
             return 0
 
         # use UCB table
-        if self.model.action_method == structure.action_method.NN.value:
+        if self.model.ActionType == structure.ActionType.NN.value:
             pass
-        elif self.model.action_method == structure.action_method.Random.value:
+        elif self.model.ActionType == structure.ActionType.Random.value:
             temp_action = self.model.sample_random_actions()
-        elif self.model.action_method == structure.action_method.Near.value:
+        elif self.model.ActionType == structure.ActionType.Near.value:
             temp_action = self.model.sample_near_actions(state.uav_position)
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
@@ -320,6 +332,7 @@ class POMCPMapping(BeliefMappingSolver):
         self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
         self.logger.debug("reward : {}".format(reward))
 
+        self.model.update_gmu_for_simulation()
         if not self.model.is_terminal() :
             tree_depth +=1
             delayed_reward = self.POCMP_DPW(selected_entry.child_node, tree_depth, start_time, prior_state_key)
@@ -356,6 +369,7 @@ class POMCPMapping(BeliefMappingSolver):
         self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
         self.logger.debug("reward : {}".format(reward))
 
+        self.model.update_gmu_for_simulation()
         if not self.model.is_terminal() :
             tree_depth +=1
             delayed_reward = self.POCMP_POW(child_node, tree_depth, start_time, prior_state_key)
@@ -397,7 +411,7 @@ class POMCPMapping(BeliefMappingSolver):
                     child_belief_node.state_particles.append(step_result.next_state)
                 delayed_reward = self.traverse(child_belief_node, tree_depth, start_time)
             else:
-                delayed_reward = self.rollout(belief_node, self.model.action_method)
+                delayed_reward = self.rollout(belief_node, self.model.ActionType)
             tree_depth -= 1
         else:
             console(4, module, "Reached terminal state.")

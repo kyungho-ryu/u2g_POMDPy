@@ -7,6 +7,7 @@ from pomdpy.log import init_logger
 from mobility import SLModel
 from examples.u2g import U2GModel
 from pomdpy.solvers.structure import SolverType
+from pomdpy.action_selection.structure import ActionType
 import argparse
 import numpy as np
 
@@ -14,7 +15,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Set the run parameters.')
     parser.add_argument('--env', default="U2GModel", type=str, help='Specify the env to solve')
-    parser.add_argument('--solver', default='POMCP-POW', type=str,
+    parser.add_argument('--solver', default='POMCP-DPW', type=str,
                         help='Specify the solver to use {POMCP}')
     parser.add_argument('--seed', default=1993, type=int, help='Specify the random seed for numpy.random')
     parser.add_argument('--use_tf', dest='use_tf', action='store_true', help='Set if using TensorFlow')
@@ -27,7 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('--epsilon_minimum', default=0.1, type=float)
     parser.add_argument('--epsilon_decay', default=0.95, type=float)
     parser.add_argument('--epsilon_decay_step', default=20, type=int)
-    parser.add_argument('--n_sims', default=200, type=int,
+    parser.add_argument('--n_sims', default=10, type=int,
                         help='For POMCP, this is the num of MC sims to do at each belief node. '
                              'For SARSA, this is the number of rollouts to do per epoch')
     parser.add_argument('--timeout', default=3600, type=int, help='Max num of sec the experiment should run before '
@@ -49,7 +50,7 @@ if __name__ == '__main__':
 
     # Using NN
     parser.add_argument('--solver_type', type=int, help='')
-    parser.add_argument('--action_method', default=0, type=int, help='a method for action selection')
+    parser.add_argument('--ActionType', default=0, type=int, help='a method for action selection')
 
     # Progressive Widening
     parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')
@@ -78,8 +79,16 @@ if __name__ == '__main__':
 
     if args['solver'] == "POMCP-DPW" :
         args["solver_type"] = SolverType.POMCP_DPW.value
+        args["ActionType"] = ActionType.Random.value
     elif args['solver'] == "POMCP-POW" :
         args["solver_type"] = SolverType.POMCP_POW.value
+        args["ActionType"] = ActionType.Random.value
+    elif args['solver'] == "POMCP_DPW_WITH_NN" :
+        args["solver_type"] = SolverType.POMCP_DPW_WITH_NN.value
+        args["ActionType"] = ActionType.NN.value
+    elif args['solver'] == "POMCP_POW_WITH_NN" :
+        args["solver_type"] = SolverType.POMCP_POW_WITH_NN.value
+        args["ActionType"] = ActionType.NN.value
 
     solver = POMCPMapping
 

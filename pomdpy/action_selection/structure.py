@@ -1,6 +1,6 @@
 from enum import IntEnum, unique
 @unique
-class action_method(IntEnum) :
+class ActionType(IntEnum) :
     Random=0
     Near=1
     NN=2

@@ -52,34 +52,35 @@ def summary_result(writer, epoch, init_reward, reward, discounted_reward, last_r
                    ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
                    dissimilarity, totalA2GEnergy, totalA2AEnergy, totalPropEnergy,
                    totalEnergyConsumtion, avgDnRage, scaledEnergyConsumtion, scaledDnRate,
-                   NumActiveUav, NumObservedGMU, count, time) :
+                   NumActiveUav, NumObservedGMU, prediction_error, count, time) :
     group = "Reward/"
-    writer.add_scalar(group+'R', reward/count, epoch)
+    writer.add_scalar(group+'R', np.mean(reward), epoch)
     writer.add_scalar(group+'initR', init_reward, epoch)
     writer.add_scalar(group+'lastR', last_reward, epoch)
-    writer.add_scalar(group+'discounted_R', discounted_reward/count, epoch)
-    writer.add_scalar(group + 'UCB', ucb_value/count, epoch)
-    writer.add_scalar(group + 'Q', q_value/count, epoch)
+    writer.add_scalar(group+'discounted_R', np.mean(discounted_reward), epoch)
+    writer.add_scalar(group + 'UCB', np.mean(ucb_value), epoch)
+    writer.add_scalar(group + 'Q', np.mean(q_value), epoch)
 
 
     group = "Energy/"
-    writer.add_scalar(group + 'A2GEnergy', totalA2GEnergy/count, epoch)
-    writer.add_scalar(group + 'A2AEnergy', totalA2AEnergy/count, epoch)
-    writer.add_scalar(group + 'PropEnergy', totalPropEnergy/count, epoch)
+    writer.add_scalar(group + 'A2GEnergy', np.mean(totalA2GEnergy), epoch)
+    writer.add_scalar(group + 'A2AEnergy', np.mean(totalA2AEnergy), epoch)
+    writer.add_scalar(group + 'PropEnergy', np.mean(totalPropEnergy), epoch)
 
     group = "TotalReward/"
-    writer.add_scalar(group + 'energy', totalEnergyConsumtion/count, epoch)
-    writer.add_scalar(group + 'dataRate', avgDnRage/count, epoch)
-    writer.add_scalar(group + 'scaledEnergy', scaledEnergyConsumtion/count, epoch)
-    writer.add_scalar(group + 'scaledDataRate', scaledDnRate/count, epoch)
+    writer.add_scalar(group + 'energy', np.mean(totalEnergyConsumtion), epoch)
+    writer.add_scalar(group + 'dataRate', np.mean(avgDnRage), epoch)
+    writer.add_scalar(group + 'scaledEnergy', np.mean(scaledEnergyConsumtion), epoch)
+    writer.add_scalar(group + 'scaledDataRate', np.mean(scaledDnRate), epoch)
 
 
     group = "etc/"
-    writer.add_scalar(group + 'activeUav', NumActiveUav/count, epoch)
-    writer.add_scalar(group + 'observedGMU', NumObservedGMU/count, epoch)
-    writer.add_scalar(group + 'attachProbabality', count - NUM_create_child_belief_node, epoch)
+    writer.add_scalar(group + 'activeUav', np.mean(NumActiveUav), epoch)
+    writer.add_scalar(group + 'observedGMU', np.mean(NumObservedGMU), epoch)
+    writer.add_scalar(group + 'attachProbabality', (count - NUM_create_child_belief_node)/count, epoch)
     writer.add_scalar(group + 'GrabProbabality', NUM_grab_nearest_child_belief_node, epoch)
-    writer.add_scalar(group + 'dissimilarity', dissimilarity, epoch)
+    writer.add_scalar(group + 'dissimilarity', np.mean(dissimilarity), epoch)
+    writer.add_scalar(group + 'prediction_error', np.mean(prediction_error), epoch)
 
     writer.add_scalar("Time", time, epoch)
 

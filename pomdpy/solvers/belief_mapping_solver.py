@@ -59,12 +59,13 @@ class BeliefMappingSolver(Solver):
         :param start_time
         :return:
         """
-        interval = int(self.model.n_sims /10)
+        interval = int(self.model.n_sims /5)
         pbar = tqdm(range(self.model.n_sims), ncols=70, miniters=interval)
         for _ in pbar: # default = 500
             # Reset the Simulator
             self.simulate(self.belief_mapping_index, eps, start_time, prior_state_key)
             # pbar.set_postfix({'Simulation step ' : i})
+
     @abc.abstractmethod
     def simulate(self, belief, eps, start_time, prior_state_key):
         """
@@ -141,11 +142,11 @@ class BeliefMappingSolver(Solver):
         discount = 1.0
         num_steps = 0
         while num_steps < self.model.max_rollout_depth and not is_terminal:
-            if action_method == structure.action_method.NN.value:
+            if action_method == structure.ActionType.NN.value:
                 pass
-            elif action_method == structure.action_method.Random.value:
+            elif action_method == structure.ActionType.Random.value:
                 legal_action = self.model.sample_random_actions()
-            elif action_method == structure.action_method.Near.value:
+            elif action_method == structure.ActionType.Near.value:
                 legal_action = self.model.sample_near_actions(state.uav_position)
 
             step_result, is_legal = self.model.generate_step(state, legal_action)
