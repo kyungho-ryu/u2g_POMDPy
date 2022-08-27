@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from builtins import range
 from past.utils import old_div
-import time, logging
+import time, logging, sys, gc
 import numpy as np
 from pomdpy.util import console, summary, mapping
 from pomdpy.action_selection import ucb_action, action_progWiden, structure
@@ -49,8 +49,6 @@ class POMCPMapping(BeliefMappingSolver):
                     self.fast_UCB[N][n] = agent.model.ucb_coefficient * np.sqrt(old_div(np.log(N + 1), n))
                     # 3.0 * root(log(n+1) / n)
                     # if the numer of visit is increase, value is decrease
-
-        self.simuration_result = {"depth":0}
     @staticmethod
     def reset(agent):
         """
@@ -84,8 +82,6 @@ class POMCPMapping(BeliefMappingSolver):
                 data structure is disabled, random rollout is used.
         """
 
-        self.simuration_result = {"depth":0}
-
         if self.disable_tree:   # False
             self.rollout_search(self.belief_mapping_index)
         else:
@@ -94,6 +90,8 @@ class POMCPMapping(BeliefMappingSolver):
 
 
         summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
+        a = gc.collect()
+        self.logger.info("Distroy simulation object : {}".format(a))
 
         return action, best_ucb_value, best_q_value
 
@@ -142,9 +140,14 @@ class POMCPMapping(BeliefMappingSolver):
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
         self.logger.debug(actionStatus)
 
-        # action = 0
+        # print(sys.getrefcount(action))
+        # del action
+        # sys.getrefcount(action)
+        # print(action)
+        # a = gc.collect()
+        # print(a)
         # print("asd")
-        # exit()
+
         # update visit count of child belief node
         N_O = belief_node.get_visit_count_observation(action)
         C_O = belief_node.get_number_observation(action)

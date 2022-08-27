@@ -299,7 +299,8 @@ class SLModel :
         RO = self.tg.lookup(self.MOS[id].id, backward_traj, self.MOS, self.NumGMU)
         self.logger.debug("Selected RO : {}".format(RO))
         if RO ==[] :
-            self.logger.info("There are no RO {} in {}".format(RO, id))
+            if repeat ==0 :
+                self.logger.info("There are no RO {} in {}".format(RO, id))
             repeat +=1
             start = len(self.MOS[id].candidate_backward_traj) - (repeat + len(backward_traj))
             end = len(self.MOS[id].candidate_backward_traj) - repeat

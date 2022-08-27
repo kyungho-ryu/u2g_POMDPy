@@ -426,6 +426,9 @@ class U2GModel(Model) : # Model
         totalDnRate, a2aLinkStatus, G = self.set_servingGmusTraffics(G, prior_state.gmuStatus, next_state)
         self.logger.debug("GMU's dnRate : {}".format(totalDnRate))
 
+        if totalDnRate == self.penalty:
+            return self.penalty
+
         totalA2GEnergy, totalA2AEnergy = self.calcurate_energy_consumption(
             state.gmuStatus, next_state, a2aLinkStatus, G
         )
@@ -736,6 +739,7 @@ class U2GModel(Model) : # Model
         if simulation :
             result.reward = self.make_reward(state, action, result.next_state)
         else :
+            self.make_reward(state, action, result.next_state)
             result.reward = self.make_reward_for_realState(state, result.next_state)
         result.is_terminal = self.is_terminal()
 

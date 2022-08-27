@@ -1,4 +1,4 @@
-
+import gc
 class test () :
     def __init__(self):
         self.x = 5
@@ -7,10 +7,12 @@ class test () :
 class RefExam():
   def __init__(self):
     print('create object')
-    self.me = test()
+    self.me = self
   def __del__(self):
     print(f'destroy {id(self)}')
 
 a = RefExam()
 a = 0
+test = gc.collect()
+print(test)
 print('end .....')

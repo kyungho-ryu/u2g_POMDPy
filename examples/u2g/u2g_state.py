@@ -26,6 +26,9 @@ class U2GState(DiscreteState):
 
         self.reward_for_actions = {}
 
+    # def __del__(self):
+    #     print(f'state destroy {id(self)}')
+
     def set_reward(self, key, totalDnRate, totalA2GEnergy=0, totalA2AEnergy=0, totalPropEnergy=0, NumActiveUav=0):
         self.reward_for_actions[key] = U2GReward(
             totalDnRate, totalA2GEnergy, totalA2AEnergy, totalPropEnergy, NumActiveUav

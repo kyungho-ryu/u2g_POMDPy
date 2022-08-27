@@ -1,7 +1,7 @@
 from __future__ import print_function, division
 import time
 import logging
-import os
+import os, gc
 from pomdpy.pomdp import Statistic
 from pomdpy.pomdp.history import Histories, HistoryEntry
 from pomdpy.util import console, print_divider, summary
@@ -259,6 +259,9 @@ class Agent:
 
             simulation_steps +=1
 
+            a = gc.collect()
+            self.logger.info("Distroy agent object : {}".format(a))
+
             if step_result.is_terminal or not is_legal :
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
                 break
@@ -271,21 +274,24 @@ class Agent:
             avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav, NumObservedGMU, prediction_error,
             count, (time.time() - epoch_start)
         )
-        self.results.time.add(time.time() - epoch_start)
-        self.results.update_reward_results(reward, discounted_reward)
+        # self.results.time.add(time.time() - epoch_start)
+        # self.results.update_reward_results(reward, discounted_reward)
 
         # Pretty Print results
         # print_divider('large')
         # solver.history.show()
-        self.results.show(epoch)
+        # self.results.show(epoch)
         #console(3, module, 'Total possible undiscounted return: ' + str(self.model.get_max_undiscounted_return()))
         #print_divider('medium')
 
-        self.experiment_results.time.add(self.results.time.running_total)
-        self.experiment_results.undiscounted_return.count += (self.results.undiscounted_return.count - 1)
-        self.experiment_results.undiscounted_return.add(self.results.undiscounted_return.running_total)
-        self.experiment_results.discounted_return.count += (self.results.discounted_return.count - 1)
-        self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
+        # self.experiment_results.time.add(self.results.time.running_total)
+        # self.experiment_results.undiscounted_return.count += (self.results.undiscounted_return.count - 1)
+        # self.experiment_results.undiscounted_return.add(self.results.undiscounted_return.running_total)
+        # self.experiment_results.discounted_return.count += (self.results.discounted_return.count - 1)
+        # self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
+
+        a = gc.collect()
+        self.logger.info("Distroy epoch object : {}".format(a))
 
         return eps, steps, simulation_steps
 

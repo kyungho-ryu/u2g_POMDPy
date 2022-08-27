@@ -39,7 +39,7 @@ class Particle :
         self.state = []
 
     def add_particle(self, state):
-        if len(self.state) >= 20 :
+        if len(self.state) >= 10 :
             self.state.pop(0)
         self.state.append(state)
 
