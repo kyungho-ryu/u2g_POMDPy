@@ -175,7 +175,7 @@ class POMCPMapping(BeliefMappingSolver):
 
         # choice random state from particles every simulation
         state = belief_node.sample_particle(prior_state_key)
-        self.model.reset_for_simulation(state.gmus)
+        self.model.reset_for_simulation()
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
 
@@ -384,7 +384,7 @@ class POMCPMapping(BeliefMappingSolver):
             console(4, module, "action selection timeout")
             return 0
 
-        action = ucb_action(self, belief_node, False)
+        action = ucb_action(self, belief_node)
 
         # Search horizon reached
         if tree_depth >= self.model.max_depth:
