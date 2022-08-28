@@ -1,10 +1,10 @@
 from __future__ import print_function, division
-import time
+import time, psutil
 import logging
-import os, gc
+import os
 from pomdpy.pomdp import Statistic
 from pomdpy.pomdp.history import Histories, HistoryEntry
-from pomdpy.util import console, print_divider, summary
+from pomdpy.util import console, print_divider, summary, memory
 from experiments.scripts.pickle_wrapper import save_pkl
 
 module = "agent"
@@ -152,7 +152,7 @@ class Agent:
                 particle = self.model.sample_an_init_state()  # create random rock state
                 solver.belief_mapping.add_particle(observation, particle, prior_state_key)
 
-
+            memory.check_momory(self.logger)
     def run_pomcp(self, solver, epoch, eps, simulation_steps, steps, prior_state_key):
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
@@ -212,7 +212,7 @@ class Agent:
 
             self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
             # state = not real state
-            step_result, is_legal = solver.model.generate_step(state, action, simulation=False)
+            step_result, is_legal = solver.model.generate_step(state, action)
 
             reward.append(step_result.reward)
             discounted_reward.append(discount * step_result.reward)
@@ -259,9 +259,6 @@ class Agent:
 
             simulation_steps +=1
 
-            a = gc.collect()
-            self.logger.info("Distroy agent object : {}".format(a))
-
             if step_result.is_terminal or not is_legal :
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
                 break
@@ -290,8 +287,6 @@ class Agent:
         # self.experiment_results.discounted_return.count += (self.results.discounted_return.count - 1)
         # self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
 
-        a = gc.collect()
-        self.logger.info("Distroy epoch object : {}".format(a))
 
         return eps, steps, simulation_steps
 

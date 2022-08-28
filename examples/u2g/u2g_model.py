@@ -1,4 +1,4 @@
-import time, math
+import time, math, os, psutil
 import numpy as np
 from pomdpy.pomdp import Model, StepResult
 from mobility.semi_lazy import SLModel
@@ -68,8 +68,6 @@ class U2GModel(Model) : # Model
         self.generate_UAV()
         self.set_envMap()
 
-        # self.generate_GMU()
-
         self.MaxEnergyConsumtion = self.calcurate_max_uav_energy(Config.MAX_GRID_INDEX, Config.NUM_UAV)
         self.MaxDnRate = Config.USER_DEMAND * Config.NUM_GMU
 
@@ -117,26 +115,6 @@ class U2GModel(Model) : # Model
         self.uavStatus = getLocStat(self.uavs, Config.MAX_GRID_INDEX)  # uav obj. per cell
         self.logger.debug("UAV is deployed in cells : {}".format([len(self.uavStatus[uav]) for uav in self.uavStatus]))
 
-    # def generate_GMU(self):
-    #
-    #     # generate gmu according to deployment of UAV
-    #     # include both gmus with real position and gmus with predicted position
-    #     for i in range(Config.NUM_GMU):
-    #         id, coordinate, observed, SL_params = self.mobility_SLModel.create_gmu_for_simulation(i, self.env_map)
-    #         self.gmus.append(GMU(id, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
-    #
-    #     self.numGmus = Config.NUM_GMU
-    #     self.logger.info("Create GMU :{}".format(self.numGmus))
-    #     # check cell location for uav, gmu
-    #     self.updateCellInfo(self.gmus)
-    #     for gmu in self.gmus:
-    #         self.logger.debug("GMU'{} - loc(x,y), cell :{}".format(gmu.id, gmu.get_location()))
-    #
-    #     # deployment status check
-    #     self.gmuStatus = getLocStat(self.gmus, Config.MAX_GRID_INDEX)
-    #     self.logger.info("Gmu is deployed in cells : {}".format([len(self.gmuStatus[gs]) for gs in self.gmuStatus]))
-
-
     def initUAVLoc(self, _luav):
         for u in _luav:
             if not u.bGateway:
@@ -179,7 +157,7 @@ class U2GModel(Model) : # Model
         for i in range(self.numGmus):
             cellIndex, coordinate = self.mobility_SLModel.get_init_prior_gmu_locIndex(i)
             sample_states[cellIndex] +=1
-            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, True, None))
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, True, 0))
 
         self.updateCellInfo(gmus)
         self.logger.debug("prior init state : {}".format(sample_states))
@@ -320,15 +298,16 @@ class U2GModel(Model) : # Model
         # change GMU trajectory
         gmus = []
         sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
+        self.mobility_SLModel.update_SimulationPredictionLength()
         for i in range(self.numGmus):
-            cellIndex, coordinate, SL_params = self.mobility_SLModel.get_trajectory_for_simulation(i)
+            cellIndex, coordinate, k = self.mobility_SLModel.get_trajectory_for_simulation(i)
 
             if cellIndex == -1:
                 self.logger.error("have to be terminated previously")
                 exit()
 
             sample_states[cellIndex] += 1
-            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, False, SL_params))
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, False, k))
         self.updateCellInfo(gmus)
 
         uavs = []
@@ -412,7 +391,7 @@ class U2GModel(Model) : # Model
         for i in range(self.numGmus):
             cellIndex, coordinate = self.mobility_SLModel.get_real_locIndex(i)
             sample_states[cellIndex] +=1
-            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, True, None))
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, True, 0))
 
         # index, self.MOS[id].get_location(), True, None
         self.updateCellInfo(gmus)
@@ -593,10 +572,11 @@ class U2GModel(Model) : # Model
         sample_states = [0 for _ in range(Config.MAX_GRID_INDEX+1)]
         gmus = []
         for i in range(self.numGmus):
-            cellIndex, coordinate, observed, SL_params = self.mobility_SLModel.get_init_gmu_locIndex(i)
+            cellIndex, coordinate, observed, k = self.mobility_SLModel.get_init_gmu_locIndex(i)
             sample_states[cellIndex] +=1
-            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, k))
         self.updateCellInfo(gmus)
+
         self.logger.debug("sample init state : {}".format(sample_states))
         self.logger.debug("UAV init position : {}".format(self.uavPosition))
 
@@ -643,39 +623,19 @@ class U2GModel(Model) : # Model
     '''                 Implementation of abstract Model class               '''
     ''' ===================================================================  '''
 
-    def reset_for_simulation(self, gmus):
+    def reset_for_simulation(self):
         """
         The Simulator (Model) should be reset before each simulation
         :return:
+
         """
-        for gmu in gmus :
-            if gmu.observed :
-                self.mobility_SLModel.set_simulation_state(gmu.id, None)
-            else :
-                self.mobility_SLModel.set_simulation_state(gmu.id, gmu.get_SL_params(Config.GRID_W))
+        self.mobility_SLModel.set_simulation_state()
+        # for gmu in gmus :
+        #     if gmu.observed :
+        #         self.mobility_SLModel.set_simulation_state(gmu.id, None)
+        #     else :
+        #         self.mobility_SLModel.set_simulation_state(gmu.id, gmu.get_SL_params(Config.GRID_W))
 
-
-        # is_termimal = False
-        # self.future_gmus = deque()
-        # self.future_gmuPosition = deque()
-        # while not is_termimal :
-        #     gmus = []
-        #     sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
-        #     for i in range(self.numGmus):
-        #         cellIndex, coordinate, terminal, SL_params = self.mobility_SLModel.get_trajectory_for_simulation(i)
-        #
-        #         if cellIndex == -1:
-        #             self.logger.error("have to be terminated previously")
-        #             exit()
-        #
-        #         sample_states[cellIndex] += 1
-        #         gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, False, SL_params))
-        #         if terminal :
-        #             is_termimal = True
-        #     self.updateCellInfo(gmus)
-        #     self.future_gmus.append(gmus)
-        #     self.future_gmuPosition.append(sample_states)
-        # self.logger.debug("Create gmu's trajectory until : {}".format(len(self.future_gmus)))
 
     def reset_for_epoch(self):
         # reset UAV status to same init position
@@ -698,7 +658,7 @@ class U2GModel(Model) : # Model
         :return:
         """
         self.update_uavStatus(sim_data.next_state)
-        self.update_gmuStatus(state.gmus)
+        self.update_gmuStatus()
 
 
 
@@ -708,16 +668,17 @@ class U2GModel(Model) : # Model
         self.uavPosition = copy.deepcopy(next_state.uav_position)
         self.set_envMap()
 
-    def update_gmuStatus(self, gmus):
+    def update_gmuStatus(self):
         self.mobility_SLModel.reset_NumObservedGMU()
         for i in range(self.numGmus):
-            self.mobility_SLModel.update_gmuStatus(i, gmus[i].get_SL_params(Config.GRID_W), self.env_map)
+            self.mobility_SLModel.update_gmuStatus(i, self.env_map)
 
     def update_gmu_for_simulation(self):
+        self.mobility_SLModel.update_SimulationPredictionLength()
         for i in range(self.numGmus):
             self.mobility_SLModel.update_trajectory_for_simulation(i)
 
-    def generate_step(self, state, action, simulation=True):
+    def generate_step(self, state, action):
         """
         Generates a full StepResult, including the next state, an observation, and the reward
         *
@@ -736,11 +697,7 @@ class U2GModel(Model) : # Model
         result.next_state = self.make_next_state(state, action)
         result.action = action.copy()
         result.observation = self.make_observation(result.next_state)
-        if simulation :
-            result.reward = self.make_reward(state, action, result.next_state)
-        else :
-            self.make_reward(state, action, result.next_state)
-            result.reward = self.make_reward_for_realState(state, result.next_state)
+        result.reward = self.make_reward(state, action, result.next_state)
         result.is_terminal = self.is_terminal()
 
         return result, True
@@ -749,10 +706,11 @@ class U2GModel(Model) : # Model
         sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
         gmus = []
         for i in range(self.numGmus):
-            cellIndex, coordinate, observed, SL_params = self.mobility_SLModel.get_init_gmu_locIndex(i)
+            cellIndex, coordinate, observed, k = self.mobility_SLModel.get_init_gmu_locIndex(i)
             sample_states[cellIndex] += 1
-            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, SL_params))
+            gmus.append(GMU(i, coordinate[0], coordinate[1], Config.USER_DEMAND, observed, k))
         self.updateCellInfo(gmus)
+
         return U2GState(self.uavPosition, sample_states, self.uavs, gmus)
 
 
@@ -784,15 +742,18 @@ class U2GModel(Model) : # Model
     def get_dissimilarity_of_gmu_prediction(self, gmus):
         error = []
         for gmu in gmus :
-            prediction_cell = gmu.get_cellCoordinate(Config.GRID_W)
-            real_cell = self.mobility_SLModel.get_real_trajectory(gmu.id)
-            error_x = prediction_cell[0] - real_cell[0]
-            error_y = prediction_cell[1] - real_cell[1]
+            if not gmu.observed :
+                prediction_cell = gmu.get_cellCoordinate(Config.GRID_W)
+                real_cell = self.mobility_SLModel.get_real_trajectory(gmu.id)
+                error_x = prediction_cell[0] - real_cell[0]
+                error_y = prediction_cell[1] - real_cell[1]
 
-            error.append(math.sqrt(math.pow(error_x, 2) + math.pow(error_y, 2)))
+                error.append(math.sqrt(math.pow(error_x, 2) + math.pow(error_y, 2)))
 
-        result = np.mean(error)
-        return result
+        if error == [] :
+            return 0
+        else :
+            return np.mean(error)
 
 
     def get_simulationResult(self, state, action):

@@ -99,7 +99,7 @@ class UAV:
         return self.x, self.y, self.cell
 
 class GMU:
-    def __init__(self, _id, _x, _y, USER_DEMAND, observed, SL_params):
+    def __init__(self, _id, _x, _y, USER_DEMAND, observed, k):
         self.id = _id
         self.x = _x
         self.y = _y
@@ -108,23 +108,7 @@ class GMU:
         self.demand = USER_DEMAND
 
         self.observed = observed
-
-        self.S = []
-        self.RO = []
-        self.eta = 0
-        self.k = 1
-
-        if not self.observed:
-            self.set_SL_params(SL_params)
-
-    def set_SL_params(self, SL_params):
-        self.S = SL_params[0]
-        self.RO = SL_params[2]
-        self.eta = SL_params[3]
-        self.k = SL_params[4]
-
-    def get_SL_params(self, diameterofCell):
-        return self.S, self.get_cellCoordinate(diameterofCell), self.RO, self.eta, self.k
+        self.k = k
 
     def get_cellCoordinate(self, diameterofCell):
         x, y = int(self.x // diameterofCell), int(self.y // diameterofCell)

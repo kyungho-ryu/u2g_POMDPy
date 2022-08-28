@@ -59,7 +59,7 @@ class BeliefMappingSolver(Solver):
         :param start_time
         :return:
         """
-        interval = int(self.model.n_sims /5)
+        interval = int(self.model.n_sims /2)
         pbar = tqdm(range(self.model.n_sims), ncols=70, miniters=interval)
         for _ in pbar: # default = 500
             # Reset the Simulator

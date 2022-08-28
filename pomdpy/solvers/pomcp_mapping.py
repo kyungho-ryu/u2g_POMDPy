@@ -2,13 +2,14 @@ from __future__ import absolute_import
 from __future__ import division
 from builtins import range
 from past.utils import old_div
-import time, logging, sys, gc
+import time, logging, sys
 import numpy as np
 from pomdpy.util import console, summary, mapping
 from pomdpy.action_selection import ucb_action, action_progWiden, structure
 from pomdpy.solvers.structure import SolverType
 from .belief_mapping_solver import BeliefMappingSolver
 from DRL.drl_model import DRLModel
+from pomdpy.util.memory import check_momory, clean_memory
 module = "pomcp_mapping"
 
 
@@ -88,10 +89,9 @@ class POMCPMapping(BeliefMappingSolver):
             self.monte_carlo_approx(eps, start_time, prior_state_key)
         action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index)
 
-
+        self.model.reset_for_simulation()
         summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
-        a = gc.collect()
-        self.logger.info("Distroy simulation object : {}".format(a))
+        clean_memory(self.logger)
 
         return action, best_ucb_value, best_q_value
 
@@ -113,7 +113,7 @@ class POMCPMapping(BeliefMappingSolver):
         # choice random state from particles every simulation
         state = belief_node.sample_particle(prior_state_key)
         if tree_depth == 0 :
-            self.model.reset_for_simulation(state.gmus)
+            self.model.reset_for_simulation()
 
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
@@ -139,14 +139,6 @@ class POMCPMapping(BeliefMappingSolver):
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
         self.logger.debug(actionStatus)
-
-        # print(sys.getrefcount(action))
-        # del action
-        # sys.getrefcount(action)
-        # print(action)
-        # a = gc.collect()
-        # print(a)
-        # print("asd")
 
         # update visit count of child belief node
         N_O = belief_node.get_visit_count_observation(action)
@@ -176,11 +168,6 @@ class POMCPMapping(BeliefMappingSolver):
         action_mapping_entry.update_q_value(q_value)
         self.logger.debug(" Q value : {}".format(q_value))
 
-        # if belief_node not in self.simuration_result :
-        #     self.simuration_result[belief_node] = [C_A, N_A, N_O, C_O, belief_node.get_num_total_particle()]
-        # else :
-
-        # Add RAVE ?
         return q_value
 
     def POCMP_POW(self, belief_node, tree_depth, start_time, prior_state_key):
@@ -277,6 +264,7 @@ class POMCPMapping(BeliefMappingSolver):
 
     def create_new_step_for_dpw(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
         self.logger.debug("create new step")
+
         step_result, is_legal = self.model.generate_step(state, action)
         self.logger.debug("observation : {}/{}".format(len(step_result.observation.observed_gmu_status),
                                                       step_result.observation.observed_gmu_status))

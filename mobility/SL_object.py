@@ -15,11 +15,11 @@ class MO() :
         self.candidate_backward_traj = deque(maxlen=5)
 
         self.observed = True
-        self.tNLoc = []
-        self.S = []
-        self.RO = []
-        self.eta = 0
-        self.k =  1
+        self.k =  0
+        # self.tNLoc = []
+        # self.S = []
+        # self.RO = []
+        # self.eta = 0
 
 
     def update_location(self, real_location, cell_location):
@@ -43,27 +43,30 @@ class MO() :
     def get_current_time(self):
         return self.current_t
 
-    def set_prediction(self, _S, _tNLoc, _RO, _eta, _k):
-        self.S = _S
-        self.tNLoc = _tNLoc
-        self.RO = _RO
-        self.eta = _eta
-        self.k = _k
-        self.observed = False
+    def set_observed(self, new_status):
+        self.observed = new_status
 
-    def get_mobility_model(self):
-        if self.S == [] :
-            return None
-        else :
-            return self.S, self.tNLoc, self.RO, self.eta, self.k
+    def update_prediction_length(self):
+        self.k +=1
 
     def reset_prediction(self):
         self.observed = True
-        self.S = []
-        self.tNLoc = []
-        self.RO = []
-        self.eta = 0
-        self.k = 1
+        self.k = 0
+
+    # def set_prediction(self, _S, _tNLoc, _RO, _eta, _k):
+    #     self.S = _S
+    #     self.tNLoc = _tNLoc
+    #     self.RO = _RO
+    #     self.eta = _eta
+    #     self.k = _k
+    #     self.observed = False
+    #
+    # def get_mobility_model(self):
+    #     if self.S == [] :
+    #         return None
+    #     else :
+    #         return self.S, self.tNLoc, self.RO, self.eta, self.k
+    #
 
 
 # class GMU(MO) :
