@@ -15,6 +15,13 @@ class ParticlePool :
         if prior_state not in self.particle:
             self.particle[prior_state] = Particle()
             self.NumParticle[prior_state] = 0
+        if len(self.particle.keys()) > MinParticle :
+            key = list(self.particle.keys())[0]
+            self.TotalParticle -= self.NumParticle[key]
+
+            self.particle.pop(key)
+            self.NumParticle.pop(key)
+
 
         self.particle[prior_state].add_particle(particle)
         self.NumParticle[prior_state] +=1

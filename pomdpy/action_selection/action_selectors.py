@@ -46,7 +46,7 @@ def action_progWiden(mcts, current_node, temp_action, k, alpha):
     #     print(mapping.get_number_of_action())
     #     print(mapping.total_visit_count, k, alpha)
     #     print(k * (mapping.total_visit_count**alpha))
-    if mapping.get_number_of_action() <= k * (mapping.total_visit_count**alpha) :
+    if mapping.get_number_of_action() - current_node.penalty_count <= k * (mapping.total_visit_count**alpha) :
 
         action, C, N =  mapping.create_current_action_node(temp_action)
         return action, C, N, "Create New action"

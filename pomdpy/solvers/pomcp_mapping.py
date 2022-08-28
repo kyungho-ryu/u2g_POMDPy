@@ -215,6 +215,8 @@ class POMCPMapping(BeliefMappingSolver):
         added = False
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
             child_belief_node, added = belief_node.create_or_get_child(action, observation)
+            if step_result.reward == self.model.penalty :
+                belief_node.penalty_count +=1
 
         if not step_result.is_terminal or not is_legal:
             prior_state_key = state.get_key()
@@ -276,6 +278,8 @@ class POMCPMapping(BeliefMappingSolver):
         added = False
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
             child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
+            if step_result.reward == self.model.penalty :
+                belief_node.penalty_count +=1
 
         if not step_result.is_terminal or not is_legal:
             prior_state_key = state.get_key()

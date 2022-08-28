@@ -85,3 +85,40 @@ def summary_result(writer, epoch, init_reward, reward, discounted_reward, last_r
     writer.add_scalar("Time", time, epoch)
 
 
+def summary_result2(writer, epoch, init_reward, reward, discounted_reward,
+                   ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
+                   dissimilarity, totalA2GEnergy, totalA2AEnergy, totalPropEnergy,
+                   totalEnergyConsumtion, avgDnRage, scaledEnergyConsumtion, scaledDnRate,
+                   NumActiveUav, NumObservedGMU, prediction_error, count, time) :
+
+    group = "Reward/"
+    writer.add_scalar(group+'R', reward, epoch)
+    writer.add_scalar(group+'initR', init_reward, epoch)
+    writer.add_scalar(group+'discounted_R', discounted_reward, epoch)
+    writer.add_scalar(group + 'UCB', ucb_value, epoch)
+    writer.add_scalar(group + 'Q', q_value, epoch)
+
+
+    group = "Energy/"
+    writer.add_scalar(group + 'A2GEnergy', totalA2GEnergy, epoch)
+    writer.add_scalar(group + 'A2AEnergy', totalA2AEnergy, epoch)
+    writer.add_scalar(group + 'PropEnergy', totalPropEnergy, epoch)
+
+    group = "TotalReward/"
+    writer.add_scalar(group + 'energy', totalEnergyConsumtion, epoch)
+    writer.add_scalar(group + 'dataRate', avgDnRage, epoch)
+    writer.add_scalar(group + 'scaledEnergy', scaledEnergyConsumtion, epoch)
+    writer.add_scalar(group + 'scaledDataRate', scaledDnRate, epoch)
+
+
+    group = "etc/"
+    writer.add_scalar(group + 'activeUav', NumActiveUav, epoch)
+    writer.add_scalar(group + 'observedGMU', NumObservedGMU, epoch)
+    writer.add_scalar(group + 'attachProbabality', (count - NUM_create_child_belief_node)/count, epoch)
+    writer.add_scalar(group + 'GrabProbabality', NUM_grab_nearest_child_belief_node, epoch)
+    if dissimilarity != -1 :
+        writer.add_scalar(group + 'dissimilarity', dissimilarity, epoch)
+    writer.add_scalar(group + 'prediction_error', prediction_error, epoch)
+
+    writer.add_scalar("Time", time, epoch)
+

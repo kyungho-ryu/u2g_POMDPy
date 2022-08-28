@@ -1,7 +1,7 @@
-import random
+a = {1:2, 5:4, 3:2}
 
-a = [1,2,3,4,5]
-
-
-b = random.choice(a)
+b = list(a.keys())[0]
+a.pop(b)
 print(b)
+print(a)
+print(len(a.keys()))

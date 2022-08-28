@@ -21,6 +21,7 @@ class BeliefMappingNode(object):
         self.action_map = None
         self.belief_map = belief_map
         self.particle_pool = ParticlePool()   # The set of states that comprise the belief distribution of this belief node
+        self.penalty_count = 0
 
     def copy(self):
         bn = BeliefMappingNode(self.solver, self.belief_map)
