@@ -45,7 +45,7 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         if not os.path.exists(self.logs):
             os.makedirs(self.logs)
 
-        parms = str([args['pw_a_k'], args['pw_a_alpha'], args['pw_o_k'], args['pw_o_alpha']])
+        parms = str([args['pw_a_k'], args['pw_a_alpha'], args['pw_o_k'], args['pw_o_alpha'], args['max_particle_count']])
         self.logs = os.path.join(self.logs, parms)
         if not os.path.exists(self.logs):
             os.makedirs(self.logs)

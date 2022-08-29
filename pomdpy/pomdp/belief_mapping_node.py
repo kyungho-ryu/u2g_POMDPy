@@ -20,7 +20,7 @@ class BeliefMappingNode(object):
         self.solver = solver
         self.action_map = None
         self.belief_map = belief_map
-        self.particle_pool = ParticlePool()   # The set of states that comprise the belief distribution of this belief node
+        self.particle_pool = ParticlePool(self.solver.model.max_particle_count)   # The set of states that comprise the belief distribution of this belief node
         self.penalty_count = 0
 
     def copy(self):
@@ -47,6 +47,10 @@ class BeliefMappingNode(object):
 
     def get_num_total_particle(self):
         return self.particle_pool.get_num_total_particle()
+
+    def get_num_leftParticle_of_priorState(self, prior_state):
+        return self.particle_pool.get_num_leftParticle_of_priorState(prior_state)
+
     def get_child(self, action, obs):
         node = self.action_map.get_action_node(action)
         if node is not None:

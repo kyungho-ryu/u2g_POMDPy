@@ -87,7 +87,7 @@ class POMCPMapping(BeliefMappingSolver):
             self.rollout_search(self.belief_mapping_index)
         else:
             self.monte_carlo_approx(eps, start_time, prior_state_key)
-        action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index)
+        action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index, True)
 
         self.model.reset_for_simulation()
         summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)

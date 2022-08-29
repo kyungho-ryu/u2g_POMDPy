@@ -20,7 +20,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', default=1993, type=int, help='Specify the random seed for numpy.random')
     parser.add_argument('--use_tf', dest='use_tf', action='store_true', help='Set if using TensorFlow')
     parser.add_argument('--discount', default=0.99, type=float, help='Specify the discount factor (default=0.95)')
-    parser.add_argument('--n_epochs', default=350, type=int, help='Num of epochs of the experiment to conduct')
+    parser.add_argument('--n_epochs', default=200, type=int, help='Num of epochs of the experiment to conduct')
     parser.add_argument('--max_steps', default=32, type=int, help='Max num of steps per trial/episode/trajectory/epoch')
     parser.add_argument('--save', dest='save', action='store_true', help='Pickle the weights/alpha vectors')
     parser.add_argument('--test', default=10, type=int, help='Evaluate the agent every `test` epochs')
@@ -40,7 +40,7 @@ if __name__ == '__main__':
                         'belief node in MCTS')
     parser.add_argument('--min_particle_count', default=10, type=int, help='Lower bound on num of particles a belief '
                         'node can have in MCTS')
-    parser.add_argument('--max_particle_count', default=100, type=int, help='Upper bound on num of particles a belief '
+    parser.add_argument('--max_particle_count', default=10, type=int, help='Upper bound on num of particles a belief '
                         'node can have in MCTS')
     parser.add_argument('--max_depth', default=100, type=int, help='Max depth for a DFS of the belief search tree in '
                         'MCTS')

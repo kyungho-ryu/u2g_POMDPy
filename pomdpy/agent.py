@@ -148,11 +148,10 @@ class Agent:
 
             solver.model.reset_for_epoch()
             solver.belief_mapping_index = init_belief_mapping_index
-            for i in range(self.model.min_particle_count):
-                particle = self.model.sample_an_init_state()  # create random rock state
-                solver.belief_mapping.add_particle(observation, particle, prior_state_key)
+            # for i in range(self.model.min_particle_count):
+            #     particle = self.model.sample_an_init_state()  # create random rock state
+            #     solver.belief_mapping.add_particle(observation, particle, prior_state_key)
 
-            memory.check_momory(self.logger)
     def run_pomcp(self, solver, epoch, eps, simulation_steps, steps, prior_state_key):
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
@@ -166,7 +165,6 @@ class Agent:
 
         # print("Agent/state.position", state.position)
         # print("Agent/state.rock_states", state.rock_states)
-        average_reward = 0
         NUM_create_child_belief_node = 0
         NUM_grab_nearest_child_belief_node = 0
         dissimilarity = []
@@ -215,8 +213,8 @@ class Agent:
             step_result, is_legal = solver.model.generate_step(state, action)
 
             reward.append(step_result.reward)
-            # discounted_reward.append(discount * step_result.reward)
-            discounted_reward = discount * step_result.reward
+            discounted_reward.append(discount * step_result.reward)
+            # discounted_reward = discount * step_result.reward
             discount *= self.model.discount
             prediction_error.append(solver.model.get_dissimilarity_of_gmu_prediction(state.gmus))
 
@@ -244,15 +242,15 @@ class Agent:
 
             _totalA2GEnergy, _totalA2AEnergy, _totalPropEnergy, _totalEnergyConsumtion, _avgDnRage, \
             _scaledEnergyConsumtion, _scaledDnRate, _NumActiveUav, _NumObservedGMU = self.model.get_simulationResult(state, action)
-            # totalA2GEnergy.append(_totalA2GEnergy)
-            # totalA2AEnergy.append(_totalA2AEnergy)
-            # totalPropEnergy.append(_totalPropEnergy)
-            # totalEnergyConsumtion.append(_totalEnergyConsumtion)
-            # avgDnRage.append(_avgDnRage)
-            # scaledEnergyConsumtion.append(_scaledEnergyConsumtion)
-            # scaledDnRate.append(_scaledDnRate)
-            # NumActiveUav.append(_NumActiveUav)
-            # NumObservedGMU.append(_NumObservedGMU)
+            totalA2GEnergy.append(_totalA2GEnergy)
+            totalA2AEnergy.append(_totalA2AEnergy)
+            totalPropEnergy.append(_totalPropEnergy)
+            totalEnergyConsumtion.append(_totalEnergyConsumtion)
+            avgDnRage.append(_avgDnRage)
+            scaledEnergyConsumtion.append(_scaledEnergyConsumtion)
+            scaledDnRate.append(_scaledDnRate)
+            NumActiveUav.append(_NumActiveUav)
+            NumObservedGMU.append(_NumObservedGMU)
 
             count +=1
             prior_state_key = state.get_key()
@@ -260,26 +258,26 @@ class Agent:
 
             simulation_steps +=1
 
-            summary.summary_result2(
-                self.model.writer, simulation_steps, initial_reward, step_result.reward, discounted_reward,
-                best_ucb_value, best_q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
-                new_dissimilarity, _totalA2GEnergy, _totalA2AEnergy, _totalPropEnergy, _totalEnergyConsumtion,
-                _avgDnRage, _scaledEnergyConsumtion, _scaledDnRate, _NumActiveUav, _NumObservedGMU,
-                solver.model.get_dissimilarity_of_gmu_prediction(state.gmus), count, (time.time() - epoch_start)
-            )
+            # summary.summary_result2(
+            #     self.model.writer, simulation_steps, initial_reward, step_result.reward, discounted_reward,
+            #     best_ucb_value, best_q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
+            #     new_dissimilarity, _totalA2GEnergy, _totalA2AEnergy, _totalPropEnergy, _totalEnergyConsumtion,
+            #     _avgDnRage, _scaledEnergyConsumtion, _scaledDnRate, _NumActiveUav, _NumObservedGMU,
+            #     solver.model.get_dissimilarity_of_gmu_prediction(state.gmus), count, (time.time() - epoch_start)
+            # )
 
             if step_result.is_terminal or not is_legal :
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
                 break
         steps += 1
-
-        # summary.summary_result(
-        #     self.model.writer, steps, initial_reward, reward, discounted_reward, step_result.reward,
-        #     ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
-        #     dissimilarity,totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalEnergyConsumtion,
-        #     avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav, NumObservedGMU, prediction_error,
-        #     count, (time.time() - epoch_start)
-        # )
+        usedMemory = memory.check_momory(self.logger)
+        summary.summary_result(
+            self.model.writer, simulation_steps, initial_reward, reward, discounted_reward, step_result.reward,
+            ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
+            dissimilarity,totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalEnergyConsumtion,
+            avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav, NumObservedGMU, prediction_error,
+            usedMemory, count, (time.time() - epoch_start)
+        )
         # self.results.time.add(time.time() - epoch_start)
         # self.results.update_reward_results(reward, discounted_reward)
 

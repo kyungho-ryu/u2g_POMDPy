@@ -41,7 +41,7 @@ class BeliefMappingSolver(Solver):
         # generate state particles for root node belief state estimation
         # This is for simulation
         self.model.reset_for_epoch()
-        for i in range(self.model.min_particle_count):
+        for i in range(self.model.max_particle_count):
             particle = self.model.sample_an_init_state()    # create random rock state
             self.belief_mapping.add_particle(observation, particle, prior_state_key)
 
@@ -195,7 +195,7 @@ class BeliefMappingSolver(Solver):
 
         prior_state_key = mapping.get_key(state.as_list())
         # If the new root does not yet have the max possible number of particles add some more
-        for i in range(self.model.min_particle_count) :
+        for i in range(child_belief_node.get_num_leftParticle_of_priorState(prior_state_key)) :
             # Generate particles for the new root node
             particle = self.model.generate_particles()
             child_belief_node.add_particle(particle, prior_state_key)

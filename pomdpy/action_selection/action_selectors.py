@@ -5,7 +5,7 @@ import numpy as np
 
 
 # UCB1 action selection algorithm
-def ucb_action(mcts, current_node):
+def ucb_action(mcts, current_node, greedy):
     best_actions = []
     best_q_value = -np.inf
     best_ucb_value = -np.inf
@@ -23,13 +23,16 @@ def ucb_action(mcts, current_node):
 
         current_q = action_entry.mean_q_value
 
-        # If the UCB coefficient is 0, this is greedy Q selection
-        current_ucb = current_q + mcts.find_fast_ucb(N, action_entry.visit_count, log_n)
+        if not greedy:
+            current_q += mcts.find_fast_ucb(N, action_entry.visit_count, log_n)
 
-        if current_ucb >= best_ucb_value:
-            if current_ucb > best_ucb_value:
+        # If the UCB coefficient is 0, this is greedy Q selection
+        # current_ucb = current_q + mcts.find_fast_ucb(N, action_entry.visit_count, log_n)
+
+        if current_q >= best_ucb_value:
+            if current_q > best_ucb_value:
                 best_actions = []
-            best_ucb_value = current_ucb
+            best_ucb_value = current_q
             best_q_value = current_q
             # best actions is a list of Discrete Actions
             best_actions.append(action_entry.get_action())
