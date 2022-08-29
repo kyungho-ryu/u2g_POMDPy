@@ -175,7 +175,8 @@ class POMCPMapping(BeliefMappingSolver):
 
         # choice random state from particles every simulation
         state = belief_node.sample_particle(prior_state_key)
-        self.model.reset_for_simulation()
+        if tree_depth == 0:
+            self.model.reset_for_simulation()
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
 
