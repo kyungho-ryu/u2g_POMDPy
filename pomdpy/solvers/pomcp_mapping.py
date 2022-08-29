@@ -88,12 +88,12 @@ class POMCPMapping(BeliefMappingSolver):
         else:
             self.monte_carlo_approx(eps, start_time, prior_state_key)
         action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index, True)
-        action_selection = time.time()
-        self.logger.info("action selection delay : {}".format(action_selection-start))
+        action_selection_delay = time.time()
+        self.logger.info("action selection delay : {}".format(action_selection_delay-start))
         self.model.reset_for_simulation()
-        summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
+        # summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
         clean_memory(self.logger)
-        self.logger.info("Summary delay : {}".format(time.time()-action_selection))
+        self.logger.info("Summary delay : {}".format(time.time()-action_selection_delay))
 
         return action, best_ucb_value, best_q_value
 
