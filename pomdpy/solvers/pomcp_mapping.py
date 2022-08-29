@@ -82,16 +82,18 @@ class POMCPMapping(BeliefMappingSolver):
         Starts off the Monte-Carlo Tree Search and returns the selected action. If the belief tree
                 data structure is disabled, random rollout is used.
         """
-
+        start = time.time()
         if self.disable_tree:   # False
             self.rollout_search(self.belief_mapping_index)
         else:
             self.monte_carlo_approx(eps, start_time, prior_state_key)
         action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index, True)
-
+        action_selection = time.time()
+        self.logger.info("action selection delay : {}".format(action_selection-start))
         self.model.reset_for_simulation()
         summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
         clean_memory(self.logger)
+        self.logger.info("Summary delay : {}".format(time.time()-action_selection))
 
         return action, best_ucb_value, best_q_value
 

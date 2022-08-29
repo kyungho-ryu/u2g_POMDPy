@@ -44,6 +44,7 @@ def summary_simulationResult(writer, beliefTree, epoch) :
 
         obsList = newObsList
         tree_depth +=1
+        break
 
     writer.add_scalar("depth", tree_depth, epoch)
 

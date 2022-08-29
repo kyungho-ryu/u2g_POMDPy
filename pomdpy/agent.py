@@ -221,6 +221,7 @@ class Agent:
             # show the step result
             self.display_step_result(i, step_result)
 
+            start = time.time()
             if not step_result.is_terminal:
                 result, new_dissimilarity = solver.update(state, step_result, False)
                 if result ==1 :
@@ -230,7 +231,7 @@ class Agent:
             else :
                 # new_dissimilarity = solver.get_dissimilarity(step_result)
                 new_dissimilarity = -1
-
+            self.logger.info("tree update delay : {}".format(time.time() - start))
             dissimilarity.append(new_dissimilarity)
 
             # Extend the history sequence
