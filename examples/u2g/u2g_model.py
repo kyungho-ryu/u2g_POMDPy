@@ -441,7 +441,7 @@ class U2GModel(Model) : # Model
         self.logger.debug("GMU's dnRate : {}".format(totalDnRate))
 
         if totalDnRate == self.penalty:
-            return self.penalty
+            return self.penalty, 0
 
         totalA2GEnergy, totalA2AEnergy = self.calcurate_energy_consumption(
             gmuStatus, next_state, a2aLinkStatus, G

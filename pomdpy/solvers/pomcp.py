@@ -243,6 +243,141 @@ class POMCP(BeliefTreeSolver):
 
         return reward, delayed_reward
 
+    def POCMP_POW(self, belief_node, tree_depth, start_time, prior_state_key):
+        delayed_reward = 0
+
+        # choice random state from particles every simulation
+        state = belief_node.sample_particle(prior_state_key)
+        if tree_depth == 0:
+            self.model.reset_for_simulation()
+
+        self.logger.debug("depth : {} ================================================================".format(tree_depth))
+        self.logger.debug("state : {}".format(state.to_string()))
+
+        # Search horizon reached
+        if tree_depth >= self.model.max_depth:  # default = 100
+            console(4, module, "Search horizon reached")
+            return 0
+
+        # use UCB table
+        if self.model.ActionType == structure.ActionType.NN.value:
+            temp_action = self.A2CModel.get_action(np.array(state.as_DRL_state()))
+        elif self.model.ActionType == structure.ActionType.Random.value:
+            temp_action = self.model.sample_random_actions(belief_node.action_map.entries.keys())
+        elif self.model.ActionType == structure.ActionType.Near.value:
+            temp_action = self.model.sample_near_actions(state.uav_position)
+
+        action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
+        self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
+        self.logger.debug(actionStatus)
+
+        step_result, is_legal = self.model.generate_step(state, action)
+
+        # update visit count of child belief node
+        N_O = belief_node.get_visit_count_observation(action)
+        C_O = belief_node.get_number_observation(action)
+
+        if C_O <= self.model.pw_o_k * (N_O**self.model.pw_o_alpha) :
+            observation = step_result.observation
+            flg = True
+        else :
+            observation = self.select_existing_observation(belief_node, action)
+            flg = False
+
+        child_belief_node, ChildStatus = belief_node.child(action, observation)
+        self.logger.debug("Status : {}".format(ChildStatus))
+
+        added = False
+        if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
+            child_belief_node, added = belief_node.create_or_get_child(action, observation)
+            if step_result.reward == self.model.penalty :
+                belief_node.penalty_count +=1
+
+        if not step_result.is_terminal or not is_legal:
+            prior_state_key = state.get_key()
+            child_belief_node.add_particle(step_result.next_state, prior_state_key)
+
+            tree_depth += 1
+            if added:
+                reward = step_result.reward
+                delayed_reward = self.rollout(child_belief_node, self.model.ActionType, prior_state_key)
+                # delayed_reward = 0
+            else:
+                reward, delayed_reward = self.select_existing_step_for_pow(
+                    belief_node, tree_depth, state, action, observation, start_time, delayed_reward, prior_state_key
+                )
+                # delayed_reward = self.POCMP_POW(child_belief_node, tree_depth, start_time)
+            tree_depth -= 1
+        else:
+            console(4, module, "Reached terminal state.")
+            reward = step_result.reward
+
+        if flg :
+            belief_node.update_visit_count_specific_observation(action, step_result.observation, 1)
+
+        self.logger.debug("update visit count of specific observation : {}".format(
+            belief_node.get_visit_count_specific_observation(action, step_result.observation)
+        ))
+
+        # delayed_reward is "Q maximal"
+        # current_q_value is the Q value of the current belief-action pair
+        action_mapping_entry = belief_node.action_map.get_entry(action.UAV_deployment)
+
+        q_value = action_mapping_entry.mean_q_value
+
+        # off-policy Q learning update rule
+        q_value += (reward + (self.model.discount * delayed_reward) - q_value)
+
+        action_mapping_entry.update_visit_count(1)
+        belief_node.update_visit_count_observation(action, 1)
+
+        self.logger.debug("update total count of observation : {}".format(belief_node.get_visit_count_observation(action)))
+
+        action_mapping_entry.update_q_value(q_value)
+        self.logger.debug(" Q value : {}".format(q_value))
+        # Add RAVE ?
+        return q_value
+
+
+    def select_existing_observation(self, belief_node, action):
+        self.logger.debug("select existing step")
+        obsEntries = belief_node.get_child_obs_entries(action)
+
+        max = 0
+        selected_entry = 0
+        for entry in obsEntries :
+            visit_count = entry.get_visit_count()
+            if max < visit_count :
+                max = visit_count
+                selected_entry = entry
+
+        selected_obs = selected_entry.observation
+        self.logger.debug("selected observation : {}".format(selected_obs.observed_gmu_status))
+
+        return selected_obs
+
+    def select_existing_step_for_pow(self, belief_node, tree_depth, state, action, obs, start_time, delayed_reward, prior_state_key):
+        self.logger.debug("select existing step")
+        child_node = belief_node.get_child(action, obs)
+
+        selected_next_state = child_node.sample_particle_of_POMCPOW(prior_state_key)
+        reward = self.model.get_reward(state, action, selected_next_state)
+
+        self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
+        self.logger.debug("reward : {}".format(reward))
+
+        # self.model.update_gmu_for_simulation()
+        if not self.model.is_terminal() :
+            tree_depth +=1
+            delayed_reward = self.POCMP_POW(child_node, tree_depth, start_time, prior_state_key)
+            tree_depth -=1
+        else:
+            console(4, module, "Reached terminal state.")
+
+        return reward, delayed_reward
+
+
+
     def traverse(self, belief_node, tree_depth, start_time):
         delayed_reward = 0
 

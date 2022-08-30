@@ -1,26 +1,23 @@
 import random
 from collections import deque
 
-
 class ParticlePool :
-    def __init__(self, MaxParticle) :
+    def __init__(self, MaxParticle, solverType) :
         self.TotalParticle = 0
         self.NumParticle = {}
         self.particle = {}
         self.MaxParticle = MaxParticle
+        self.solverType = solverType
 
 
     def add_partcle(self, particle, prior_state):
         if prior_state not in self.particle:
-            self.particle[prior_state] = Particle(self.MaxParticle)
-            self.NumParticle[prior_state] = 0
-        # if len(self.particle.keys()) > MaxParticle :
-        #     key = list(self.particle.keys())[0]
-        #     self.TotalParticle -= self.NumParticle[key]
-        #
-        #     self.particle.pop(key)
-        #     self.NumParticle.pop(key)
+            if self.solverType == 0 or self.solverType == 2 :
+                self.particle[prior_state] = Particle(self.MaxParticle)
+            elif self.solverType == 1 or self.solverType == 3 :
+                self.particle[prior_state] = ParticleOfOW()
 
+            self.NumParticle[prior_state] = 0
 
         added = self.particle[prior_state].add_particle(particle)
         self.NumParticle[prior_state] +=added
@@ -36,6 +33,13 @@ class ParticlePool :
             return particle.random_particle()
         else :
             return self.particle[prior_state].random_particle()
+
+    def sample_particle_of_POMCPOW(self, prior_state):
+        if prior_state not in self.particle :
+            particle = random.choice(list(self.particle.values()))
+            return particle.random_particle()
+        else :
+            return self.particle[prior_state].select_maxNum_particle()
 
 
     def get_num_leftParticle_of_priorState(self, prior_state):
@@ -61,3 +65,27 @@ class Particle :
 
     def random_particle(self):
         return random.choice(self.state)
+
+
+class ParticleOfOW :
+    def __init__(self):
+        self.state = []
+        self.NumState = {}
+        self.MaxState = None
+        self.MaxNum = 0
+    def add_particle(self, state):
+        self.state.append(state)
+        new_key = state.get_key()
+        if new_key not in self.NumState :
+            self.NumState[new_key] = 1
+        else :
+            self.NumState[new_key] +=1
+
+        if self.NumState[new_key] > self.MaxNum :
+            self.MaxNum = self.NumState[new_key]
+            self.MaxState = state
+
+        return 1
+
+    def select_maxNum_particle(self):
+        return self.MaxState

@@ -23,7 +23,7 @@ class BeliefNode(object):
         self.solver = solver
         self.depth = -1
         self.action_map = None
-        self.particle_pool = ParticlePool(self.solver.model.max_particle_count)   # The set of states that comprise the belief distribution of this belief node
+        self.particle_pool = ParticlePool(self.solver.model.max_particle_count, self.solver.model.solver_type)   # The set of states that comprise the belief distribution of this belief node
         self.penalty_count = 0
         if parent_entry is not None:
             self.parent_entry = parent_entry
@@ -47,6 +47,9 @@ class BeliefNode(object):
     # Randomly select a History Entry
     def sample_particle(self, prior_state):
         return self.particle_pool.sample_particle(prior_state)
+
+    def sample_particle_of_POMCPOW(self, prior_state):
+        return self.particle_pool.sample_particle_of_POMCPOW(prior_state)
 
     def get_num_total_particle(self):
         return self.particle_pool.get_num_total_particle()
