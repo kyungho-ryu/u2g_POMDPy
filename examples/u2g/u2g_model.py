@@ -764,6 +764,7 @@ class U2GModel(Model) : # Model
         result.next_state = self.make_next_real_state(uavs, uavs_deployment)
         result.action = action.copy()
         result.observation = self.make_observation(result.next_state)
+        self.make_reward(state, action, result.next_state)
         totalEnergyConsumtion, totalDnRate= self.make_reward_for_realState(state, result.next_state, gmuStatus)
         result.reward = totalEnergyConsumtion + totalDnRate
         result.is_terminal = self.is_terminal()
