@@ -9,7 +9,7 @@ from pomdpy.action_selection import ucb_action, action_progWiden, structure
 from pomdpy.solvers.structure import SolverType
 from .belief_mapping_solver import BeliefMappingSolver
 from DRL.drl_model import DRLModel
-from pomdpy.util.memory import check_momory, clean_memory
+from pomdpy.util.memory import check_momory, clean_memory, get_memory
 module = "pomcp_mapping"
 
 
@@ -82,6 +82,7 @@ class POMCPMapping(BeliefMappingSolver):
         Starts off the Monte-Carlo Tree Search and returns the selected action. If the belief tree
                 data structure is disabled, random rollout is used.
         """
+        # check_momory(self.logger)
         start = time.time()
         if self.disable_tree:   # False
             self.rollout_search(self.belief_mapping_index)
@@ -92,9 +93,10 @@ class POMCPMapping(BeliefMappingSolver):
         self.logger.info("action selection delay : {}".format(action_selection_delay-start))
         self.model.reset_for_simulation()
         # summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
-        clean_memory(self.logger)
-        self.logger.info("Summary delay : {}".format(time.time()-action_selection_delay))
-
+        # self.logger.info("Summary delay : {}".format(time.time()-action_selection_delay))
+        # print("END==========================================================================")
+        # check_momory(self.logger)
+        # exit()
         return action, best_ucb_value, best_q_value
 
     def simulate(self, belief_node, eps, start_time, prior_state_key):   # not use eps
@@ -113,7 +115,9 @@ class POMCPMapping(BeliefMappingSolver):
     def POCMP_DPW(self, belief_node, tree_depth, start_time, prior_state_key):
         delayed_reward = 0
         # choice random state from particles every simulation
+
         state = belief_node.sample_particle(prior_state_key)
+
         if tree_depth == 0 :
             self.model.reset_for_simulation()
 
@@ -141,7 +145,6 @@ class POMCPMapping(BeliefMappingSolver):
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
         self.logger.debug(actionStatus)
-
         # update visit count of child belief node
         N_O = belief_node.get_visit_count_observation(action)
         C_O = belief_node.get_number_observation(action)
@@ -217,7 +220,7 @@ class POMCPMapping(BeliefMappingSolver):
 
         added = False
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
-            child_belief_node, added = belief_node.create_or_get_child(action, observation)
+            child_belief_node, added = belief_node.create_or_get_child(self.belief_mapping, action, observation)
             if step_result.reward == self.model.penalty :
                 belief_node.penalty_count +=1
 
@@ -269,18 +272,16 @@ class POMCPMapping(BeliefMappingSolver):
 
     def create_new_step_for_dpw(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
         self.logger.debug("create new step")
-
         step_result, is_legal = self.model.generate_step(state, action)
         self.logger.debug("observation : {}/{}".format(len(step_result.observation.observed_gmu_status),
-                                                      step_result.observation.observed_gmu_status))
-
+                                                       step_result.observation.observed_gmu_status))
         # child belief node = observation
         child_belief_node, ChildStatus = belief_node.child(action, step_result.observation)
         self.logger.debug("Status : {}".format(ChildStatus))
 
         added = False
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
-            child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
+            child_belief_node, added = belief_node.create_or_get_child(self.belief_mapping, action, step_result.observation)
             if step_result.reward == self.model.penalty :
                 belief_node.penalty_count +=1
 
@@ -398,7 +399,7 @@ class POMCPMapping(BeliefMappingSolver):
 
         child_belief_node = belief_node.child(action, step_result.observation)
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count > 0:
-            child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
+            child_belief_node, added = belief_node.create_or_get_child(self.belief_mapping, action, step_result.observation)
 
         if not step_result.is_terminal or not is_legal:
             tree_depth += 1

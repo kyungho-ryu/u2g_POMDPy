@@ -138,28 +138,31 @@ class Agent:
         steps = 0
         prior_state = solver.model.get_an_init_prior_state()
         prior_state_key = prior_state.get_key()
-        observation = solver.model.sample_an_init_observation()
-        init_belief_mapping_index = solver.belief_mapping_index
+        init_belief_mapping_index = solver.belief_tree_index
+        previous_action = []
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()
-
-            eps, steps, simulation_steps = self.run_pomcp(solver, i + 1, eps, simulation_steps, steps, prior_state_key)
+            print("init_belief_mapping_index", init_belief_mapping_index)
+            eps, steps, simulation_steps,previous_action = self.run_pomcp(solver, i + 1, eps, simulation_steps, steps, previous_action, prior_state_key)
 
             solver.model.reset_for_epoch()
-            solver.belief_mapping_index = init_belief_mapping_index
-            # for i in range(self.model.min_particle_count):
-            #     particle = self.model.sample_an_init_state()  # create random rock state
-            #     solver.belief_mapping.add_particle(observation, particle, prior_state_key)
+            solver.belief_tree_index = init_belief_mapping_index
 
-    def run_pomcp(self, solver, epoch, eps, simulation_steps, steps, prior_state_key):
+            # start = time.time()
+            # memory.check_momory(self.logger)
+            # memory.clean_memory(self.logger)
+            # memory.check_momory(self.logger)
+            # self.logger.info("Summary delay : {}".format(time.time() - start))
+
+    def run_pomcp(self, solver, epoch, eps, simulation_steps, steps, previous_action, prior_state_key):
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
 
         # Monte-Carlo start state
         # choice random state from particles (2000)
 
-        state = solver.belief_mapping_index.sample_particle(prior_state_key)
+        state = solver.belief_tree_index.sample_particle(prior_state_key)
         self.logger.debug("[{}]state:\n{}".format(epoch, state.to_string()))
         self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
 
@@ -172,6 +175,8 @@ class Agent:
         discounted_reward = []
         discount=1
         initial_reward = 0
+        second_reward = 0
+        thrid_reward = 0
         totalA2GEnergy = []
         totalA2AEnergy = []
         totalPropEnergy = []
@@ -188,19 +193,20 @@ class Agent:
         print_divider('large')
         print('\tEpoch #' + str(epoch))
 
+        new_action = []
         # episode start
         for i in range(self.model.max_steps):
             # state is changed
             start_time = time.time()
 
+            # memory.check_momory(self.logger)
             # action will be of type Discrete Action
             print_divider('large')
             print('\tStep #' + str(i) + ' simulation is working\n')
-
             action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time, prior_state_key)
             ucb_value.append(best_ucb_value)
             q_value.append(best_q_value)
-
+            new_action.append(action)
             print('\n')
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action.UAV_deployment))
 
@@ -210,20 +216,20 @@ class Agent:
 
             self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
             # state = not real state
-            step_result, is_legal = solver.model.generate_step(state, action)
+            prediction_error.append(solver.model.get_dissimilarity_of_gmu_prediction(state.gmus))
+            step_result, is_legal, eachReward = solver.model.generate_real_step(state, action)
 
             reward.append(step_result.reward)
             discounted_reward.append(discount * step_result.reward)
             # discounted_reward = discount * step_result.reward
             discount *= self.model.discount
-            prediction_error.append(solver.model.get_dissimilarity_of_gmu_prediction(state.gmus))
 
             # show the step result
-            self.display_step_result(i, step_result)
+            self.display_step_result(i, step_result, eachReward)
 
             start = time.time()
             if not step_result.is_terminal:
-                result, new_dissimilarity = solver.update(state, step_result, False)
+                result, new_dissimilarity = solver.update(state, step_result, True)
                 if result ==1 :
                     NUM_create_child_belief_node +=1
                 if result == 2 :
@@ -231,15 +237,24 @@ class Agent:
             else :
                 # new_dissimilarity = solver.get_dissimilarity(step_result)
                 new_dissimilarity = -1
+
             self.logger.info("tree update delay : {}".format(time.time() - start))
             dissimilarity.append(new_dissimilarity)
-
+            # print("END======================================================================")
+            # memory.check_momory(self.logger)
+            # exit()
             # Extend the history sequence
             new_hist_entry = solver.history.add_entry()
             HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
 
             if initial_reward == 0 :
                 initial_reward = step_result.reward
+
+            if count == 1:
+                second_reward = step_result.reward
+
+            if count == 2:
+                thrid_reward = step_result.reward
 
             _totalA2GEnergy, _totalA2AEnergy, _totalPropEnergy, _totalEnergyConsumtion, _avgDnRage, \
             _scaledEnergyConsumtion, _scaledDnRate, _NumActiveUav, _NumObservedGMU = self.model.get_simulationResult(state, action)
@@ -255,7 +270,7 @@ class Agent:
 
             count +=1
             prior_state_key = state.get_key()
-            state = solver.belief_mapping_index.sample_particle(prior_state_key)
+            state = solver.belief_tree_index.sample_particle(prior_state_key)
 
             simulation_steps +=1
 
@@ -272,31 +287,30 @@ class Agent:
                 break
         steps += 1
         usedMemory = memory.check_momory(self.logger)
+
+        actionEquality = []
+        NumactionEquality = 0
+        for i in range(len(previous_action)) :
+            if previous_action[i] == new_action[i] :
+                actionEquality.append(True)
+                NumactionEquality +=1
+            else :
+                actionEquality.append(False)
+
         summary.summary_result(
-            self.model.writer, simulation_steps, initial_reward, reward, discounted_reward, step_result.reward,
-            ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
+            self.model.writer, simulation_steps, initial_reward, second_reward, thrid_reward,
+            reward, discounted_reward, step_result.reward, ucb_value, q_value,
+            NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
             dissimilarity,totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalEnergyConsumtion,
             avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav, NumObservedGMU, prediction_error,
-            usedMemory, count, (time.time() - epoch_start)
+            usedMemory, NumactionEquality, count, (time.time() - epoch_start)
         )
-        # self.results.time.add(time.time() - epoch_start)
-        # self.results.update_reward_results(reward, discounted_reward)
-
-        # Pretty Print results
-        # print_divider('large')
-        # solver.history.show()
-        # self.results.show(epoch)
-        #console(3, module, 'Total possible undiscounted return: ' + str(self.model.get_max_undiscounted_return()))
-        #print_divider('medium')
-
-        # self.experiment_results.time.add(self.results.time.running_total)
-        # self.experiment_results.undiscounted_return.count += (self.results.undiscounted_return.count - 1)
-        # self.experiment_results.undiscounted_return.add(self.results.undiscounted_return.running_total)
-        # self.experiment_results.discounted_return.count += (self.results.discounted_return.count - 1)
-        # self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
 
 
-        return eps, steps, simulation_steps
+
+        self.logger.info("Action equality : {}".format(actionEquality))
+
+        return eps, steps, simulation_steps, new_action
 
     def run_value_iteration(self, solver, epoch):
         run_start_time = time.time()
@@ -350,7 +364,7 @@ class Agent:
         self.experiment_results.discounted_return.add(self.results.discounted_return.running_total)
 
     @staticmethod
-    def display_step_result(step_num, step_result):
+    def display_step_result(step_num, step_result, eachReward):
         """
         Pretty prints step result information
         :param step_num:
@@ -362,6 +376,8 @@ class Agent:
         console(3, module, 'Step Result.Observation = ' + step_result.observation.to_string())
         # console(3, module, 'Step Result.Next_State = ' + step_result.next_state.to_string())
         console(3, module, 'Step Result.Reward = ' + str(step_result.reward))
+
+        console(3, module, 'Step Result.EachReward = ' + str(eachReward))
 
 class Results(object):
     """

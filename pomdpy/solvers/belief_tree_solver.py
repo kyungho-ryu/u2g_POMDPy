@@ -1,14 +1,14 @@
 from builtins import str
 from builtins import range
-import time
-import random, logging
+import time, random, logging
 import abc
-from pomdpy.util import console
+from pomdpy.util import console, mapping
 from pomdpy.pomdp.belief_tree import BeliefTree
+from pomdpy.action_selection import structure
 from pomdpy.solvers import Solver
 from tqdm import tqdm
 import io
-
+import numpy as np
 
 module = "BeliefTreeSolver"
 
@@ -33,14 +33,18 @@ class BeliefTreeSolver(Solver):
         self.belief_tree.reset()
         self.belief_tree.initialize()
 
+        prior_state = self.model.get_an_init_prior_state()
+        prior_state_key = mapping.get_key(prior_state.as_list())
+
         # generate state particles for root node belief state estimation
         # This is for simulation
+        self.model.reset_for_epoch()
         for i in range(self.model.n_start_states):  # default = 2000
             particle = self.model.sample_an_init_state()    # create random rock state
-            self.belief_tree.root.state_particles.append(particle)
+            self.belief_tree.root.add_particle(particle, prior_state_key)
 
         self.belief_tree_index = self.belief_tree.root.copy()
-    def monte_carlo_approx(self, eps, start_time):
+    def monte_carlo_approx(self, eps, start_time, prior_state_key):
         """
         Approximate Q(b, pi(b)) via monte carlo simulations, where b is the belief node pointed to by
         the belief tree index, and pi(b) is the action selected by the current behavior policy. For SARSA, this is
@@ -51,15 +55,16 @@ class BeliefTreeSolver(Solver):
         :param start_time
         :return:
         """
-        interval = int(self.model.n_sims /10)
+        interval = int(self.model.n_sims / 2)
         pbar = tqdm(range(self.model.n_sims), ncols=70, miniters=interval)
         for _ in pbar: # default = 500
+        # for i in range(self.model.n_sims):
             # Reset the Simulator
-            self.model.reset_for_simulation()
-            self.simulate(self.belief_tree_index, eps, start_time)
-            # pbar.set_postfix({'Simulation step ' : i})
+            self.simulate(self.belief_tree_index, eps, start_time, prior_state_key)
+
+
     @abc.abstractmethod
-    def simulate(self, belief, eps, start_time):
+    def simulate(self, belief, eps, start_time, prior_state_key):
         """
         Does a monte-carlo simulation from "belief" to approximate Q(b, pi(b))
         :param belief
@@ -69,7 +74,7 @@ class BeliefTreeSolver(Solver):
         """
 
     @abc.abstractmethod
-    def select_eps_greedy_action(self,epoch,step, eps, start_time):
+    def select_eps_greedy_action(self,epoch,step, eps, start_time, prior_state_key):
         """
         Call methods specific to the implementation of the solver
         to select an action
@@ -122,19 +127,25 @@ class BeliefTreeSolver(Solver):
             action_mapping_entry.update_visit_count(1)
             action_mapping_entry.update_q_value(q_value)
 
-    def rollout(self, belief_node):
+    def rollout(self, belief_node, action_method, prior_state_key):
         """
         Iterative random rollout search to finish expanding the episode starting at belief_node
         :param belief_node:
         :return:
         """
-        state = belief_node.sample_particle()
+        state = belief_node.sample_particle(prior_state_key)
         is_terminal = False
         discounted_reward_sum = 0.0
         discount = 1.0
         num_steps = 0
         while num_steps < self.model.max_depth and not is_terminal:
-            legal_action = self.model.sample_random_actions()
+            if action_method == structure.ActionType.NN.value:
+                pass
+            elif action_method == structure.ActionType.Random.value:
+                legal_action = self.model.sample_random_actions([])
+            elif action_method == structure.ActionType.Near.value:
+                legal_action = self.model.sample_near_actions(state.uav_position)
+
             step_result, is_legal = self.model.generate_step(state, legal_action)
             is_terminal = step_result.is_terminal
             discounted_reward_sum += step_result.reward * discount
@@ -156,12 +167,10 @@ class BeliefTreeSolver(Solver):
         """
         # Update the Simulator with the Step Result
         # This is important in case there are certain actions that change the state of the simulator
-        create_child_belief_node = False
-
-        self.model.update(state, step_result)
+        result = 0
 
         child_belief_node = self.belief_tree_index.get_child(step_result.action, step_result.observation)
-
+        dissimilarity = 0
         # If the child_belief_node is None because the step result randomly produced a different observation,
         # grab any of the beliefs extending from the belief node's action node
         if child_belief_node is None:
@@ -173,48 +182,70 @@ class BeliefTreeSolver(Solver):
                 return
 
             # child_belief_node = self.grab_nearest_belief_node(action_node)
-            child_belief_node = self.create_child(step_result.action, action_node, step_result.observation)
-            create_child_belief_node = True
+            child_belief_node, dissimilarity = self.grab_nearest_belief_node(action_node, step_result.observation)
+            if child_belief_node is None:
+                child_belief_node = self.create_child(action_node, step_result.observation)
+                result = 1
+            else:
+                result = 2
 
+        prior_state_key = mapping.get_key(state.as_list())
         # If the new root does not yet have the max possible number of particles add some more
-        if child_belief_node.state_particles.__len__() < self.model.max_particle_count:
-
-            num_to_add = self.model.max_particle_count - child_belief_node.state_particles.__len__()
-
+        for i in range(child_belief_node.get_num_leftParticle_of_priorState(prior_state_key)) :
             # Generate particles for the new root node
-            child_belief_node.state_particles += self.model.generate_particles(num_to_add)
+            particle = self.model.generate_particles()
+            child_belief_node.add_particle(particle, prior_state_key)
 
-            # If that failed, attempt to create a new state particle set
-            # if child_belief_node.state_particles.__len__() == 0:
-            #     child_belief_node.state_particles += self.model.generate_particles_uninformed(self.belief_tree_index,
-            #                                                                                   step_result.action,
-            #                                                                                   step_result.observation,
-            #                                                                             self.model.min_particle_count)
 
         # Failed to continue search- ran out of particles
-        if child_belief_node is None or child_belief_node.state_particles.__len__() == 0:
+        if child_belief_node is None:
             console(1, module, "Couldn't refill particles, must use random rollout to finish episode")
             self.disable_tree = True
             return
 
         self.belief_tree_index = child_belief_node
+
         if prune:
             self.prune(self.belief_tree_index)
 
-        return create_child_belief_node
 
-    def grab_nearest_belief_node(self, action_node):
+        return result, dissimilarity
+
+    def grab_nearest_belief_node(self, action_node, new_observation):
         obs_mapping_entries = list(action_node.observation_map.child_map.values())
 
+        min = np.inf
+        candidate_entry = []
         for entry in obs_mapping_entries:
+            if entry.status_for_grabObs :
+                return entry.child_node, entry.observation.check_dissimilarity(new_observation)
+
             if entry.child_node is not None:
-                child_belief_node = entry.child_node
-                console(2, module, "Had to grab nearest belief node...variance added")
+                dissimilarity = entry.observation.check_dissimilarity(new_observation)
 
-                return child_belief_node
+                if min == dissimilarity or len(candidate_entry) == 0:
+                    candidate_entry.append(entry)
+                    min = dissimilarity
+                elif min > dissimilarity:
+                    candidate_entry = [entry]
+                    min = dissimilarity
+
+        console(2, module, "Min dissmilarity : " + str(min))
+
+        if min > self.model.grab_threshold:
+            return None, min
+        else:
+            selected_entry = random.choice(candidate_entry)
+            selected_entry.status_for_grabObs = True
+            child_belief_node = selected_entry.child_node
+            # self.belief_mapping.copy_belief_node(selected_entry.observation, new_observation)
+
+            console(2, module, "Had to grab nearest belief node...variance added")
+
+            return child_belief_node, min
 
 
-    def create_child(self, action, action_node, obs):
-        child_belief_node, added = self.belief_tree_index.create_child(action, action_node, obs)
+    def create_child(self, action_node, obs):
+        child_belief_node, added = self.belief_tree_index.create_child(action_node, obs)
 
         return child_belief_node

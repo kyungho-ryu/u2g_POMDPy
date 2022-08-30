@@ -3,12 +3,11 @@ from builtins import range
 import time
 import random, logging
 import abc
-from pomdpy.util import console, mapping
+from pomdpy.util import console, mapping, memory
 from pomdpy.pomdp.belief_mapping import BeliefMapping
 from pomdpy.action_selection import structure
 from pomdpy.solvers import Solver
 from tqdm import tqdm
-import io
 import numpy as np
 
 module = "BeliefMappingSolver"
@@ -59,11 +58,19 @@ class BeliefMappingSolver(Solver):
         :param start_time
         :return:
         """
+        self.logger = logging.getLogger('POMDPy.t')
+        self.logger.setLevel("INFO")
         interval = int(self.model.n_sims /2)
         pbar = tqdm(range(self.model.n_sims), ncols=70, miniters=interval)
-        for _ in pbar: # default = 500
+        # for _ in pbar: # default = 500
+        for i in range(self.model.n_sims) :
             # Reset the Simulator
+            # start_memory = memory.get_memory()
             self.simulate(self.belief_mapping_index, eps, start_time, prior_state_key)
+            # end_memory = memory.get_memory()
+            # if end_memory - start_memory > 0:
+            #     self.logger.info("{}' used : {}".format(i, end_memory - start_memory))
+            # memory.check_momory(self.logger)
             # pbar.set_postfix({'Simulation step ' : i})
 
     @abc.abstractmethod
@@ -94,7 +101,7 @@ class BeliefMappingSolver(Solver):
         :return:
         """
         start_time = time.time()
-        self.belief_tree.prune_siblings(belief_node)
+        self.belief_mapping.prune_siblings(belief_node)
         elapsed = time.time() - start_time
         console(3, module, "Time spent pruning = " + str(elapsed) + " seconds")
 
@@ -206,9 +213,10 @@ class BeliefMappingSolver(Solver):
             self.disable_tree = True
             return
 
-        self.belief_mapping_index = child_belief_node
         if prune:
             self.prune(self.belief_mapping_index)
+
+        self.belief_mapping_index = child_belief_node
 
         return result, dissimilarity
 
@@ -243,7 +251,7 @@ class BeliefMappingSolver(Solver):
 
 
     def create_child(self, action_node, obs):
-        child_belief_node, added = self.belief_mapping_index.create_child(action_node, obs)
+        child_belief_node, added = self.belief_mapping_index.create_child(action_node, obs, self.belief_map)
 
         return child_belief_node
 

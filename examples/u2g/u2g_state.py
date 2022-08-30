@@ -4,7 +4,7 @@ from pomdpy.discrete_mapping_pomdp import DiscreteState
 from examples.u2g.util import getLocStat
 from examples.u2g.network_config import Config
 from examples.u2g.u2g_reward import U2GReward
-import logging, hashlib
+import logging, hashlib, sys
 
 class U2GState(DiscreteState):
     """
@@ -21,9 +21,8 @@ class U2GState(DiscreteState):
         self.gmu_position = gmu_position  # list of gmu cell position
         self.uavs = uavs
         self.gmus = gmus
-        self.gmuStatus = getLocStat(self.gmus, Config.MAX_GRID_INDEX)
-        self.uavStatus = getLocStat(self.uavs, Config.MAX_GRID_INDEX)
-
+        # self.gmuStatus = getLocStat(self.gmus, Config.MAX_GRID_INDEX)
+        # self.uavStatus = getLocStat(self.uavs, Config.MAX_GRID_INDEX)
         self.reward_for_actions = {}
 
     # def __del__(self):

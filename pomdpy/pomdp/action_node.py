@@ -46,12 +46,12 @@ class ActionNode(object):
         self.observation_map = obs_mapping
 
     # returns belief node, boolean
-    def create_or_get_child(self, obs, belief_map):
+    def create_or_get_child(self, obs):
         child_node = self.observation_map.get_belief(obs)
         added = False
         if child_node is None:
             # Create the new child belief node
-            child_node = self.observation_map.create_belief(obs, belief_map)
+            child_node = self.observation_map.create_belief(obs)
             added = True
         return child_node, added
 

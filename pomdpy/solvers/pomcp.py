@@ -5,8 +5,10 @@ from past.utils import old_div
 import time, logging
 import numpy as np
 from pomdpy.util import console, summary
-from pomdpy.action_selection import ucb_action, action_progWiden
+from pomdpy.action_selection import ucb_action, action_progWiden, structure
+from pomdpy.solvers.structure import SolverType
 from .belief_tree_solver import BeliefTreeSolver
+from DRL.drl_model import DRLModel
 
 module = "pomcp"
 
@@ -32,6 +34,13 @@ class POMCP(BeliefTreeSolver):
         self.logger = logging.getLogger('POMDPy.Simulation')
         self.logger.setLevel("INFO")
         self.fast_UCB = [[None for _ in range(POMCP.UCB_n)] for _ in range(POMCP.UCB_N)]
+
+        state_space = self.model.get_state_space()
+        state_dimension = self.model.get_state_dimension()
+        action_space = self.model.get_action_space()
+        action_dimension = self.model.get_action_dimension()
+
+        self.A2CModel = DRLModel(state_dimension, state_space, action_dimension, action_space)
 
         for N in range(POMCP.UCB_N):
             for n in range(POMCP.UCB_n):
@@ -69,39 +78,51 @@ class POMCP(BeliefTreeSolver):
         else:
             return self.model.ucb_coefficient * np.sqrt(old_div(log_n, action_map_entry_visit_count))
 
-    def select_eps_greedy_action(self,epoch,step, eps, start_time):
+    def select_eps_greedy_action(self,epoch,step, eps, start_time, prior_state_key):
         """
         Starts off the Monte-Carlo Tree Search and returns the selected action. If the belief tree
                 data structure is disabled, random rollout is used.
         """
+        start = time.time()
         if self.disable_tree:   # False
             self.rollout_search(self.belief_tree_index)
         else:
-            self.monte_carlo_approx(eps, start_time)
+            self.monte_carlo_approx(eps, start_time, prior_state_key)
 
-        summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
-        return ucb_action(self, self.belief_tree_index, True)
+        action, best_ucb_value, best_q_value = ucb_action(self, self.belief_tree_index, True)
+        action_selection_delay = time.time()
+        self.logger.info("action selection delay : {}".format(action_selection_delay - start))
+        self.model.reset_for_simulation()
 
-    def simulate(self, belief_node, eps, start_time):   # not use eps
+        # summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
+
+        return action, best_ucb_value, best_q_value
+
+    def simulate(self, belief_node, eps, start_time, prior_state_key):   # not use eps
         """
         :param belief_node:
         :return:
         """
-        if self.model.DPW :
-            return self.POCMP_DPW(belief_node, 0, start_time)
-        else :
+        if self.model.solver_type == SolverType.POMCP_DPW.value or \
+                self.model.solver_type == SolverType.POMCP_DPW_WITH_NN.value:
+            return self.POCMP_DPW(belief_node, 0, start_time, prior_state_key)
+        elif self.model.solver_type == SolverType.POMCP_POW.value or \
+                self.model.solver_type == SolverType.POMCP_POW_WITH_NN.value:
+            return self.POCMP_POW(belief_node, 0, start_time, prior_state_key)
+        else:
             return self.traverse(belief_node, 0, start_time)
-    def POCMP_DPW(self, belief_node, tree_depth, start_time):
+
+    def POCMP_DPW(self, belief_node, tree_depth, start_time, prior_state_key):
         delayed_reward = 0
 
         # choice random state from particles every simulation
-        state = belief_node.sample_particle()
+        state = belief_node.sample_particle(prior_state_key)
+
+        if tree_depth == 0 :
+            self.model.reset_for_simulation()
+
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
-        # Time expired
-        # if time.time() - start_time > self.model.action_selection_timeout:
-        #     console(4, module, "action selection timeout")
-        #     return 0
 
         # Search horizon reached
         if tree_depth >= self.model.max_depth:  # default = 100
@@ -109,10 +130,12 @@ class POMCP(BeliefTreeSolver):
             return 0
 
         # use UCB table
-        if self.model.NN:
-            pass
-        else:
-            temp_action = self.model.sample_random_actions()
+        if self.model.ActionType == structure.ActionType.NN.value:
+            temp_action = self.A2CModel.get_action(np.array(state.as_DRL_state()))
+        elif self.model.ActionType == structure.ActionType.Random.value:
+            temp_action = self.model.sample_random_actions(belief_node.action_map.entries.keys())
+        elif self.model.ActionType == structure.ActionType.Near.value:
+            temp_action = self.model.sample_near_actions(state.uav_position)
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
@@ -123,11 +146,11 @@ class POMCP(BeliefTreeSolver):
         C_O = belief_node.get_number_observation(action)
 
         if C_O <= self.model.pw_o_k * (N_O**self.model.pw_o_alpha) :
-            reward, delayed_reward = self.create_new_step(
+            reward, delayed_reward = self.create_new_step_for_dpw(
                 belief_node, tree_depth, state, action, start_time, delayed_reward
             )
         else :
-            reward, delayed_reward = self.select_existing_step(
+            reward, delayed_reward = self.select_existing_step_for_dpw(
                 belief_node, tree_depth, state, action, start_time, delayed_reward
             )
 
@@ -150,7 +173,7 @@ class POMCP(BeliefTreeSolver):
         # Add RAVE ?
         return q_value
 
-    def create_new_step(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
+    def create_new_step_for_dpw(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
         self.logger.debug("create new step")
         step_result, is_legal = self.model.generate_step(state, action)
         self.logger.debug("observation : {}/{}".format(len(step_result.observation.observed_gmu_status),
@@ -160,22 +183,22 @@ class POMCP(BeliefTreeSolver):
         child_belief_node, ChildStatus = belief_node.child(action, step_result.observation)
         self.logger.debug("Status : {}".format(ChildStatus))
 
+        added = False
         if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
             child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
+            if step_result.reward == self.model.penalty :
+                belief_node.penalty_count +=1
 
         if not step_result.is_terminal or not is_legal:
+            prior_state_key = state.get_key()
+            child_belief_node.add_particle(step_result.next_state, prior_state_key)
+
             tree_depth += 1
-            if child_belief_node is not None:
-                # Add S' to the new belief node
-                # Add a state particle with the new state
-                if child_belief_node.state_particles.__len__() < self.model.max_particle_count:
-                    child_belief_node.state_particles.append(step_result.next_state)
-                delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time)
+            if added:
+                delayed_reward = self.rollout(child_belief_node, self.model.ActionType, prior_state_key)
             else:
-                # delayed_reward = self.rollout(belief_node)
-                delayed_reward = 0
+                delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time, prior_state_key)
             tree_depth -= 1
-        else:
             console(4, module, "Reached terminal state.")
 
         belief_node.update_visit_count_specific_observation(action, step_result.observation, 1)
@@ -186,7 +209,7 @@ class POMCP(BeliefTreeSolver):
 
         return step_result.reward, delayed_reward
 
-    def select_existing_step(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
+    def select_existing_step_for_dpw(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
         self.logger.debug("select existing step")
         obsEntries = belief_node.get_child_obs_entries(action)
 
@@ -199,19 +222,22 @@ class POMCP(BeliefTreeSolver):
                 selected_entry = entry
 
         selected_obs = selected_entry.observation
-        selected_next_state = selected_entry.child_node.sample_particle()
+        prior_state_key = state.get_key()
+        selected_next_state = selected_entry.child_node.sample_particle(prior_state_key)
 
-        reward = self.model.get_reward(state, selected_next_state)
+        reward = self.model.get_reward(state, action, selected_next_state)
 
-        self.logger.debug("the number of particles : {}".format(len(selected_entry.child_node.state_particles)))
+        self.logger.debug("the number of particles : {}".format(selected_entry.child_node.get_num_total_particle()))
         self.logger.debug("selected observation : {}".format(selected_obs.observed_gmu_status))
-        self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
+        self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position,
+                                                                            selected_next_state.gmu_position))
         self.logger.debug("reward : {}".format(reward))
 
-        if not self.model.is_terminal(selected_next_state) :
-            tree_depth +=1
-            delayed_reward = self.POCMP_DPW(selected_entry.child_node, tree_depth, start_time)
-            tree_depth -=1
+        self.model.update_gmu_for_simulation()
+        if not self.model.is_terminal():
+            tree_depth += 1
+            delayed_reward = self.POCMP_DPW(selected_entry.child_node, tree_depth, start_time, prior_state_key)
+            tree_depth -= 1
         else:
             console(4, module, "Reached terminal state.")
 
@@ -237,7 +263,7 @@ class POMCP(BeliefTreeSolver):
         step_result, is_legal = self.model.generate_step(state, action)
 
         child_belief_node = belief_node.child(action, step_result.observation)
-        if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count > 0:
+        if child_belief_node is None and not step_result.is_terminal and belief_node.action_map.total_visit_count >= 0:
             child_belief_node, added = belief_node.create_or_get_child(action, step_result.observation)
 
         if not step_result.is_terminal or not is_legal:

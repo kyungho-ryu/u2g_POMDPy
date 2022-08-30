@@ -1,4 +1,7 @@
 from __future__ import absolute_import
+
+import gc
+
 from pomdpy.pomdp.belief_mapping_node import BeliefMappingNode
 from pomdpy.pomdp.belief_structure import BeliefStructure
 from pomdpy.util.mapping import get_key
@@ -24,7 +27,7 @@ class BeliefMapping(BeliefStructure):
         """
         # root -> beliefMap
         key = get_key(observation.observed_gmu_status)
-        self.beliefMap[key] = BeliefMappingNode(self.agent, self)
+        self.beliefMap[key] = BeliefMappingNode(self.agent)
 
         return self.beliefMap
 
@@ -67,3 +70,21 @@ class BeliefMapping(BeliefStructure):
             return self.beliefMap[key]
         else :
             return None
+
+    def prune_siblings(self, bn):
+        """
+        Prune all of the sibling nodes of the provided belief node, leaving the parents
+        and ancestors of bn intact
+        :param bn:
+        :return:
+        """
+        if bn is None:
+            return
+
+        if bn is not None:
+            # For all action entries with action nodes expanded out from the parent_belief (root of the belief tree)
+            for action, action_mapping_entry in list(bn.action_map.entries.items()):
+                bn.action_map.entries[action] = None
+                bn.action_map.entries.pop(action)
+            print(bn.action_map.entries)
+        print(len(bn.action_map.entries))

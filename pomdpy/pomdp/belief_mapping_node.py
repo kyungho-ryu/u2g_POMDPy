@@ -15,23 +15,23 @@ class BeliefMappingNode(object):
     *
     * Key method is create_or_get_child()
     """
-    def __init__(self, solver, belief_map):
+    def __init__(self, solver):
         self.loger = logging.getLogger("POMDPy")
         self.solver = solver
         self.action_map = None
-        self.belief_map = belief_map
+        # self.belief_map = belief_map
         self.particle_pool = ParticlePool(self.solver.model.max_particle_count)   # The set of states that comprise the belief distribution of this belief node
         self.penalty_count = 0
 
     def copy(self):
-        bn = BeliefMappingNode(self.solver, self.belief_map)
+        bn = BeliefMappingNode(self.solver)
         # share a reference to the action map
         bn.action_map = self.action_map
         bn.particle_pool = self.particle_pool
         return bn
 
     def deep_copy(self):
-        bn = BeliefMappingNode(self.solver, self.belief_map)
+        bn = BeliefMappingNode(self.solver)
         # share a reference to the action map
         bn.action_map = self.action_map.deep_copy()
         bn.particle_pool = copy.deepcopy(self.particle_pool)
@@ -118,7 +118,7 @@ class BeliefMappingNode(object):
 
     # ----------- Core Methods -------------- #
 
-    def create_or_get_child(self, action, obs):
+    def create_or_get_child(self, belief_map, action, obs):
         """
         Adds a child for the given action and observation, or returns a pre-existing one if it
         already existed.
@@ -133,12 +133,12 @@ class BeliefMappingNode(object):
         if action_node is None:
             action_node = self.action_map.create_action_node(action)
             action_node.set_mapping(self.solver.observation_pool.create_observation_mapping(action_node))
-        child_node, added = action_node.create_or_get_child(obs, self.belief_map)
+        child_node, added = action_node.create_or_get_child(obs)
 
         if added:   # if the child node was added - it is new
-            belief_node = self.belief_map.get_belief_node(obs)
+            belief_node = belief_map.get_belief_node(obs)
             if belief_node == None :
-                self.belief_map.create_belief_node(obs, child_node)
+                belief_map.create_belief_node(obs, child_node)
                 child_node.action_map = self.solver.action_pool.create_action_mapping(child_node)
             else :
                 action_node.update_child(obs, belief_node)
@@ -147,13 +147,13 @@ class BeliefMappingNode(object):
 
         return child_node, added
 
-    def create_child(self, action_node, obs):
-        child_node, added = action_node.create_or_get_child(obs, self.belief_map)
+    def create_child(self, action_node, obs, belief_map):
+        child_node, added = action_node.create_or_get_child(obs)
 
         if added:   # if the child node was added - it is new
-            belief_node = self.belief_map.get_belief_node(obs)
+            belief_node = belief_map.get_belief_node(obs)
             if belief_node == None :
-                self.belief_map.create_belief_node(obs, child_node)
+                belief_map.create_belief_node(obs, child_node)
                 child_node.action_map = self.solver.action_pool.create_action_mapping(child_node)
             else :
                 action_node.update_child(obs, belief_node)

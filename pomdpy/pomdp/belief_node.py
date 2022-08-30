@@ -1,6 +1,6 @@
 from builtins import object
 import random
-
+from pomdpy.pomdp.particle import ParticlePool
 
 class BeliefNode(object):
     """
@@ -21,11 +21,10 @@ class BeliefNode(object):
             self.id = id
 
         self.solver = solver
-        self.data = None    # The smart history-based data, to be used for history-based policies.
         self.depth = -1
         self.action_map = None
-        self.state_particles = []   # The set of states that comprise the belief distribution of this belief node
-
+        self.particle_pool = ParticlePool(self.solver.model.max_particle_count)   # The set of states that comprise the belief distribution of this belief node
+        self.penalty_count = 0
         if parent_entry is not None:
             self.parent_entry = parent_entry
             # Correctly calculate the depth based on the parent node.
@@ -36,16 +35,25 @@ class BeliefNode(object):
 
     def copy(self):
         bn = BeliefNode(self.solver, self.id, self.parent_entry)
-        # copy the data
-        bn.data = self.data.copy()
         # share a reference to the action map
         bn.action_map = self.action_map
-        bn.state_particles = self.state_particles
+        bn.particle_pool = self.particle_pool
         return bn
 
     # Randomly select a History Entry
-    def sample_particle(self):
-        return random.choice(self.state_particles)
+    def add_particle(self, particle, prior_state):
+        self.particle_pool.add_partcle(particle, prior_state)
+
+    # Randomly select a History Entry
+    def sample_particle(self, prior_state):
+        return self.particle_pool.sample_particle(prior_state)
+
+    def get_num_total_particle(self):
+        return self.particle_pool.get_num_total_particle()
+
+    def get_num_leftParticle_of_priorState(self, prior_state):
+        return self.particle_pool.get_num_leftParticle_of_priorState(prior_state)
+
 
     # -------------------- Tree-related getters  ---------------------- #
     def get_parent_action_node(self):
@@ -133,7 +141,6 @@ class BeliefNode(object):
             child_node = node.get_child(obs)
             if child_node is None:
                 return None, "NOOBS"
-            child_node.data.update(child_node.get_parent_belief())
             return child_node, "OBS"
         else:
             return None, "NOACTION"
@@ -158,30 +165,14 @@ class BeliefNode(object):
         child_node, added = action_node.create_or_get_child(obs)
 
         if added:   # if the child node was added - it is new
-            if self.data is not None:
-                child_node.data = self.data.create_child(action, obs)
             child_node.action_map = self.solver.action_pool.create_action_mapping(child_node)
-        else:
-            # Update the current action mapping to reflect the state of the simulation
-            # child_node.action_map.update()
-            # self.solver.model.num_reused_nodes += 1
 
-            # Update the re-used child belief node's data
-            child_node.data.update(child_node.get_parent_belief())
         return child_node, added
 
-    def create_child(self, action, action_node, obs):
+    def create_child(self, action_node, obs):
         child_node, added = action_node.create_or_get_child(obs)
 
         if added:   # if the child node was added - it is new
-            if self.data is not None:
-                child_node.data = self.data.create_child(action, obs)
             child_node.action_map = self.solver.action_pool.create_action_mapping(child_node)
-        else:
-            # Update the current action mapping to reflect the state of the simulation
-            # child_node.action_map.update()
-            # self.solver.model.num_reused_nodes += 1
 
-            # Update the re-used child belief node's data
-            child_node.data.update(child_node.get_parent_belief())
         return child_node, added

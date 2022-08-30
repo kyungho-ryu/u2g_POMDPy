@@ -58,13 +58,15 @@ if __name__ == '__main__':
     parser.add_argument('--pw_o_k', default=1, type=int, help='coefficient for progrssive widening in observation')
     parser.add_argument('--pw_o_alpha', default=0.5, type=float, help='coefficient for progrssive widening in observation')
 
-    parser.add_argument('--grab_threshold', default=0., type=float, help='threshold for dissmilarity with nearest belief node')
+    parser.add_argument('--grab_threshold', default=0.3, type=float, help='threshold for dissmilarity with nearest belief node')
 
     # Penalty
     parser.add_argument('--connection_penalty', default=True, type=bool, help='')
     parser.add_argument('--discovery_penalty', default=True, type=bool, help='')
     parser.add_argument('--discovery_penalty_threshold', default=0.2, type=float, help='')
     parser.add_argument('--penalty', default=-10, type=float, help='')
+
+    parser.add_argument('--MaxActionPool', default=5, type=int, help='')
 
 
     parser.set_defaults(preferred_actions=False)
@@ -90,7 +92,7 @@ if __name__ == '__main__':
         args["solver_type"] = SolverType.POMCP_POW_WITH_NN.value
         args["ActionType"] = ActionType.NN.value
 
-    solver = POMCPMapping
+    solver = POMCP
 
     if args['env'] == 'U2GModel':
         env = U2GModel(args)

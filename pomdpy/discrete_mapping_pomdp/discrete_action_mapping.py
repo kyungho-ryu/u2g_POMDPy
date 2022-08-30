@@ -76,7 +76,7 @@ class DiscreteActionMapping(ActionMapping):
 
     def get_child_entries(self):
         return_entries = []
-        for i in range(0, self.number_of_bins):
+        for i in self.entries.keys():
             entry = self.entries.get(i)
             if entry.child_node is not None:
                 return_entries.append(entry)

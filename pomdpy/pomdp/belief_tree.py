@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from pomdpy.pomdp.belief_node import BeliefNode
 from pomdpy.pomdp.belief_structure import BeliefStructure
-
+from queue import PriorityQueue
 
 class BeliefTree(BeliefStructure):
     """
@@ -14,6 +14,7 @@ class BeliefTree(BeliefStructure):
         super(BeliefTree, self).__init__()
         self.agent = agent
         self.root = None
+        self.MaxActionPool = self.agent.model.MaxActionPool
 
     # --------- TREE MODIFICATION ------- #
     def reset(self):
@@ -45,6 +46,7 @@ class BeliefTree(BeliefStructure):
     def initialize(self, init_value=None):
         self.reset_root_data()
         self.root.action_map = self.agent.action_pool.create_action_mapping(self.root)
+
 
     def prune_tree(self, bt):
         """
@@ -82,28 +84,37 @@ class BeliefTree(BeliefStructure):
                 observation_entry.child_node = None
             entry.child_node.observation_map = None
             entry.child_node = None
-        bn.action_map = None
+        bn.action_map = self.agent.action_pool.create_action_mapping(bn)
 
     def prune_siblings(self, bn):
-        """
-        Prune all of the sibling nodes of the provided belief node, leaving the parents
-        and ancestors of bn intact
-        :param bn:
-        :return:
-        """
+
         if bn is None:
             return
 
         parent_belief = bn.get_parent_belief()
 
         if parent_belief is not None:
-
             # For all action entries with action nodes expanded out from the parent_belief (root of the belief tree)
             for action_mapping_entry in parent_belief.action_map.get_child_entries():
-
                 # for every observation made
                 for obs_mapping_entry in action_mapping_entry.child_node.observation_map.get_child_entries():
-
-                    # if the belief node is not the new root of the belief tree, prune it
-                    if obs_mapping_entry.child_node is not bn:
+                    if not obs_mapping_entry.status_for_grabObs :
                         self.prune_node(obs_mapping_entry.child_node)
+
+
+                # if Q.full() :
+                #     Q.put(action_mapping_entry.mean_q_value)
+                # else :
+                #     print("Q size : {}".format(Q.qsize()))
+                #     Min = Q.get()
+                #     print("MIN : ", Min)
+                #     print("new action Q : ", action_mapping_entry.mean_q_value)
+                #     print("action_mapping_entry.deployment : ", action_mapping_entry.deployment)
+                #     print("action.UAV_deployment : ", action.UAV_deployment)
+                #
+                #     if Min > action_mapping_entry.mean_q_value or action_mapping_entry.deployment == action.UAV_deployment:
+                #         Q.put(Min)
+                #     else :
+                #         Q.put(action_mapping_entry.mean_q_value)
+
+
