@@ -143,7 +143,6 @@ class Agent:
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()
-            print("init_belief_mapping_index", init_belief_mapping_index)
             eps, steps, simulation_steps,previous_action = self.run_pomcp(solver, i + 1, eps, simulation_steps, steps, previous_action, prior_state_key)
 
             solver.model.reset_for_epoch()
