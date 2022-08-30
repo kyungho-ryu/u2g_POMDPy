@@ -25,14 +25,18 @@ class ParticlePool :
 
 
     def sample_particle(self, prior_state):
-        if prior_state not in self.particle :
-            particle = random.choice(list(self.particle.values()))
-            return particle.random_particle()
-        elif self.NumParticle[prior_state] < self.MaxParticle:
-            particle = random.choice(list(self.particle.values()))
-            return particle.random_particle()
+        if self.solverType == 0 or self.solverType == 2 :
+            if prior_state not in self.particle :
+                particle = random.choice(list(self.particle.values()))
+                return particle.random_particle()
+            elif self.NumParticle[prior_state] < self.MaxParticle:
+                particle = random.choice(list(self.particle.values()))
+                return particle.random_particle()
+            else :
+                return self.particle[prior_state].random_particle()
+
         else :
-            return self.particle[prior_state].random_particle()
+            self.sample_particle_of_POMCPOW(prior_state)
 
     def sample_particle_of_POMCPOW(self, prior_state):
         if prior_state not in self.particle :

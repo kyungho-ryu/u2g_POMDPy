@@ -360,7 +360,7 @@ class POMCP(BeliefTreeSolver):
         self.logger.debug("select existing step")
         child_node = belief_node.get_child(action, obs)
 
-        selected_next_state = child_node.sample_particle_of_POMCPOW(prior_state_key)
+        selected_next_state = child_node.sample_particle(prior_state_key)
         reward = self.model.get_reward(state, action, selected_next_state)
 
         self.logger.debug("selected next state : \nUav:{} \nGMU: {}".format(selected_next_state.uav_position, selected_next_state.gmu_position))
