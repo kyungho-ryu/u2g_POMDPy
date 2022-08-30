@@ -36,7 +36,7 @@ class ParticlePool :
                 return self.particle[prior_state].random_particle()
 
         else :
-            self.sample_particle_of_POMCPOW(prior_state)
+            return self.sample_particle_of_POMCPOW(prior_state)
 
     def sample_particle_of_POMCPOW(self, prior_state):
         if prior_state not in self.particle :
