@@ -13,6 +13,7 @@ update_interval = 5
 gamma = 0.98
 max_train_steps = 60000
 PRINT_INTERVAL = update_interval * 100
+ENTROPY_BETA = 1e-3
 
 class DRLModel :
     def __init__(self, state_dim, state_space, action_dim, action_space):
@@ -33,6 +34,9 @@ class DRLModel :
 
         self.net_A2C = ActorCritic(self.state_space.shape[0], self.action_space.shape[0])
         self.optimizer = optim.Adam(self.net_A2C.parameters(), lr=learning_rate)
+
+        self.step = 0
+
 
     def get_action(self, state):
         # state = np.array(np.arange(0, 25, 0.5))
@@ -66,26 +70,29 @@ class DRLModel :
         s_vec = torch.from_numpy(np.array(sample.s_list)).float()
         a_vec = torch.from_numpy(np.array(sample.a_list)).float()
         value = self.net_A2C.V(s_vec).reshape(-1)
-        print("td_target_vec", td_target_vec, td_target_vec.shape)
-        print("value", value, value.shape)
-
-        advantage = td_target_vec - value
-        print("advantage", advantage, advantage.shape)
-
-        print("a_vec : ", a_vec, a_vec.shape)
-
+        advantage = (td_target_vec - value).reshape(-1, 1)
+        if float(advantage.mean()) < -10 :
+            print("td_target_vec", td_target_vec)
+            print("value", value)
+            print("s_vec", s_vec)
+            exit()
         mu_v = self.net_A2C.pi(s_vec)
         mu_v = self.scale_action(mu_v)
 
         log_prob_v = advantage * self.calc_logprob(mu_v, self.net_A2C.logstd, a_vec)
-        loss_policy_v = -log_prob_v.mean()
-        print("log_prob_v", loss_policy_v, loss_policy_v.shape)
-        exit()
-        loss = -(log_prob_v * advantage.detach()).mean() + \
-               F.smooth_l1_loss(self.net_A2C.V(s_vec).reshape(-1), td_target_vec)
+        loss_policy_v = -1 * log_prob_v.mean()
 
-        print("loss ", loss)
-        exit()
+        loss = loss_policy_v + F.smooth_l1_loss(self.net_A2C.V(s_vec).reshape(-1), td_target_vec)
+        entropy_loss_v = ENTROPY_BETA * (-(torch.log(2 * math.pi * torch.exp(self.net_A2C.logstd)) + 1) / 2).mean()
+        loss_v = loss + entropy_loss_v
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        self.step +=1
+
+        return float(advantage.mean()), float(value.mean()), float(loss_v), float(loss), self.step
 
     def calc_logprob(self, mu_v, logstd_v, actions_v):
         p1 = - ((mu_v - actions_v) ** 2) / (2 * torch.exp(logstd_v).clamp(min=1e-3))

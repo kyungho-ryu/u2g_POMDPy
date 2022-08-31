@@ -155,13 +155,18 @@ class POMCPWITHNN(BeliefTreeSolver):
         NumSample = self.A2CSample.add_sample(state.as_DRL_state(), action.UAV_deployment, td_target)
 
         if NumSample == self.model.batch_for_NN :
-            self.A2CModel.update(self.A2CSample)
+            advantage, value, loss_entropy, loss, step = self.A2CModel.update(self.A2CSample)
             self.A2CSample.reset_sample()
 
-            logging.info("A2C Model update")
+            summary.summary_NNResult(self.model.writer, advantage, value, loss_entropy, loss, step)
+
+        q_value = action_mapping_entry.mean_q_value
+        q_value += td_target - q_value
 
         action_mapping_entry.update_visit_count(1)
         belief_node.update_visit_count_observation(action, 1)
+
+        action_mapping_entry.update_q_value(q_value)
 
         self.logger.debug("update total count of observation : {}".format(belief_node.get_visit_count_observation(action)))
 

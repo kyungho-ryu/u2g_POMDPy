@@ -48,6 +48,13 @@ def summary_simulationResult(writer, beliefTree, epoch) :
 
     writer.add_scalar("depth", tree_depth, epoch)
 
+def summary_NNResult(writer, advantage, value, loss_entropy, loss, step) :
+    group = "NN/"
+    writer.add_scalar(group + 'advantage', advantage, step)
+    writer.add_scalar(group + 'value', value, step)
+    writer.add_scalar(group + 'loss_entropy', loss_entropy, step)
+    writer.add_scalar(group + 'loss', loss, step)
+
 
 def summary_result(writer, epoch, init_reward, second_reward, thrid_reward,reward, discounted_reward, last_reward,
                    ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
