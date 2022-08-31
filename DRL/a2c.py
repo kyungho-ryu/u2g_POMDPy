@@ -23,7 +23,8 @@ class ActorCritic(nn.Module):
 
         return mu
 
-    def v(self, x):
-        x = F.relu(self.fc1(x))
-        v = self.fc_v(x)
+    def V(self, x):
+        fc1 = torch.tanh(self.fc1(x))
+        fc2 = torch.tanh(self.fc2(fc1))
+        v = self.fc_v(fc2)
         return v

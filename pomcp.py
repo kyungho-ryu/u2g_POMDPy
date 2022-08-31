@@ -2,7 +2,7 @@
 from __future__ import print_function
 from pomdpy import Agent
 from pomdpy.solvers import POMCP
-from pomdpy.solvers import POMCPMapping
+from pomdpy.solvers import POMCPWITHNN
 from pomdpy.log import init_logger
 from mobility import SLModel
 from examples.u2g import U2GModel
@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Set the run parameters.')
     parser.add_argument('--env', default="U2GModel", type=str, help='Specify the env to solve')
-    parser.add_argument('--solver', default='POMCP-POW', type=str,
+    parser.add_argument('--solver', default='POMCP-DPW', type=str,
                         help='Specify the solver to use {POMCP}')
     parser.add_argument('--seed', default=1993, type=int, help='Specify the random seed for numpy.random')
     parser.add_argument('--use_tf', dest='use_tf', action='store_true', help='Set if using TensorFlow')
@@ -36,11 +36,11 @@ if __name__ == '__main__':
     parser.add_argument('--preferred_actions', dest='preferred_actions', action='store_true', help='For RockSample, '
                                                     'specify whether smart actions should be used')
     parser.add_argument('--ucb_coefficient', default=3.0, type=float, help='Coefficient for UCB algorithm used by MCTS')
-    parser.add_argument('--n_start_states', default=50, type=int, help='Num of state particles to generate for root '
+    parser.add_argument('--n_start_states', default=10, type=int, help='Num of state particles to generate for root '
                         'belief node in MCTS')
     parser.add_argument('--min_particle_count', default=10, type=int, help='Lower bound on num of particles a belief '
                         'node can have in MCTS')
-    parser.add_argument('--max_particle_count', default=10, type=int, help='Upper bound on num of particles a belief '
+    parser.add_argument('--max_particle_count', default=50, type=int, help='Upper bound on num of particles a belief '
                         'node can have in MCTS')
     parser.add_argument('--max_depth', default=100, type=int, help='Max depth for a DFS of the belief search tree in '
                         'MCTS')
@@ -51,6 +51,7 @@ if __name__ == '__main__':
     # Using NN
     parser.add_argument('--solver_type', type=int, help='')
     parser.add_argument('--ActionType', default=0, type=int, help='a method for action selection')
+    parser.add_argument('--batch_for_NN', default=32, type=int, help='a method for action selection')
 
     # Progressive Widening
     parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')
@@ -92,7 +93,10 @@ if __name__ == '__main__':
         args["solver_type"] = SolverType.POMCP_POW_WITH_NN.value
         args["ActionType"] = ActionType.NN.value
 
-    solver = POMCP
+    if args["ActionType"] == ActionType.Random.value :
+        solver = POMCP
+    elif args["ActionType"] == ActionType.NN.value :
+        solver = POMCPWITHNN
 
     if args['env'] == 'U2GModel':
         env = U2GModel(args)

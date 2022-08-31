@@ -9,11 +9,12 @@ from pomdpy.action_selection import Max_Q_action, action_progWiden, structure
 from pomdpy.solvers.structure import SolverType
 from .belief_tree_solver import BeliefTreeSolver
 from DRL.drl_model import DRLModel
+from DRL.sample import Sample
 
-module = "pomcp"
+module = "pomcp_with_nn"
 
 
-class POMCP(BeliefTreeSolver):
+class POMCPWITHNN(BeliefTreeSolver):
 
     """
     Monte-Carlo Tree Search implementation, from POMCP
@@ -30,13 +31,21 @@ class POMCP(BeliefTreeSolver):
         :param model:
         :return:
         """
-        super(POMCP, self).__init__(agent)
+        super(POMCPWITHNN, self).__init__(agent)
         self.logger = logging.getLogger('POMDPy.Simulation')
         self.logger.setLevel("INFO")
-        self.fast_UCB = [[None for _ in range(POMCP.UCB_n)] for _ in range(POMCP.UCB_N)]
+        self.fast_UCB = [[None for _ in range(POMCPWITHNN.UCB_n)] for _ in range(POMCPWITHNN.UCB_N)]
 
-        for N in range(POMCP.UCB_N):
-            for n in range(POMCP.UCB_n):
+        state_space = self.model.get_state_space()
+        state_dimension = self.model.get_state_dimension()
+        action_space = self.model.get_action_space()
+        action_dimension = self.model.get_action_dimension()
+
+        self.A2CModel = DRLModel(state_dimension, state_space, action_dimension, action_space)
+        self.A2CSample = Sample()
+
+        for N in range(POMCPWITHNN.UCB_N):
+            for n in range(POMCPWITHNN.UCB_n):
                 if n is 0:
                     self.fast_UCB[N][n] = np.inf
                 else:
@@ -52,7 +61,7 @@ class POMCP(BeliefTreeSolver):
         :param agent:
         Implementation of abstract method
         """
-        return POMCP(agent)
+        return POMCPWITHNN(agent)
 
     def find_fast_ucb(self, total_visit_count, action_map_entry_visit_count, log_n):
         """
@@ -63,7 +72,7 @@ class POMCP(BeliefTreeSolver):
         :return:
         """
         assert self.fast_UCB is not None
-        if total_visit_count < POMCP.UCB_N and action_map_entry_visit_count < POMCP.UCB_n:
+        if total_visit_count < POMCPWITHNN.UCB_N and action_map_entry_visit_count < POMCPWITHNN.UCB_n:
             return self.fast_UCB[int(total_visit_count)][int(action_map_entry_visit_count)]
 
         if action_map_entry_visit_count == 0:
@@ -96,9 +105,9 @@ class POMCP(BeliefTreeSolver):
         :param belief_node:
         :return:
         """
-        if self.model.solver_type == SolverType.POMCP_DPW.value :
+        if self.model.solver_type == SolverType.POMCP_DPW_WITH_NN.value:
             return self.POCMP_DPW(belief_node, 0, start_time)
-        elif self.model.solver_type == SolverType.POMCP_POW.value :
+        elif self.model.solver_type == SolverType.POMCP_POW_WITH_NN.value:
             return self.POCMP_POW(belief_node, 0, start_time)
         else:
             return self.traverse(belief_node, 0, start_time)
@@ -121,10 +130,7 @@ class POMCP(BeliefTreeSolver):
             return 0
 
         # use UCB table
-        if self.model.ActionType == structure.ActionType.Random.value:
-            temp_action = self.model.sample_random_actions(belief_node.action_map.entries.keys())
-        elif self.model.ActionType == structure.ActionType.Near.value:
-            temp_action = self.model.sample_near_actions(state.uav_position)
+        temp_action = self.A2CModel.get_action(np.array(state.as_DRL_state()))
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
@@ -143,24 +149,23 @@ class POMCP(BeliefTreeSolver):
                 belief_node, tree_depth, state, action, start_time, delayed_reward
             )
 
-        # delayed_reward is "Q maximal"
-        # current_q_value is the Q value of the current belief-action pair
         action_mapping_entry = belief_node.action_map.get_entry(action.UAV_deployment)
 
-        q_value = action_mapping_entry.mean_q_value
+        td_target = reward + self.model.discount * delayed_reward
+        NumSample = self.A2CSample.add_sample(state.as_DRL_state(), action.UAV_deployment, td_target)
 
-        # off-policy Q learning update rule
-        q_value += (reward + (self.model.discount * delayed_reward) - q_value)
+        if NumSample == self.model.batch_for_NN :
+            self.A2CModel.update(self.A2CSample)
+            self.A2CSample.reset_sample()
+
+            logging.info("A2C Model update")
 
         action_mapping_entry.update_visit_count(1)
         belief_node.update_visit_count_observation(action, 1)
 
         self.logger.debug("update total count of observation : {}".format(belief_node.get_visit_count_observation(action)))
 
-        action_mapping_entry.update_q_value(q_value)
-        self.logger.debug(" Q value : {}".format(q_value))
-        # Add RAVE ?
-        return q_value
+        return td_target
 
     def create_new_step_for_dpw(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
         self.logger.debug("create new step")
@@ -183,8 +188,7 @@ class POMCP(BeliefTreeSolver):
         if not step_result.is_terminal or not is_legal:
             tree_depth += 1
             if added:
-                delayed_reward = 0
-                # delayed_reward = self.rollout(child_belief_node, self.model.ActionType)
+                delayed_reward = self.A2CModel.get_value(np.array(step_result.next_state.as_DRL_state()))
             else:
                 delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time)
             tree_depth -= 1
@@ -248,10 +252,7 @@ class POMCP(BeliefTreeSolver):
             return 0
 
         # use UCB table
-        if self.model.ActionType == structure.ActionType.Random.value:
-            temp_action = self.model.sample_random_actions(belief_node.action_map.entries.keys())
-        elif self.model.ActionType == structure.ActionType.Near.value:
-            temp_action = self.model.sample_near_actions(state.uav_position)
+        temp_action = self.A2CModel.get_action(np.array(state.as_DRL_state()))
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
@@ -285,8 +286,7 @@ class POMCP(BeliefTreeSolver):
             tree_depth += 1
             if added:
                 reward = step_result.reward
-                delayed_reward = 0
-                    # delayed_reward = self.rollout(child_belief_node, self.model.ActionType)
+                delayed_reward = self.A2CModel.get_value(np.array(step_result.next_state.as_DRL_state()))
             else:
                 reward, delayed_reward = self.select_existing_step_for_pow(
                     belief_node, tree_depth, state, action, observation, start_time, delayed_reward

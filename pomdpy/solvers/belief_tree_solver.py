@@ -33,18 +33,16 @@ class BeliefTreeSolver(Solver):
         self.belief_tree.reset()
         self.belief_tree.initialize()
 
-        prior_state = self.model.get_an_init_prior_state()
-        prior_state_key = mapping.get_key(prior_state.as_list())
-
         # generate state particles for root node belief state estimation
         # This is for simulation
         self.model.reset_for_epoch()
         for i in range(self.model.n_start_states):  # default = 2000
             particle = self.model.sample_an_init_state()    # create random rock state
-            self.belief_tree.root.add_particle(particle, prior_state_key)
+            self.belief_tree.root.add_particle(particle)
 
+        self.belief_tree.root.set_create_current_particle(True)
         self.belief_tree_index = self.belief_tree.root.copy()
-    def monte_carlo_approx(self, eps, start_time, prior_state_key):
+    def monte_carlo_approx(self, eps, start_time):
         """
         Approximate Q(b, pi(b)) via monte carlo simulations, where b is the belief node pointed to by
         the belief tree index, and pi(b) is the action selected by the current behavior policy. For SARSA, this is
@@ -60,8 +58,7 @@ class BeliefTreeSolver(Solver):
         for _ in pbar: # default = 500
         # for i in range(self.model.n_sims):
             # Reset the Simulator
-            self.simulate(self.belief_tree_index, eps, start_time, prior_state_key)
-
+            self.simulate(self.belief_tree_index, eps, start_time)
 
     @abc.abstractmethod
     def simulate(self, belief, eps, start_time, prior_state_key):
@@ -133,7 +130,7 @@ class BeliefTreeSolver(Solver):
         :param belief_node:
         :return:
         """
-        state = belief_node.sample_particle(prior_state_key)
+        state = belief_node.sample_particle()
         is_terminal = False
         discounted_reward_sum = 0.0
         discount = 1.0
@@ -189,13 +186,14 @@ class BeliefTreeSolver(Solver):
             else:
                 result = 2
 
-        prior_state_key = mapping.get_key(state.as_list())
         # If the new root does not yet have the max possible number of particles add some more
-        for i in range(child_belief_node.get_num_leftParticle_of_priorState(prior_state_key)) :
-            # Generate particles for the new root node
-            particle = self.model.generate_particles()
-            child_belief_node.add_particle(particle, prior_state_key)
+        if not child_belief_node.get_create_current_particle() :
+            for i in range(self.model.min_particle_count) :
+                # Generate particles for the new root node
+                particle = self.model.generate_particles()
+                child_belief_node.add_particle(particle)
 
+            child_belief_node.set_create_current_particle(True)
 
         # Failed to continue search- ran out of particles
         if child_belief_node is None:

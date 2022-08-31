@@ -5,7 +5,7 @@ from past.utils import old_div
 import time, logging, sys
 import numpy as np
 from pomdpy.util import console, summary, mapping
-from pomdpy.action_selection import ucb_action, action_progWiden, structure
+from pomdpy.action_selection import Max_Q_action, action_progWiden, structure
 from pomdpy.solvers.structure import SolverType
 from .belief_mapping_solver import BeliefMappingSolver
 from DRL.drl_model import DRLModel
@@ -88,7 +88,7 @@ class POMCPMapping(BeliefMappingSolver):
             self.rollout_search(self.belief_mapping_index)
         else:
             self.monte_carlo_approx(eps, start_time, prior_state_key)
-        action, best_ucb_value, best_q_value = ucb_action(self, self.belief_mapping_index, True)
+        action, best_ucb_value, best_q_value = Max_Q_action(self, self.belief_mapping_index, True)
         action_selection_delay = time.time()
         self.logger.info("action selection delay : {}".format(action_selection_delay-start))
         self.model.reset_for_simulation()
@@ -388,7 +388,7 @@ class POMCPMapping(BeliefMappingSolver):
             console(4, module, "action selection timeout")
             return 0
 
-        action = ucb_action(self, belief_node)
+        action = Max_Q_action(self, belief_node)
 
         # Search horizon reached
         if tree_depth >= self.model.max_depth:

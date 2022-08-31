@@ -41,21 +41,24 @@ class BeliefNode(object):
         return bn
 
     # Randomly select a History Entry
-    def add_particle(self, particle, prior_state):
-        self.particle_pool.add_partcle(particle, prior_state)
+    def add_particle(self, particle):
+        self.particle_pool.add_partcle(particle)
 
     # Randomly select a History Entry
-    def sample_particle(self, prior_state):
-        return self.particle_pool.sample_particle(prior_state)
+    def sample_particle(self):
+        return self.particle_pool.sample_particle()
 
-    def sample_particle_of_POMCPOW(self, prior_state):
-        return self.particle_pool.sample_particle_of_POMCPOW(prior_state)
+    def sample_particle_of_POMCPOW(self):
+        return self.particle_pool.sample_particle_of_POMCPOW()
+
+    def set_create_current_particle(self, _bool):
+        return self.particle_pool.set_create_current_particle(_bool)
 
     def get_num_total_particle(self):
         return self.particle_pool.get_num_total_particle()
 
-    def get_num_leftParticle_of_priorState(self, prior_state):
-        return self.particle_pool.get_num_leftParticle_of_priorState(prior_state)
+    def get_create_current_particle(self):
+        return self.particle_pool.get_create_current_particle()
 
 
     # -------------------- Tree-related getters  ---------------------- #

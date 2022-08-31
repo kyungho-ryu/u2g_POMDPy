@@ -4,8 +4,9 @@ import time
 import numpy as np
 
 
+
 # UCB1 action selection algorithm
-def ucb_action(mcts, current_node, greedy):
+def Max_Q_action(mcts, current_node, greedy):
     best_actions = []
     best_q_value = -np.inf
     best_ucb_value = -np.inf

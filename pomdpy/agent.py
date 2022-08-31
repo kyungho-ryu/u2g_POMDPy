@@ -136,14 +136,12 @@ class Agent:
         eps = self.model.epsilon_start
         simulation_steps = 0
         steps = 0
-        prior_state = solver.model.get_an_init_prior_state()
-        prior_state_key = prior_state.get_key()
         init_belief_mapping_index = solver.belief_tree_index
         previous_action = []
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()
-            eps, steps, simulation_steps,previous_action = self.run_pomcp(solver, i + 1, eps, simulation_steps, steps, previous_action, prior_state_key)
+            eps, steps, simulation_steps,previous_action = self.run_pomcp(solver, i + 1, eps, simulation_steps, steps, previous_action)
 
             solver.model.reset_for_epoch()
             solver.belief_tree_index = init_belief_mapping_index
@@ -154,14 +152,14 @@ class Agent:
             # memory.check_momory(self.logger)
             # self.logger.info("Summary delay : {}".format(time.time() - start))
 
-    def run_pomcp(self, solver, epoch, eps, simulation_steps, steps, previous_action, prior_state_key):
+    def run_pomcp(self, solver, epoch, eps, simulation_steps, steps, previous_action):
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
 
         # Monte-Carlo start state
         # choice random state from particles (2000)
 
-        state = solver.belief_tree_index.sample_particle(prior_state_key)
+        state = solver.belief_tree_index.sample_particle()
         self.logger.debug("[{}]state:\n{}".format(epoch, state.to_string()))
         self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
 
@@ -202,10 +200,10 @@ class Agent:
             # action will be of type Discrete Action
             print_divider('large')
             print('\tStep #' + str(i) + ' simulation is working\n')
-            action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time, prior_state_key)
+            action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time)
             ucb_value.append(best_ucb_value)
             q_value.append(best_q_value)
-            new_action.append(action)
+            new_action.append(action.UAV_deployment)
             print('\n')
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action.UAV_deployment))
 
@@ -216,35 +214,7 @@ class Agent:
             self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
             # state = not real state
             prediction_error.append(solver.model.get_dissimilarity_of_gmu_prediction(state.gmus))
-            step_result, is_legal, eachReward = solver.model.generate_real_step(state, action)
-
-            reward.append(step_result.reward)
-            discounted_reward.append(discount * step_result.reward)
-            # discounted_reward = discount * step_result.reward
-            discount *= self.model.discount
-
-            # show the step result
-            self.display_step_result(i, step_result, eachReward)
-
-            start = time.time()
-            if not step_result.is_terminal:
-                result, new_dissimilarity = solver.update(state, step_result, True)
-                if result ==1 :
-                    NUM_create_child_belief_node +=1
-                if result == 2 :
-                    NUM_grab_nearest_child_belief_node +=1
-            else :
-                # new_dissimilarity = solver.get_dissimilarity(step_result)
-                new_dissimilarity = -1
-
-            self.logger.info("tree update delay : {}".format(time.time() - start))
-            dissimilarity.append(new_dissimilarity)
-            # print("END======================================================================")
-            # memory.check_momory(self.logger)
-            # exit()
-            # Extend the history sequence
-            new_hist_entry = solver.history.add_entry()
-            HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
+            step_result, is_legal = solver.model.generate_real_step(state, action)
 
             if initial_reward == 0 :
                 initial_reward = step_result.reward
@@ -267,29 +237,47 @@ class Agent:
             NumActiveUav.append(_NumActiveUav)
             NumObservedGMU.append(_NumObservedGMU)
 
+            reward.append(step_result.reward)
+            discounted_reward.append(discount * step_result.reward)
+            # discounted_reward = discount * step_result.reward
+            discount *= self.model.discount
+
+            # show the step result
+            self.display_step_result(i, step_result, [_scaledEnergyConsumtion, _scaledDnRate])
+
+            start = time.time()
+            if not step_result.is_terminal:
+                result, new_dissimilarity = solver.update(state, step_result, True)
+                if result ==1 :
+                    NUM_create_child_belief_node +=1
+                if result == 2 :
+                    NUM_grab_nearest_child_belief_node +=1
+            else :
+                # new_dissimilarity = solver.get_dissimilarity(step_result)
+                new_dissimilarity = -1
+
+            self.logger.info("tree update delay : {}".format(time.time() - start))
+            dissimilarity.append(new_dissimilarity)
+
+            new_hist_entry = solver.history.add_entry()
+            HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
+
+
             count +=1
-            prior_state_key = state.get_key()
-            state = solver.belief_tree_index.sample_particle(prior_state_key)
+            state = solver.belief_tree_index.sample_particle()
 
             simulation_steps +=1
-
-            # summary.summary_result2(
-            #     self.model.writer, simulation_steps, initial_reward, step_result.reward, discounted_reward,
-            #     best_ucb_value, best_q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
-            #     new_dissimilarity, _totalA2GEnergy, _totalA2AEnergy, _totalPropEnergy, _totalEnergyConsumtion,
-            #     _avgDnRage, _scaledEnergyConsumtion, _scaledDnRate, _NumActiveUav, _NumObservedGMU,
-            #     solver.model.get_dissimilarity_of_gmu_prediction(state.gmus), count, (time.time() - epoch_start)
-            # )
 
             if step_result.is_terminal or not is_legal :
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
                 break
+
         steps += 1
         usedMemory = memory.check_momory(self.logger)
 
         actionEquality = []
         NumactionEquality = 0
-        for i in range(len(previous_action)) :
+        for i in range(min(len(previous_action), len(new_action))) :
             if previous_action[i] == new_action[i] :
                 actionEquality.append(True)
                 NumactionEquality +=1

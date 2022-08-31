@@ -37,8 +37,8 @@ class BeliefMappingNode(object):
         bn.particle_pool = copy.deepcopy(self.particle_pool)
         return bn
 
-    def add_particle(self, particle, prior_state):
-        self.particle_pool.add_partcle(particle, prior_state)
+    def add_particle(self, particle):
+        self.particle_pool.add_partcle(particle)
 
 
     # Randomly select a History Entry
@@ -47,9 +47,6 @@ class BeliefMappingNode(object):
 
     def get_num_total_particle(self):
         return self.particle_pool.get_num_total_particle()
-
-    def get_num_leftParticle_of_priorState(self, prior_state):
-        return self.particle_pool.get_num_leftParticle_of_priorState(prior_state)
 
     def get_child(self, action, obs):
         node = self.action_map.get_action_node(action)

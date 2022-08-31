@@ -58,10 +58,10 @@ class BeliefMapping(BeliefStructure):
 
         self.beliefMap[new_key] = self.beliefMap[key].deep_copy()
 
-    def add_particle(self, obs, particle, prior_state_key):
+    def add_particle(self, obs, particle):
         key = get_key(obs.observed_gmu_status)
 
-        self.beliefMap[key].add_particle(particle, prior_state_key)
+        self.beliefMap[key].add_particle(particle)
 
     def get_belief_node(self, obs):
         key = get_key(obs.observed_gmu_status)
