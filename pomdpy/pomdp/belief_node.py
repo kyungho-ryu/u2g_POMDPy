@@ -41,8 +41,8 @@ class BeliefNode(object):
         return bn
 
     # Randomly select a History Entry
-    def add_particle(self, particle):
-        self.particle_pool.add_partcle(particle)
+    def add_particle(self, particle, type):
+        self.particle_pool.add_partcle(particle, type)
 
     # Randomly select a History Entry
     def sample_particle(self):

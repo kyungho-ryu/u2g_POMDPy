@@ -40,7 +40,7 @@ if __name__ == '__main__':
                         'belief node in MCTS')
     parser.add_argument('--min_particle_count', default=10, type=int, help='Lower bound on num of particles a belief '
                         'node can have in MCTS')
-    parser.add_argument('--max_particle_count', default=50, type=int, help='Upper bound on num of particles a belief '
+    parser.add_argument('--max_particle_count', default=10, type=int, help='Upper bound on num of particles a belief '
                         'node can have in MCTS')
     parser.add_argument('--max_depth', default=100, type=int, help='Max depth for a DFS of the belief search tree in '
                         'MCTS')

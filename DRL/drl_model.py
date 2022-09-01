@@ -71,11 +71,7 @@ class DRLModel :
         a_vec = torch.from_numpy(np.array(sample.a_list)).float()
         value = self.net_A2C.V(s_vec).reshape(-1)
         advantage = (td_target_vec - value).reshape(-1, 1)
-        if float(advantage.mean()) < -10 :
-            print("td_target_vec", td_target_vec)
-            print("value", value)
-            print("s_vec", s_vec)
-            exit()
+        
         mu_v = self.net_A2C.pi(s_vec)
         mu_v = self.scale_action(mu_v)
 

@@ -38,8 +38,7 @@ class BeliefTreeSolver(Solver):
         self.model.reset_for_epoch()
         for i in range(self.model.n_start_states):  # default = 2000
             particle = self.model.sample_an_init_state()    # create random rock state
-            self.belief_tree.root.add_particle(particle)
-
+            self.belief_tree.root.add_particle(particle, 0)
         self.belief_tree.root.set_create_current_particle(True)
         self.belief_tree_index = self.belief_tree.root.copy()
     def monte_carlo_approx(self, eps, start_time):
@@ -191,7 +190,7 @@ class BeliefTreeSolver(Solver):
             for i in range(self.model.min_particle_count) :
                 # Generate particles for the new root node
                 particle = self.model.generate_particles()
-                child_belief_node.add_particle(particle)
+                child_belief_node.add_particle(particle, 0)
 
             child_belief_node.set_create_current_particle(True)
 

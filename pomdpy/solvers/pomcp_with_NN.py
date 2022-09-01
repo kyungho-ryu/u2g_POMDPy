@@ -188,7 +188,7 @@ class POMCPWITHNN(BeliefTreeSolver):
             if step_result.reward == self.model.penalty :
                 belief_node.penalty_count +=1
 
-        child_belief_node.add_particle(step_result.next_state)
+        child_belief_node.add_particle(step_result.next_state, 1)
 
         if not step_result.is_terminal or not is_legal:
             tree_depth += 1
@@ -285,7 +285,7 @@ class POMCPWITHNN(BeliefTreeSolver):
             if step_result.reward == self.model.penalty :
                 belief_node.penalty_count +=1
 
-        child_belief_node.add_particle(step_result.next_state)
+        child_belief_node.add_particle(step_result.next_state, 1)
 
         if not step_result.is_terminal or not is_legal:
             tree_depth += 1

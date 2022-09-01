@@ -13,14 +13,13 @@ class ParticlePool :
         elif self.solverType == 1 or self.solverType == 3:
             self.particle = ParticleOfOW(self.MaxParticle)
 
-    def add_partcle(self, particle):
-        added = self.particle.add_particle(particle)
-
+    def add_partcle(self, particle, type):
+        added = self.particle.add_particle(particle, type)
         self.TotalParticle +=added
 
     def sample_particle(self):
         if self.solverType == 0 or self.solverType == 2 :
-            return self.particle.random_particle()
+            return self.particle.random_particle(self.createCurrentParticle)
         else :
             return self.sample_particle_of_POMCPOW()
 
@@ -39,17 +38,27 @@ class ParticlePool :
 class Particle :
     def __init__(self, MaxParticle):
         self.state = []
+        self.current_state = []
         self.MaxParticle = MaxParticle
 
-    def add_particle(self, state):
-        if len(self.state) >= self.MaxParticle :
-            return 0
-        else :
-            self.state.append(state)
+    def add_particle(self, state, type):
+        if type == 0 :
+            self.current_state.append(state)
             return 1
 
-    def random_particle(self):
-        return random.choice(self.state)
+        elif type == 1 :
+            if len(self.state) >= self.MaxParticle :
+                return 0
+            else :
+                self.state.append(state)
+                return 1
+
+
+    def random_particle(self, createCurrentParticle):
+        if createCurrentParticle :
+            return random.choice(self.current_state)
+        else :
+            return random.choice(self.state)
 
 
 class ParticleOfOW :
