@@ -7,12 +7,9 @@ import torch, logging, math
 import torch.nn.functional as F
 
 # Hyperparameters
-n_train_processes = 3
-learning_rate = 0.0002
-update_interval = 5
+learning_rate = 0.00001
 gamma = 0.98
 max_train_steps = 60000
-PRINT_INTERVAL = update_interval * 100
 ENTROPY_BETA = 1e-3
 
 class DRLModel :
@@ -58,6 +55,10 @@ class DRLModel :
         # return np.exp(3*x)
         return (self.action_high[0] * x + self.action_high[0]) / 2
 
+
+    def relex_scale(self, x):
+        return (x*2 - self.action_high[0]) / self.action_high[0]
+
     def get_value(self, state):
         state = torch.from_numpy(state).float()
         value = self.net_A2C.V(state)
@@ -66,19 +67,20 @@ class DRLModel :
         return value
 
     def update(self, sample):
+
         td_target_vec = torch.from_numpy(np.array(sample.td_target)).float()
         s_vec = torch.from_numpy(np.array(sample.s_list)).float()
-        a_vec = torch.from_numpy(np.array(sample.a_list)).float()
         value = self.net_A2C.V(s_vec).reshape(-1)
         advantage = (td_target_vec - value).reshape(-1, 1)
-        
-        mu_v = self.net_A2C.pi(s_vec)
-        mu_v = self.scale_action(mu_v)
 
-        log_prob_v = advantage * self.calc_logprob(mu_v, self.net_A2C.logstd, a_vec)
+        mu_v = self.net_A2C.pi(s_vec)
+        a_vec = torch.from_numpy(np.array(sample.a_list)).float()
+        a_vec = self.relex_scale(a_vec)
+
+        log_prob_v = advantage.detach() * self.calc_logprob(mu_v, self.net_A2C.logstd, a_vec)
         loss_policy_v = -1 * log_prob_v.mean()
 
-        loss = loss_policy_v + F.smooth_l1_loss(self.net_A2C.V(s_vec).reshape(-1), td_target_vec)
+        loss = loss_policy_v + F.smooth_l1_loss(value, td_target_vec)
         entropy_loss_v = ENTROPY_BETA * (-(torch.log(2 * math.pi * torch.exp(self.net_A2C.logstd)) + 1) / 2).mean()
         loss_v = loss + entropy_loss_v
 
@@ -87,6 +89,14 @@ class DRLModel :
         self.optimizer.step()
 
         self.step +=1
+
+        # print("advantage", float(advantage.mean()))
+        # print("value", float(value.mean()))
+        # # print("loss_policy_v", int(loss_policy_v.mean()))
+        # print("loss", float(loss.mean()), type(loss_v))
+        # value = self.net_A2C.V(s_vec).reshape(-1)
+        # print("next_v", float(value.mean()))
+        # print("------------------------------")
 
         return float(advantage.mean()), float(value.mean()), float(loss_v), float(loss), self.step
 

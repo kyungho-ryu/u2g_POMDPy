@@ -459,7 +459,7 @@ class U2GModel(Model) : # Model
         return totalEnergyConsumtion, totalDnRate
 
     def norm_rewards(self, _energyConsumtion, _dnRate):
-        # energyConsumtion =  -1 * (_energyConsumtion / self.MaxEnergyConsumtion)
+        energyConsumtion =  -1 * (_energyConsumtion / self.MaxEnergyConsumtion)
         energyConsumtion =  1 - (_energyConsumtion / self.MaxEnergyConsumtion)
         dnRate = _dnRate / self.MaxDnRate
 
@@ -765,11 +765,11 @@ class U2GModel(Model) : # Model
         result.action = action.copy()
         result.observation = self.make_observation(result.next_state)
         result.reward = self.make_reward(state, action, result.next_state)
-        # totalEnergyConsumtion, totalDnRate= self.make_reward_for_realState(state, result.next_state, gmuStatus)
-        # result.reward = totalEnergyConsumtion + totalDnRate
+        totalEnergyConsumtion, totalDnRate= self.make_reward_for_realState(state, result.next_state, gmuStatus)
+        result.reward = totalEnergyConsumtion + totalDnRate
         result.is_terminal = self.is_terminal()
 
-        return result, True
+        return result, True, totalEnergyConsumtion, totalDnRate
 
 
     def generate_particles(self):

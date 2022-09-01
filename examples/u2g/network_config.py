@@ -18,5 +18,5 @@ class Config :
     NUM_GMU = 10
     USER_DEMAND = 300 * pow(10, 3) # 300 Kbps
 
-    WoE = 0.5 # weight of energy consumption
-    WoD = 0.5 # weight of data rate
+    WoE = 0.0005 # weight of energy consumption
+    WoD = 0.0005 # weight of data rate

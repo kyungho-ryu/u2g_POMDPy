@@ -3,6 +3,29 @@ import time
 
 import numpy as np
 
+def Max_UCB_action(current_node):
+    best_actions = []
+    best_visit_count = -np.inf
+    mapping = current_node.action_map
+
+    actions = list(mapping.entries.values())
+    random.shuffle(actions)
+
+    for action_entry in actions:
+        # Skip illegal actions
+        if not action_entry.is_legal:
+            continue
+
+        current_visit_count = action_entry.visit_count
+        if current_visit_count >= best_visit_count:
+            if current_visit_count > best_visit_count:
+                best_actions = []
+            best_visit_count = current_visit_count
+            best_actions.append(action_entry.get_action())
+
+    assert best_actions.__len__() is not 0
+
+    return random.choice(best_actions)
 
 
 # UCB1 action selection algorithm

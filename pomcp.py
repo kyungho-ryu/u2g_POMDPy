@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Set the run parameters.')
     parser.add_argument('--env', default="U2GModel", type=str, help='Specify the env to solve')
-    parser.add_argument('--solver', default='POMCP_DPW_WITH_NN', type=str,
+    parser.add_argument('--solver', default='POMCP-DPW', type=str,
                         help='Specify the solver to use {POMCP}')
     parser.add_argument('--seed', default=1993, type=int, help='Specify the random seed for numpy.random')
     parser.add_argument('--use_tf', dest='use_tf', action='store_true', help='Set if using TensorFlow')
@@ -62,8 +62,8 @@ if __name__ == '__main__':
     parser.add_argument('--grab_threshold', default=1, type=float, help='threshold for dissmilarity with nearest belief node')
 
     # Penalty
-    parser.add_argument('--connection_penalty', default=True, type=bool, help='')
-    parser.add_argument('--discovery_penalty', default=True, type=bool, help='')
+    parser.add_argument('--connection_penalty', default=False, type=bool, help='')
+    parser.add_argument('--discovery_penalty', default=False, type=bool, help='')
     parser.add_argument('--discovery_penalty_threshold', default=0.2, type=float, help='')
     parser.add_argument('--penalty', default=-1, type=float, help='')
 
