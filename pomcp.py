@@ -8,6 +8,7 @@ from mobility import SLModel
 from examples.u2g import U2GModel
 from pomdpy.solvers.structure import SolverType
 from pomdpy.action_selection.structure import ActionType
+from DRL.structure import DRLType
 import argparse
 import numpy as np
 
@@ -15,7 +16,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Set the run parameters.')
     parser.add_argument('--env', default="U2GModel", type=str, help='Specify the env to solve')
-    parser.add_argument('--solver', default='POMCP-DPW', type=str,
+    parser.add_argument('--solver', default='POMCP_DPW_WITH_NN', type=str,
                         help='Specify the solver to use {POMCP}')
     parser.add_argument('--seed', default=1993, type=int, help='Specify the random seed for numpy.random')
     parser.add_argument('--use_tf', dest='use_tf', action='store_true', help='Set if using TensorFlow')
@@ -52,6 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('--solver_type', type=int, help='')
     parser.add_argument('--ActionType', default=0, type=int, help='a method for action selection')
     parser.add_argument('--batch_for_NN', default=32, type=int, help='a method for action selection')
+    parser.add_argument('--DRLType', default="PPO", type=str, help='a method for action selection')
 
     # Progressive Widening
     parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')
@@ -97,6 +99,10 @@ if __name__ == '__main__':
         solver = POMCP
     elif args["ActionType"] == ActionType.NN.value :
         solver = POMCPWITHNN
+        if args["DRLType"] == "A2C" :
+            args["DRLType"] = DRLType.A2CModel.value
+        elif args["DRLType"] == "PPO" :
+            args["DRLType"] = DRLType.PPOModel.value
 
     if args['env'] == 'U2GModel':
         env = U2GModel(args)

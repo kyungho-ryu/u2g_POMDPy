@@ -5,7 +5,7 @@ from past.utils import old_div
 import time, logging
 import numpy as np
 from pomdpy.util import console, summary
-from pomdpy.action_selection import Max_Q_action, action_progWiden, structure
+from pomdpy.action_selection import Max_Q_action, action_progWiden, structure, Max_UCB_action
 from pomdpy.solvers.structure import SolverType
 from .belief_tree_solver import BeliefTreeSolver
 from DRL.drl_model import DRLModel
@@ -41,7 +41,7 @@ class POMCPWITHNN(BeliefTreeSolver):
         action_space = self.model.get_action_space()
         action_dimension = self.model.get_action_dimension()
 
-        self.A2CModel = DRLModel(state_dimension, state_space, action_dimension, action_space)
+        self.A2CModel = DRLModel(state_dimension, state_space, action_dimension, action_space, self.model.DRLType)
         self.A2CSample = Sample()
 
         for N in range(POMCPWITHNN.UCB_N):
@@ -92,6 +92,7 @@ class POMCPWITHNN(BeliefTreeSolver):
             self.monte_carlo_approx(eps, start_time)
 
         action, best_ucb_value, best_q_value = Max_Q_action(self, self.belief_tree_index, True)
+        # action = Max_UCB_action(self.belief_tree_index)
         action_selection_delay = time.time()
         self.logger.info("action selection delay : {}".format(action_selection_delay - start))
         self.model.reset_for_simulation()

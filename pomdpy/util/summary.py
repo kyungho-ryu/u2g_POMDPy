@@ -57,7 +57,7 @@ def summary_NNResult(writer, advantage, value, loss_entropy, loss, step) :
 
 
 def summary_result(writer, epoch, init_reward, second_reward, thrid_reward,reward, discounted_reward, last_reward,
-                    NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
+                    ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
                    dissimilarity, totalA2GEnergy, totalA2AEnergy, totalPropEnergy,
                    totalEnergyConsumtion, avgDnRage, scaledEnergyConsumtion, scaledDnRate,
                    NumActiveUav, NumObservedGMU, prediction_error, usedMemory, NumactionEquality, count, time) :
@@ -69,8 +69,8 @@ def summary_result(writer, epoch, init_reward, second_reward, thrid_reward,rewar
     writer.add_scalar(group+'thirdR', thrid_reward, epoch)
     writer.add_scalar(group+'lastR', last_reward, epoch)
     writer.add_scalar(group+'discounted_R', np.mean(discounted_reward), epoch)
-    # writer.add_scalar(group + 'UCB', np.mean(ucb_value), epoch)
-    # writer.add_scalar(group + 'Q', np.mean(q_value), epoch)
+    writer.add_scalar(group + 'UCB', np.mean(ucb_value), epoch)
+    writer.add_scalar(group + 'Q', np.mean(q_value), epoch)
 
 
     group = "Energy/"

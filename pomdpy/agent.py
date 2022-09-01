@@ -185,6 +185,8 @@ class Agent:
         NumObservedGMU = []
         count = 0
         prediction_error = []
+        ucb_value = []
+        q_value = []
         print_divider('large')
         print('\tEpoch #' + str(epoch))
 
@@ -198,8 +200,9 @@ class Agent:
             # action will be of type Discrete Action
             print_divider('large')
             print('\tStep #' + str(i) + ' simulation is working\n')
-            action = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time)
-
+            action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time)
+            ucb_value.append(best_ucb_value)
+            q_value.append(best_q_value)
             new_action.append(action.UAV_deployment)
             print('\n')
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action.UAV_deployment))
@@ -283,7 +286,7 @@ class Agent:
 
         summary.summary_result(
             self.model.writer, simulation_steps, initial_reward, second_reward, thrid_reward,
-            reward, discounted_reward, step_result.reward,
+            reward, discounted_reward, step_result.reward, ucb_value, q_value,
             NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
             dissimilarity,totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalEnergyConsumtion,
             avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav, NumObservedGMU, prediction_error,

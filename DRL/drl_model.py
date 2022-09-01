@@ -1,7 +1,9 @@
 import numpy as np
 from gym import spaces
 from DRL.a2c import ActorCritic
+from DRL.structure import DRLType
 from examples.u2g.u2g_action import U2GAction
+
 import torch.optim as optim
 import torch, logging, math
 import torch.nn.functional as F
@@ -13,7 +15,7 @@ max_train_steps = 60000
 ENTROPY_BETA = 1e-3
 
 class DRLModel :
-    def __init__(self, state_dim, state_space, action_dim, action_space):
+    def __init__(self, state_dim, state_space, action_dim, action_space, _DRLType):
         self.logger = logging.getLogger('POMDPy.DRLModel')
         self.logger.setLevel("INFO")
         self.state_dim = state_dim
@@ -21,9 +23,10 @@ class DRLModel :
         self.state_low = np.array([np.float32(state_space[0])] * self.state_dim)
         self.state_space = spaces.Box(self.state_low, self.state_high, dtype=np.float32)
 
+
         self.action_dim = action_dim
-        self.action_high = np.array([np.float32(state_space[1])] * self.action_dim)
-        self.action_low = np.array([np.float32(state_space[0])] * self.action_dim)
+        self.action_high = np.array([np.float32(action_space[1])] * self.action_dim)
+        self.action_low = np.array([np.float32(action_space[0])] * self.action_dim)
         self.action_space = spaces.Box(self.action_low, self.action_high, dtype=np.float32)
 
         self.logger.info("State dimension, space : {}, {}".format((self.state_low[0], self.state_high[0]), self.state_space.shape[0]))
