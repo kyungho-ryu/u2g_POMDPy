@@ -100,8 +100,10 @@ class POMCPWITHNN(BeliefTreeSolver):
             self.monte_carlo_approx(eps, start_time)
 
         if self.model.DRLType == DRLType.IS_A2CModel.value :
-            advantage, loss, step, logstd = self.A2CModel.update(self.A2CSample)
-            summary.summary_NNResult(self.model.writer, advantage, loss, step, logstd, self.A2CSample.MaxDepth, self.A2CSample.NumSample)
+            advantage, loss, step, std_list, logStdStep = self.A2CModel.update(self.A2CSample)
+            summary.summary_NNResult(self.model.writer, advantage, loss, step, self.A2CSample.MaxDepth,
+                                     self.A2CSample.NumSample, std_list, logStdStep)
+            self.A2CModel.logStdStep = step
             self.A2CSample = None
 
         action, best_ucb_value, best_q_value = Max_Q_action(self, self.belief_tree_index, True)
