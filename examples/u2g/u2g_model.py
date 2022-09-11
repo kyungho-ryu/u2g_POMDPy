@@ -878,7 +878,7 @@ class U2GModel(Model) : # Model
         return [0, Config.MAX_GRID_INDEX]
 
     def get_action_dimension(self):
-        return Config.MAX_GRID_INDEX + 1
+        return Config.NUM_UAV
 
     def get_all_observations(self):
         """
