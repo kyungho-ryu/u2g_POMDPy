@@ -16,7 +16,7 @@ GAMMA = 0.9
 GAE_LAMBDA = 0.9
 PPO_EPS = 0.2
 CLIP_GRAD_NORM = -1
-log_std_clip = (0.5,1)
+log_std_clip = (-1,1)
 class PPOModel :
     def __init__(self, state_dim, state_space, action_dim, action_space, _DRLType):
         self.logger = logging.getLogger('POMDPy.DRLModel')
@@ -44,10 +44,10 @@ class PPOModel :
     def get_action(self, state):
         # state = np.array(np.arange(0, 25, 0.5))
         state = torch.from_numpy(state).float()
-        mu_v = self.net_A2C.pi(state)
+        mu_v, std = self.net_A2C.pi(state)
         mu = mu_v.data.cpu().numpy()
         mu = self.scale_action(mu)
-        logstd = self.net_A2C.logstd.data.cpu().numpy()
+        logstd = std.detach().numpy()
         logstd = np.clip(logstd, log_std_clip[0], log_std_clip[1])
 
         action = mu + np.exp(logstd) * np.random.normal(size=logstd.shape)
@@ -55,10 +55,7 @@ class PPOModel :
         action = np.clip(action, self.action_low[0], self.action_high[0])
         action = np.round(action).astype(int)
 
-        traj_actions_v = self.relex_scale(torch.FloatTensor(action))
-        old_logprob_v = self.calc_logprob(mu_v, self.net_A2C.logstd, traj_actions_v)
-
-        return U2GAction(list(action)), old_logprob_v
+        return U2GAction(list(action)), logstd
 
 
     def scale_action(self, x) :
@@ -82,6 +79,7 @@ class PPOModel :
         loss_v_list = []
         std_list = []
         for i in range(sample.NumSample) :
+            self.optimizer.zero_grad()
             traj_states_v = torch.FloatTensor(sample.s_list[i])
             adv_v, ref_v = self.calc_adv_ref(sample.r_list[i], traj_states_v, sample.termial_list[i])
             adv_v_list.append(np.mean(adv_v.tolist()))
@@ -91,10 +89,11 @@ class PPOModel :
             old_logprob_v = torch.FloatTensor(sample.logprob_list[i][:-1])
             # print("old_logprob_v", old_logprob_v, old_logprob_v.shape, old_logprob_v.grad)
 
-            mu_v = self.net_A2C.pi(traj_states_v[:-1])
+            mu_v, std = self.net_A2C.pi(traj_states_v[:-1])
             a_vec = torch.FloatTensor(sample.a_list[i][:-1])
             a_vec = self.relex_scale(a_vec)
-            logprob_pi_v = self.calc_logprob(mu_v, self.net_A2C.logstd, a_vec)
+            logprob_pi_v = self.calc_logprob(mu_v, std, a_vec)
+            logprob_pi_v = np.clip(logprob_pi_v, log_std_clip[0], log_std_clip[1])
             # print("logprob_pi_v", logprob_pi_v, logprob_pi_v.shape, logprob_pi_v.grad)
 
             ratio_v = torch.exp(logprob_pi_v - old_logprob_v)
@@ -114,14 +113,13 @@ class PPOModel :
 
             # print("value ", value, value.shape)
             # print("loss ", loss, loss.shape)
-            self.optimizer.zero_grad()
             loss.backward()
-            _std = np.clip(self.net_A2C.logstd.data.cpu().numpy(), log_std_clip[0], log_std_clip[1])
-            std_list.append(float(_std.mean()))
             if CLIP_GRAD_NORM != -1:
                 torch.nn.utils.clip_grad_norm(self.net_A2C.parameters(), CLIP_GRAD_NORM)
-
             self.optimizer.step()
+
+            # _std = np.clip(self.net_A2C.logstd.data.cpu().numpy(), log_std_clip[0], log_std_clip[1])
+            std_list.append(float(std.mean()))
 
             self.step +=1
 

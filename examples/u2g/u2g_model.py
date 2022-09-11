@@ -11,6 +11,7 @@ from examples.u2g.u2g_observation import U2GObservation
 from examples.u2g.util import getA2ADist, getLocStat, getNgbCellAvail, getNgbCell, uavTopoUpdate, findServingUAV, getGMUCellTraffic, path2Edges, controlSrcRate, getServingUAV
 from examples.u2g.energy import calA2GCommEnergy, calA2ACommEnergy, calA2GMaxCommEnergy, calA2AMaxCommEnergy
 from examples.u2g.channel import calA2ALinkRate, setA2GDefaultRadioResource
+from DRL.structure import DRLType
 import logging, random, copy, collections
 import networkx as nx
 
@@ -54,7 +55,14 @@ class U2GModel(Model) : # Model
         self.all_gmu_data = []
 
         # Mobility model
-        self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N, args["min_particle_count"])
+        if args["DRLType"] == DRLType.IS_A2CModel.value or args["DRLType"] == DRLType.IS_PPOModel.value :
+            limit_prediction_length = True
+        if args["DRLType"] == DRLType.OS_A2CModel.value or args["DRLType"] == DRLType.OS_PPOModel.value :
+            limit_prediction_length = False
+
+        # if args["DRLType"]
+        self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N,
+                                        Config.MAX_YGRID_N, args["min_particle_count"], limit_prediction_length)
         self.init_prior_state = self.set_an_init_prior_state()
         self.init_observation = None
         self.initialize()

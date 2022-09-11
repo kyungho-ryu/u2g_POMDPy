@@ -13,7 +13,7 @@ learning_rate = 0.0002
 gamma = 0.9
 max_train_steps = 60000
 ENTROPY_BETA = 1e-3
-
+log_std_clip = (-1,1)
 class DRLModel :
     def __init__(self, state_dim, state_space, action_dim, action_space, _DRLType):
         self.logger = logging.getLogger('POMDPy.DRLModel')
@@ -36,25 +36,23 @@ class DRLModel :
         self.optimizer = optim.Adam(self.net_A2C.parameters(), lr=learning_rate)
 
         self.step = 0
-
+        self.logStdStep = 0
 
     def get_action(self, state):
         # state = np.array(np.arange(0, 25, 0.5))
         state = torch.from_numpy(state).float()
-        mu_v = self.net_A2C.pi(state)
+        mu_v, std = self.net_A2C.pi(state)
         mu = mu_v.data.cpu().numpy()
         mu = self.scale_action(mu)
-        logstd = self.net_A2C.logstd.data.cpu().numpy()
+        logstd = std.detach().numpy()
+        logstd = np.clip(logstd, log_std_clip[0], log_std_clip[1])
 
         action = mu + np.exp(logstd) * np.random.normal(size=logstd.shape)
         action = np.clip(action, self.action_low[0], self.action_high[0])
         action = np.round(action).astype(int)
 
-        traj_actions_v = self.relex_scale(torch.FloatTensor(action))
-        old_logprob_v = self.calc_logprob(mu_v, self.net_A2C.logstd, traj_actions_v)
 
-
-        return U2GAction(list(action)), old_logprob_v
+        return U2GAction(list(action)), logstd
 
 
     def scale_action(self, x) :
@@ -76,8 +74,10 @@ class DRLModel :
     def update(self, sample):
         adv_v_list = []
         loss_v_list = []
+        std_list = []
         # print("sample.NumSample", sample.NumSample)
         for i in range(sample.NumSample):
+            self.optimizer.zero_grad()
             traj_states_v = torch.FloatTensor(sample.s_list[i])
             traj_action_v = torch.FloatTensor(sample.a_list[i])
 
@@ -90,26 +90,27 @@ class DRLModel :
             adv_v_list.append(float(advantage.mean()))
             # print("advantage", advantage)
 
-            mu_v = self.net_A2C.pi(traj_states_v)
+            mu_v, std = self.net_A2C.pi(traj_states_v)
             a_vec = self.relex_scale(traj_action_v)
+            logprob_pi_v = self.calc_logprob(mu_v, std, a_vec)
+            logprob_pi_v = np.clip(logprob_pi_v, log_std_clip[0], log_std_clip[1])
 
-            log_prob_v = advantage.detach() * self.calc_logprob(mu_v, self.net_A2C.logstd, a_vec)
+            log_prob_v = advantage.detach() * logprob_pi_v
             # print("log_prob_v", log_prob_v)
             loss_policy_v = -1 * log_prob_v.mean()
             # print("loss_policy_v", loss_policy_v)
 
             loss = loss_policy_v + F.smooth_l1_loss(value, td_target)
             loss_v_list.append(float(loss.mean()))
-
-            # print("loss", loss)
-
-            self.optimizer.zero_grad()
             loss.backward()
+
             self.optimizer.step()
+
+            std_list.append(float(std.mean()))
 
             self.step +=1
 
-        return np.mean(adv_v_list), np.mean(loss_v_list), self.step, float(self.net_A2C.logstd.mean())
+        return np.mean(adv_v_list), np.mean(loss_v_list), self.step, std_list, self.logStdStep
 
     def calc_logprob(self, mu_v, logstd_v, actions_v):
         p1 = - ((mu_v - actions_v) ** 2) / (2 * torch.exp(logstd_v).clamp(min=1e-3))

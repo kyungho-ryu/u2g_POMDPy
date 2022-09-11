@@ -9,13 +9,15 @@ from .utils import set_coordinate, get_cellCoordinate, get_state_transition_prob
 import logging, random, copy
 
 class SLModel :
-    def __init__(self, NumOfMO, cellWidth, MAX_XGRID_N, min_particle_count, exceptedID=-1):
+    def __init__(self, NumOfMO, cellWidth, MAX_XGRID_N, MAX_YGRID_N, min_particle_count, limit_prediction_length, exceptedID=-1):
         self.logger = logging.getLogger('POMDPy.SLModel')
         self.logger.setLevel("INFO")
         self.traj = {}
 
         self.cellWidth = cellWidth
         self.MAX_XGRID_N = MAX_XGRID_N
+        self.MAX_YGRID_N = MAX_YGRID_N
+        self.limit_prediction_length = limit_prediction_length
         self.sampling_interval = int((cellWidth/MConfig.velocity)//MConfig.interval)
         self.logger.debug("sampling interval : {}".format(self.sampling_interval))
 
@@ -134,24 +136,45 @@ class SLModel :
 
     def get_trajectory_for_simulation(self, id):
         choice = self.select_simulation_trajectory(id, self.simulation_prediction_length)
-        try :
-            xC, yC = self.simulation_state[id][choice][self.simulation_prediction_length]
-        except :
-            print("error", id, choice, self.simulation_prediction_length)
-            print("state", self.simulation_state)
-            print("terminal",  self.simulation_terminal)
-            exit()
-        index = getGridIndex(xC, yC, self.MAX_XGRID_N)
+        if self.limit_prediction_length :
+            try :
+                xC, yC = self.simulation_state[id][choice][self.simulation_prediction_length]
+            except :
+                print("error", id, choice, self.simulation_prediction_length)
+                print("state", self.simulation_state)
+                print("terminal",  self.simulation_terminal)
+                exit()
+            index = getGridIndex(xC, yC, self.MAX_XGRID_N)
 
-        # create a random position corresponding its cell
-        next_loc = create_random_position_in_cell(xC, yC, self.cellWidth)
+            # create a random position corresponding its cell
+            next_loc = create_random_position_in_cell(xC, yC, self.cellWidth)
 
-        terminal = self.check_simulation_trajectory(id, self.simulation_prediction_length +1)
+            terminal = self.check_simulation_trajectory(id, self.simulation_prediction_length +1)
 
-        if not self.simulation_terminal :
-            self.simulation_terminal = terminal
+            if not self.simulation_terminal :
+                self.simulation_terminal = terminal
 
-        return index, next_loc, self.MOS[id].k+1
+            return index, next_loc, self.MOS[id].k+1
+        else :
+            if choice == None:
+                xC = random.randint(0, self.MAX_XGRID_N - 1)
+                yC = random.randint(0, self.MAX_YGRID_N - 1)
+            else :
+                try:
+                    xC, yC = self.simulation_state[id][choice][self.simulation_prediction_length]
+                except:
+                    print("error", id, choice, self.simulation_prediction_length)
+                    print("state", self.simulation_state)
+                    print("terminal", self.simulation_terminal)
+                    exit()
+            index = getGridIndex(xC, yC, self.MAX_XGRID_N)
+
+            # create a random position corresponding its cell
+            next_loc = create_random_position_in_cell(xC, yC, self.cellWidth)
+
+            self.simulation_terminal = False
+
+            return index, next_loc, self.MOS[id].k + 1
 
     def update_gmuStatus(self, id, uavStatus):
         update_time = self.traj[id].updated_time + (self.sampling_interval * self.MOS[id].k+1)
