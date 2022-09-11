@@ -40,7 +40,7 @@ class U2GModel(Model) : # Model
         self.uavs = []
         self.uavStatus = {}
         # self.gmuStatus = {}
-        self.uavPosition = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]    # except gcc
+        self.uavPosition = [0 for _ in range(Config.NUM_UAV)]    # except gcc
 
         # Uav object to keep the same position every epoch
         self.init_uavs = []
@@ -54,7 +54,7 @@ class U2GModel(Model) : # Model
         self.all_gmu_data = []
 
         # Mobility model
-        self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N)
+        self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N, args["min_particle_count"])
         self.init_prior_state = self.set_an_init_prior_state()
         self.init_observation = None
         self.initialize()
@@ -860,7 +860,7 @@ class U2GModel(Model) : # Model
         return [0, Config.MAX_GRID_INDEX]
 
     def get_state_dimension(self):
-        return 2 * (Config.MAX_GRID_INDEX + 1)
+        return (Config.NUM_UAV)+ (Config.MAX_GRID_INDEX + 1)
 
     def get_all_actions(self):
         """

@@ -9,7 +9,7 @@ from .utils import set_coordinate, get_cellCoordinate, get_state_transition_prob
 import logging, random, copy
 
 class SLModel :
-    def __init__(self, NumOfMO, cellWidth, MAX_XGRID_N, exceptedID=-1):
+    def __init__(self, NumOfMO, cellWidth, MAX_XGRID_N, min_particle_count, exceptedID=-1):
         self.logger = logging.getLogger('POMDPy.SLModel')
         self.logger.setLevel("INFO")
         self.traj = {}
@@ -29,7 +29,8 @@ class SLModel :
         # self.simulation_init_state = [None for _ in range(self.NumGMU)]
         self.simulation_state = {i : [] for i in range(self.NumGMU)}
         self.simulation_prediction_length = 0
-        self.NumSimulation = 10
+
+        self.NumSimulation = min_particle_count
         self.simulation_terminal = False
         self.initialize(NumOfMO, exceptedID)
 
