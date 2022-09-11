@@ -14,6 +14,8 @@ class ActionNode(object):
             self.parent_entry = None
         self.observation_map = None
         self.total_visit_count = 0
+        self.state_for_learning = None
+        self.old_logprob_v = None
 
     def get_parent_belief(self):
         return self.parent_entry.get_mapping().get_owner()

@@ -766,7 +766,7 @@ class U2GModel(Model) : # Model
         result.observation = self.make_observation(result.next_state)
         result.reward = self.make_reward(state, action, result.next_state)
         totalEnergyConsumtion, totalDnRate= self.make_reward_for_realState(state, result.next_state, gmuStatus)
-        result.reward = totalEnergyConsumtion + totalDnRate
+        # result.reward = totalEnergyConsumtion + totalDnRate
         result.is_terminal = self.is_terminal()
 
         return result, True, totalEnergyConsumtion, totalDnRate

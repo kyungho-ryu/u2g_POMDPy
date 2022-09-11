@@ -543,11 +543,11 @@ class SLModel :
         return gmu_position
 
 
-    def check_gmu_trajectory_overed(self, id):
-        if self.MOS[id].get_current_time() + 1 > MConfig.MaxTrajectory:
-            return True
-
-        return False
+    # def check_gmu_trajectory_overed(self, id):
+    #     if self.MOS[id].get_current_time() + 1 > MConfig.MaxTrajectory:
+    #         return True
+    #
+    #     return False
 
     def check_tree_depth(self, k):
         if k + 1 > self.get_max_path():

@@ -6,9 +6,9 @@ class MConfig :
     initialTrip = 2
     Batch = 30
     # BatchInitialTrip = 280
-    BatchInitialTrip = 150
+    BatchInitialTrip = 300
 
-    MaxTrajectory =  299
+    # MaxTrajectory =  299
     # backward trajectory size
     BH = 2
 
@@ -24,7 +24,7 @@ class MConfig :
 
     # threshold
     theta = 0.
-    MaxPath = 10
+    MaxPath = 20
 
     #density coefficient
     C_density = 1/10

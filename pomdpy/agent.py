@@ -5,6 +5,7 @@ import os
 from pomdpy.pomdp import Statistic
 from pomdpy.pomdp.history import Histories, HistoryEntry
 from pomdpy.util import console, print_divider, summary, memory
+from DRL.structure import DRLType
 from experiments.scripts.pickle_wrapper import save_pkl
 
 module = "agent"
@@ -132,19 +133,19 @@ class Agent:
 
     def multi_epoch(self):
         # Create a new solver, purune belief tree
-        solver = self.solver_factory(self)
+        # solver = self.solver_factory(self)
         eps = self.model.epsilon_start
         simulation_steps = 0
         steps = 0
-        init_belief_mapping_index = solver.belief_tree_index
-        previous_action = []
+        # init_belief_mapping_index = solver.belief_tree_index
+        solver = None
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()
-            eps, steps, simulation_steps,previous_action = self.run_pomcp(solver, i + 1, eps, simulation_steps, steps, previous_action)
+            eps, steps, simulation_steps, solver = self.run_pomcp(solver, i + 1, eps, simulation_steps, steps)
 
-            solver.model.reset_for_epoch()
-            solver.belief_tree_index = init_belief_mapping_index
+            # solver.model.reset_for_epoch()
+            # solver.belief_tree_index = init_belief_mapping_index
 
             # start = time.time()
             # memory.check_momory(self.logger)
@@ -152,9 +153,15 @@ class Agent:
             # memory.check_momory(self.logger)
             # self.logger.info("Summary delay : {}".format(time.time() - start))
 
-    def run_pomcp(self, solver, epoch, eps, simulation_steps, steps, previous_action):
+    def run_pomcp(self, solver, epoch, eps, simulation_steps, steps):
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
+        new_solver = self.solver_factory(self)
+        if solver != None :
+            new_solver.A2CSample = solver.A2CSample
+            new_solver.A2CModel = solver.A2CModel
+
+        solver = new_solver
 
         # Monte-Carlo start state
         # choice random state from particles (2000)
@@ -165,28 +172,7 @@ class Agent:
 
         # print("Agent/state.position", state.position)
         # print("Agent/state.rock_states", state.rock_states)
-        NUM_create_child_belief_node = 0
-        NUM_grab_nearest_child_belief_node = 0
-        dissimilarity = []
-        reward = []
-        discounted_reward = []
-        discount=1
-        initial_reward = 0
-        second_reward = 0
-        thrid_reward = 0
-        totalA2GEnergy = []
-        totalA2AEnergy = []
-        totalPropEnergy = []
-        totalEnergyConsumtion = []
-        avgDnRage = []
-        scaledEnergyConsumtion = []
-        scaledDnRate = []
-        NumActiveUav = []
-        NumObservedGMU = []
-        count = 0
-        prediction_error = []
-        ucb_value = []
-        q_value = []
+
         print_divider('large')
         print('\tEpoch #' + str(epoch))
 
@@ -201,8 +187,8 @@ class Agent:
             print_divider('large')
             print('\tStep #' + str(i) + ' simulation is working\n')
             action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time)
-            ucb_value.append(best_ucb_value)
-            q_value.append(best_q_value)
+            self.results.ucb_value.append(best_ucb_value)
+            self.results.q_value.append(best_q_value)
             new_action.append(action.UAV_deployment)
             print('\n')
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action.UAV_deployment))
@@ -213,34 +199,62 @@ class Agent:
 
             self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
             # state = not real state
-            prediction_error.append(solver.model.get_dissimilarity_of_gmu_prediction(state.gmus))
+            self.results.prediction_error.append(solver.model.get_dissimilarity_of_gmu_prediction(state.gmus))
             step_result, is_legal, R1, R2 = solver.model.generate_real_step(state, action)
 
-            if initial_reward == 0 :
-                initial_reward = step_result.reward
+            if self.model.DRLType == DRLType.OS_PPOModel or self.model.DRLType == DRLType.OS_A2CModel :
+                action_node = solver.belief_tree_index.action_map.get_action_node(action)
+                solver.A2CSample.add_batch_sample(action_node.state_for_learning, action.UAV_deployment,
+                                                  action_node.old_logprob_v, step_result.reward, step_result.is_terminal)
 
-            if count == 1:
-                second_reward = step_result.reward
+                if step_result.is_terminal :
+                    solver.A2CSample.add_sample()
 
-            if count == 2:
-                thrid_reward = step_result.reward
+                    for _ in range(self.model.learning_iteration_for_PPO) :
+                        advantage, loss, step, logstd = solver.A2CModel.update(solver.A2CSample)
+                        summary.summary_NNResult(solver.model.writer, advantage, loss, step, logstd,
+                                                 solver.A2CSample.get_batch_len(), solver.A2CSample.NumSample)
+
+                    solver.A2CSample.reset_batch()
+                    solver.reset_A2CSample()
+                else :
+                    if self.model.inner_batch_for_NN <= solver.A2CSample.get_batch_len() :
+                        solver.A2CSample.add_sample()
+                        solver.A2CSample.reset_batch()
+
+                    if self.model.batch_for_NN <= solver.A2CSample.NumSample :
+                        for _ in range(self.model.learning_iteration_for_PPO) :
+                            advantage, loss, step, logstd = solver.A2CModel.update(solver.A2CSample)
+                            summary.summary_NNResult(solver.model.writer, advantage, loss, step, logstd,
+                                                     self.model.inner_batch_for_NN, solver.A2CSample.NumSample)
+
+                        solver.reset_A2CSample()
+
+            if self.results.initial_reward == 0 :
+                self.results.initial_reward = R1 + R2
+
+            if self.results.count == 1:
+                self.results.second_reward = R1 + R2
+
+            if self.results.count == 2:
+                self.results.thrid_reward = R1 + R2
 
             _totalA2GEnergy, _totalA2AEnergy, _totalPropEnergy, _totalEnergyConsumtion, _avgDnRage, \
             _scaledEnergyConsumtion, _scaledDnRate, _NumActiveUav, _NumObservedGMU = self.model.get_simulationResult(state, action)
-            totalA2GEnergy.append(_totalA2GEnergy)
-            totalA2AEnergy.append(_totalA2AEnergy)
-            totalPropEnergy.append(_totalPropEnergy)
-            totalEnergyConsumtion.append(_totalEnergyConsumtion)
-            avgDnRage.append(_avgDnRage)
-            scaledEnergyConsumtion.append(_scaledEnergyConsumtion)
-            scaledDnRate.append(_scaledDnRate)
-            NumActiveUav.append(_NumActiveUav)
-            NumObservedGMU.append(_NumObservedGMU)
+            self.results.totalA2GEnergy.append(_totalA2GEnergy)
+            self.results.totalA2AEnergy.append(_totalA2AEnergy)
+            self.results.totalPropEnergy.append(_totalPropEnergy)
+            self.results.totalEnergyConsumtion.append(_totalEnergyConsumtion)
+            self.results.avgDnRage.append(_avgDnRage)
+            self.results.scaledEnergyConsumtion.append(_scaledEnergyConsumtion)
+            self.results.scaledDnRate.append(_scaledDnRate)
+            self.results.NumActiveUav.append(_NumActiveUav)
+            self.results.NumObservedGMU.append(_NumObservedGMU)
 
-            reward.append(step_result.reward)
-            discounted_reward.append(discount * step_result.reward)
+            self.results.reward.append(R1 + R2)
+            self.results.discounted_reward.append(self.results.discount * R1 + R2)
             # discounted_reward = discount * step_result.reward
-            discount *= self.model.discount
+            self.results.discount *= self.model.discount
 
             # show the step result
             self.display_step_result(i, step_result, [R1, R2])
@@ -249,55 +263,43 @@ class Agent:
             if not step_result.is_terminal:
                 result, new_dissimilarity = solver.update(state, step_result, True)
                 if result ==1 :
-                    NUM_create_child_belief_node +=1
+                    self.results.NUM_create_child_belief_node +=1
                 if result == 2 :
-                    NUM_grab_nearest_child_belief_node +=1
+                    self.results.NUM_grab_nearest_child_belief_node +=1
             else :
                 # new_dissimilarity = solver.get_dissimilarity(step_result)
                 new_dissimilarity = -1
 
             self.logger.info("tree update delay : {}".format(time.time() - start))
-            dissimilarity.append(new_dissimilarity)
+            self.results.dissimilarity.append(new_dissimilarity)
 
             new_hist_entry = solver.history.add_entry()
             HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
 
 
-            count +=1
+            self.results.count +=1
             state = solver.belief_tree_index.sample_particle()
+
+
+            if simulation_steps % 1 == 0 :
+                self.results.summary_result(self.model.writer, self.logger, R1 + R2,
+                                            epoch_start, simulation_steps)
+                self.results = None
+                self.results = Results()
+                # self.logger.info("Action equality : {}".format(actionEquality))
 
             simulation_steps +=1
 
             if step_result.is_terminal or not is_legal :
                 console(3, module, 'Terminated after episode step ' + str(i + 1))
+                self.results.summary_result(self.model.writer, self.logger, R1 + R2,
+                                            epoch_start, simulation_steps)
                 break
 
         steps += 1
-        usedMemory = memory.check_momory(self.logger)
-
-        actionEquality = []
-        NumactionEquality = 0
-        for i in range(min(len(previous_action), len(new_action))) :
-            if previous_action[i] == new_action[i] :
-                actionEquality.append(True)
-                NumactionEquality +=1
-            else :
-                actionEquality.append(False)
-
-        summary.summary_result(
-            self.model.writer, simulation_steps, initial_reward, second_reward, thrid_reward,
-            reward, discounted_reward, step_result.reward, ucb_value, q_value,
-            NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
-            dissimilarity,totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalEnergyConsumtion,
-            avgDnRage, scaledEnergyConsumtion, scaledDnRate, NumActiveUav, NumObservedGMU, prediction_error,
-            usedMemory, NumactionEquality, count, (time.time() - epoch_start)
-        )
 
 
-
-        self.logger.info("Action equality : {}".format(actionEquality))
-
-        return eps, steps, simulation_steps, new_action
+        return eps, steps, simulation_steps, solver
 
     def run_value_iteration(self, solver, epoch):
         run_start_time = time.time()
@@ -374,6 +376,45 @@ class Results(object):
         self.time = Statistic('Time')
         self.discounted_return = Statistic('discounted return')
         self.undiscounted_return = Statistic('undiscounted return')
+        self.NUM_create_child_belief_node = 0
+        self.NUM_grab_nearest_child_belief_node = 0
+        self.dissimilarity = []
+        self.reward = []
+        self.discounted_reward = []
+        self.discount=1
+        self.initial_reward = 0
+        self.second_reward = 0
+        self.thrid_reward = 0
+        self.totalA2GEnergy = []
+        self.totalA2AEnergy = []
+        self.totalPropEnergy = []
+        self.totalEnergyConsumtion = []
+        self.avgDnRage = []
+        self.scaledEnergyConsumtion = []
+        self.scaledDnRate = []
+        self.NumActiveUav = []
+        self.NumObservedGMU = []
+        self.count = 0
+        self.prediction_error = []
+        self.ucb_value = []
+        self.q_value = []
+
+    def summary_result(self, writer, logger, reward, epoch_start, simulation_steps):
+        usedMemory = memory.check_momory(logger)
+
+
+        summary.summary_result(
+            writer, simulation_steps, self.initial_reward,
+            self.second_reward, self.thrid_reward,
+            self.reward, self.discounted_reward, reward,
+            self.ucb_value, self.q_value,
+            self.NUM_grab_nearest_child_belief_node, self.NUM_create_child_belief_node,
+            self.dissimilarity, self.totalA2GEnergy, self.totalA2AEnergy,
+            self.totalPropEnergy, self.totalEnergyConsumtion, self.avgDnRage,
+            self.scaledEnergyConsumtion, self.scaledDnRate, self.NumActiveUav,
+            self.NumObservedGMU, self.prediction_error, usedMemory,
+            self.count, (time.time() - epoch_start)
+        )
 
     def update_reward_results(self, r, dr):
         self.undiscounted_return.add(r)

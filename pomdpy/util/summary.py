@@ -48,19 +48,22 @@ def summary_simulationResult(writer, beliefTree, epoch) :
 
     writer.add_scalar("depth", tree_depth, epoch)
 
-def summary_NNResult(writer, advantage, value, loss_entropy, loss, step) :
+def summary_NNResult(writer, advantage, loss, step, MaxDepth, NumSample, std_list, logStdStep) :
     group = "NN/"
+    for i in range(len(std_list)) :
+        writer.add_scalar(group + 'logstd', std_list[i], logStdStep+i)
+
     writer.add_scalar(group + 'advantage', advantage, step)
-    writer.add_scalar(group + 'value', value, step)
-    writer.add_scalar(group + 'loss_entropy', loss_entropy, step)
     writer.add_scalar(group + 'loss', loss, step)
+    writer.add_scalar(group + 'MaxDepth', MaxDepth, step)
+    writer.add_scalar(group + 'NumSample', NumSample, step)
 
 
 def summary_result(writer, epoch, init_reward, second_reward, thrid_reward,reward, discounted_reward, last_reward,
                     ucb_value, q_value, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
                    dissimilarity, totalA2GEnergy, totalA2AEnergy, totalPropEnergy,
                    totalEnergyConsumtion, avgDnRage, scaledEnergyConsumtion, scaledDnRate,
-                   NumActiveUav, NumObservedGMU, prediction_error, usedMemory, NumactionEquality, count, time) :
+                   NumActiveUav, NumObservedGMU, prediction_error, usedMemory, count, time) :
 
     group = "Reward/"
     writer.add_scalar(group+'R', np.mean(reward), epoch)
@@ -93,7 +96,7 @@ def summary_result(writer, epoch, init_reward, second_reward, thrid_reward,rewar
     writer.add_scalar(group + 'dissimilarity', np.mean(dissimilarity), epoch)
     writer.add_scalar(group + 'prediction_error', np.mean(prediction_error), epoch)
     writer.add_scalar(group + 'usedMemory', usedMemory, epoch)
-    writer.add_scalar(group + 'Action Equality', NumactionEquality, epoch)
+    # writer.add_scalar(group + 'Action Equality', NumactionEquality, epoch)
 
     writer.add_scalar("Time", time, epoch)
 

@@ -1,3 +1,6 @@
+- OL - random walk
+- distance 
+
 # need to remove old particles.
  -> Solution
     : particle should be implemented as dequeue(), which have small capacity

@@ -9,7 +9,9 @@ from pomdpy.action_selection import Max_Q_action, action_progWiden, structure, M
 from pomdpy.solvers.structure import SolverType
 from .belief_tree_solver import BeliefTreeSolver
 from DRL.drl_model import DRLModel
+from DRL.ppo_model import PPOModel
 from DRL.sample import Sample
+from DRL.structure import DRLType
 
 module = "pomcp_with_nn"
 
@@ -42,7 +44,7 @@ class POMCPWITHNN(BeliefTreeSolver):
         action_dimension = self.model.get_action_dimension()
 
         self.A2CModel = DRLModel(state_dimension, state_space, action_dimension, action_space, self.model.DRLType)
-        self.A2CSample = Sample()
+        self.A2CSample = None
 
         for N in range(POMCPWITHNN.UCB_N):
             for n in range(POMCPWITHNN.UCB_n):
@@ -80,16 +82,27 @@ class POMCPWITHNN(BeliefTreeSolver):
         else:
             return self.model.ucb_coefficient * np.sqrt(old_div(log_n, action_map_entry_visit_count))
 
+    def reset_A2CSample(self):
+        self.A2CSample = Sample()
+
     def select_eps_greedy_action(self,epoch,step, eps, start_time):
         """
         Starts off the Monte-Carlo Tree Search and returns the selected action. If the belief tree
                 data structure is disabled, random rollout is used.
         """
+        if self.model.DRLType == DRLType.IS_A2CModel.value:
+            self.reset_A2CSample()
+
         start = time.time()
         if self.disable_tree:   # False
             self.rollout_search(self.belief_tree_index)
         else:
             self.monte_carlo_approx(eps, start_time)
+
+        if self.model.DRLType == DRLType.IS_A2CModel.value :
+            advantage, loss, step, logstd = self.A2CModel.update(self.A2CSample)
+            summary.summary_NNResult(self.model.writer, advantage, loss, step, logstd, self.A2CSample.MaxDepth, self.A2CSample.NumSample)
+            self.A2CSample = None
 
         action, best_ucb_value, best_q_value = Max_Q_action(self, self.belief_tree_index, True)
         # action = Max_UCB_action(self.belief_tree_index)
@@ -121,7 +134,9 @@ class POMCPWITHNN(BeliefTreeSolver):
 
         if tree_depth == 0 :
             self.model.reset_for_simulation()
-
+            if self.model.DRLType == DRLType.IS_A2CModel.value:
+                self.A2CSample.add_sample()
+                self.A2CSample.reset_batch()
         self.logger.debug("depth : {} ================================================================".format(tree_depth))
         self.logger.debug("state : {}".format(state.to_string()))
 
@@ -131,36 +146,41 @@ class POMCPWITHNN(BeliefTreeSolver):
             return 0
 
         # use UCB table
-        temp_action = self.A2CModel.get_action(np.array(state.as_DRL_state()))
+        temp_action, old_logprob_v  = self.A2CModel.get_action(np.array(state.as_DRL_state()))
 
         action, C_A, N_A, actionStatus = action_progWiden(self, belief_node, temp_action, self.model.pw_a_k, self.model.pw_a_alpha)
         self.logger.debug("C,N: [{},{}] action: {}".format(C_A, N_A, action.to_string()))
         self.logger.debug(actionStatus)
+
+        status_for_learning = False
+        if temp_action == action:
+            status_for_learning = True
 
         # update visit count of child belief node
         N_O = belief_node.get_visit_count_observation(action)
         C_O = belief_node.get_number_observation(action)
 
         if C_O <= self.model.pw_o_k * (N_O**self.model.pw_o_alpha) :
-            reward, delayed_reward = self.create_new_step_for_dpw(
-                belief_node, tree_depth, state, action, start_time, delayed_reward
+            reward, delayed_reward, sampleStatus, is_terminal = self.create_new_step_for_dpw(
+                belief_node, tree_depth, state, action, start_time, delayed_reward, status_for_learning, old_logprob_v
             )
         else :
-            reward, delayed_reward = self.select_existing_step_for_dpw(
+            reward, delayed_reward, sampleStatus, is_terminal = self.select_existing_step_for_dpw(
                 belief_node, tree_depth, state, action, start_time, delayed_reward
             )
 
         action_mapping_entry = belief_node.action_map.get_entry(action.UAV_deployment)
 
+        if self.model.DRLType == DRLType.IS_A2CModel.value:
+            if not sampleStatus:
+                sampleStatus = self.A2CSample.check_depth(tree_depth)
+
+            if sampleStatus:
+                action_node = belief_node.action_map.get_action_node(action)
+
+                self.A2CSample.add_batch_sample(action_node.state_for_learning, action.UAV_deployment, action_node.old_logprob_v, reward, is_terminal)
+
         td_target = reward + self.model.discount * delayed_reward
-        NumSample = self.A2CSample.add_sample(state.as_DRL_state(), action.UAV_deployment, td_target)
-
-        if NumSample == self.model.batch_for_NN :
-            advantage, value, loss_entropy, loss, step = self.A2CModel.update(self.A2CSample)
-            self.A2CSample.reset_sample()
-
-            summary.summary_NNResult(self.model.writer, advantage, value, loss_entropy, loss, step)
-
         q_value = action_mapping_entry.mean_q_value
         q_value += td_target - q_value
 
@@ -171,9 +191,9 @@ class POMCPWITHNN(BeliefTreeSolver):
 
         self.logger.debug("update total count of observation : {}".format(belief_node.get_visit_count_observation(action)))
 
-        return td_target
+        return td_target, sampleStatus
 
-    def create_new_step_for_dpw(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
+    def create_new_step_for_dpw(self, belief_node, tree_depth, state, action, start_time, delayed_reward, status_for_learning, old_logprob_v):
         self.logger.debug("create new step")
         step_result, is_legal = self.model.generate_step(state, action)
         self.logger.debug("observation : {}/{}".format(len(step_result.observation.observed_gmu_status),
@@ -191,12 +211,18 @@ class POMCPWITHNN(BeliefTreeSolver):
 
         child_belief_node.add_particle(step_result.next_state, 1)
 
+        if status_for_learning :
+            action_node = belief_node.action_map.get_action_node(action)
+            action_node.state_for_learning = state.as_DRL_state()
+            action_node.old_logprob_v = old_logprob_v.tolist()
+
+        sampleStatus = False
         if not step_result.is_terminal or not is_legal:
             tree_depth += 1
             if added:
                 delayed_reward = self.A2CModel.get_value(np.array(step_result.next_state.as_DRL_state()))
             else:
-                delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time)
+                delayed_reward, sampleStatus = self.POCMP_DPW(child_belief_node, tree_depth, start_time)
             tree_depth -= 1
             console(4, module, "Reached terminal state.")
 
@@ -206,7 +232,7 @@ class POMCPWITHNN(BeliefTreeSolver):
             belief_node.get_visit_count_specific_observation(action, step_result.observation)
         ))
 
-        return step_result.reward, delayed_reward
+        return step_result.reward, delayed_reward, sampleStatus, step_result.is_terminal
 
     def select_existing_step_for_dpw(self, belief_node, tree_depth, state, action, start_time, delayed_reward):
         self.logger.debug("select existing step")
@@ -232,14 +258,15 @@ class POMCPWITHNN(BeliefTreeSolver):
         self.logger.debug("reward : {}".format(reward))
 
         self.model.update_gmu_for_simulation()
+        sampleStatus = False
         if not self.model.is_terminal():
             tree_depth += 1
-            delayed_reward = self.POCMP_DPW(selected_entry.child_node, tree_depth, start_time)
+            delayed_reward, sampleStatus = self.POCMP_DPW(selected_entry.child_node, tree_depth, start_time)
             tree_depth -= 1
         else:
             console(4, module, "Reached terminal state.")
 
-        return reward, delayed_reward
+        return reward, delayed_reward, sampleStatus, self.model.is_terminal()
 
     def POCMP_POW(self, belief_node, tree_depth, start_time):
         delayed_reward = 0

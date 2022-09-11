@@ -9,8 +9,8 @@ import torch, logging, math
 import torch.nn.functional as F
 
 # Hyperparameters
-learning_rate = 0.00001
-gamma = 0.98
+learning_rate = 0.0002
+gamma = 0.9
 max_train_steps = 60000
 ENTROPY_BETA = 1e-3
 
@@ -50,7 +50,11 @@ class DRLModel :
         action = np.clip(action, self.action_low[0], self.action_high[0])
         action = np.round(action).astype(int)
 
-        return U2GAction(list(action))
+        traj_actions_v = self.relex_scale(torch.FloatTensor(action))
+        old_logprob_v = self.calc_logprob(mu_v, self.net_A2C.logstd, traj_actions_v)
+
+
+        return U2GAction(list(action)), old_logprob_v
 
 
     def scale_action(self, x) :
@@ -70,40 +74,58 @@ class DRLModel :
         return value
 
     def update(self, sample):
+        adv_v_list = []
+        loss_v_list = []
+        # print("sample.NumSample", sample.NumSample)
+        for i in range(sample.NumSample):
+            traj_states_v = torch.FloatTensor(sample.s_list[i])
+            traj_action_v = torch.FloatTensor(sample.a_list[i])
 
-        td_target_vec = torch.from_numpy(np.array(sample.td_target)).float()
-        s_vec = torch.from_numpy(np.array(sample.s_list)).float()
-        value = self.net_A2C.V(s_vec).reshape(-1)
-        advantage = (td_target_vec - value).reshape(-1, 1)
+            td_target = self.compute_target(traj_states_v[-1], sample.r_list[i], sample.termial_list[i])
+            # print("td_target", td_target)
 
-        mu_v = self.net_A2C.pi(s_vec)
-        a_vec = torch.from_numpy(np.array(sample.a_list)).float()
-        a_vec = self.relex_scale(a_vec)
+            value = self.net_A2C.V(traj_states_v).reshape(-1)
+            # print("value", value)
+            advantage = (td_target - value).unsqueeze(dim=-1)
+            adv_v_list.append(float(advantage.mean()))
+            # print("advantage", advantage)
 
-        log_prob_v = advantage.detach() * self.calc_logprob(mu_v, self.net_A2C.logstd, a_vec)
-        loss_policy_v = -1 * log_prob_v.mean()
+            mu_v = self.net_A2C.pi(traj_states_v)
+            a_vec = self.relex_scale(traj_action_v)
 
-        loss = loss_policy_v + F.smooth_l1_loss(value, td_target_vec)
-        entropy_loss_v = ENTROPY_BETA * (-(torch.log(2 * math.pi * torch.exp(self.net_A2C.logstd)) + 1) / 2).mean()
-        loss_v = loss + entropy_loss_v
+            log_prob_v = advantage.detach() * self.calc_logprob(mu_v, self.net_A2C.logstd, a_vec)
+            # print("log_prob_v", log_prob_v)
+            loss_policy_v = -1 * log_prob_v.mean()
+            # print("loss_policy_v", loss_policy_v)
 
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+            loss = loss_policy_v + F.smooth_l1_loss(value, td_target)
+            loss_v_list.append(float(loss.mean()))
 
-        self.step +=1
+            # print("loss", loss)
 
-        # print("advantage", float(advantage.mean()))
-        # print("value", float(value.mean()))
-        # # print("loss_policy_v", int(loss_policy_v.mean()))
-        # print("loss", float(loss.mean()), type(loss_v))
-        # value = self.net_A2C.V(s_vec).reshape(-1)
-        # print("next_v", float(value.mean()))
-        # print("------------------------------")
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
 
-        return float(advantage.mean()), float(value.mean()), float(loss_v), float(loss), self.step
+            self.step +=1
+
+        return np.mean(adv_v_list), np.mean(loss_v_list), self.step, float(self.net_A2C.logstd.mean())
 
     def calc_logprob(self, mu_v, logstd_v, actions_v):
         p1 = - ((mu_v - actions_v) ** 2) / (2 * torch.exp(logstd_v).clamp(min=1e-3))
         p2 = - torch.log(torch.sqrt(2 * math.pi * torch.exp(logstd_v)))
         return p1 + p2
+
+    def compute_target(self, v_final, r_lst, mask_lst):
+        G = self.net_A2C.V(v_final).detach().tolist()[0]
+        td_target = list()
+        for r, mask in zip(r_lst[::-1], mask_lst[::-1]):
+            if mask :
+                mask = 1
+            else :
+                mask = 0
+
+            G = r + gamma * G * mask
+            td_target.append(G)
+
+        return torch.FloatTensor(td_target[::-1])
