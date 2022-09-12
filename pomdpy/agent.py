@@ -211,9 +211,11 @@ class Agent:
                     solver.A2CSample.add_sample()
 
                     for _ in range(self.model.learning_iteration_for_PPO) :
-                        advantage, loss, step, logstd = solver.A2CModel.update(solver.A2CSample)
-                        summary.summary_NNResult(solver.model.writer, advantage, loss, step, logstd,
-                                                 solver.A2CSample.get_batch_len(), solver.A2CSample.NumSample)
+                        advantage, loss, step, std_list, logStdStep = solver.A2CModel.update(solver.A2CSample)
+                        summary.summary_NNResult(solver.model.writer, advantage, loss, step,
+                                                 solver.A2CSample.get_batch_len(),
+                                                 solver.A2CSample.NumSample, std_list, logStdStep)
+                        self.A2CModel.logStdStep = step
 
                     solver.A2CSample.reset_batch()
                     solver.reset_A2CSample()
@@ -224,9 +226,11 @@ class Agent:
 
                     if self.model.batch_for_NN <= solver.A2CSample.NumSample :
                         for _ in range(self.model.learning_iteration_for_PPO) :
-                            advantage, loss, step, logstd = solver.A2CModel.update(solver.A2CSample)
-                            summary.summary_NNResult(solver.model.writer, advantage, loss, step, logstd,
-                                                     self.model.inner_batch_for_NN, solver.A2CSample.NumSample)
+                            advantage, loss, step, std_list, logStdStep = solver.A2CModel.update(solver.A2CSample)
+                            summary.summary_NNResult(solver.model.writer, advantage, loss, step,
+                                                     self.model.inner_batch_for_NN,
+                                                     solver.A2CSample.NumSample, std_list, logStdStep)
+                            solver.A2CModel.logStdStep = step
 
                         solver.reset_A2CSample()
 

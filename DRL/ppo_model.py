@@ -48,14 +48,19 @@ class PPOModel :
         mu = mu_v.data.cpu().numpy()
         mu = self.scale_action(mu)
         logstd = std.detach().numpy()
-        # logstd = np.clip(logstd, log_std_clip[0], log_std_clip[1])
+
+        logstd = np.clip(logstd, log_std_clip[0], log_std_clip[1])
 
         action = mu + np.exp(logstd) * np.random.normal(size=logstd.shape)
         # action = action + np.exp(0.4) * np.random.normal(size=logstd.shape)
         action = np.clip(action, self.action_low[0], self.action_high[0])
         action = np.round(action).astype(int)
 
-        return U2GAction(list(action)), logstd
+        a_vec = self.relex_scale(action)
+        logprob_pi_v = self.calc_logprob(mu_v, std, torch.from_numpy(a_vec).float())
+        logprob_pi_v = logprob_pi_v.detach().numpy()
+
+        return U2GAction(list(action)), logprob_pi_v
 
 
     def scale_action(self, x) :
@@ -93,7 +98,7 @@ class PPOModel :
             a_vec = torch.FloatTensor(sample.a_list[i][:-1])
             a_vec = self.relex_scale(a_vec)
             logprob_pi_v = self.calc_logprob(mu_v, std, a_vec)
-            # logprob_pi_v = np.clip(logprob_pi_v, log_std_clip[0], log_std_clip[1])
+            logprob_pi_v = torch.clip(logprob_pi_v, log_std_clip[0], log_std_clip[1])
             # print("logprob_pi_v", logprob_pi_v, logprob_pi_v.shape, logprob_pi_v.grad)
 
             ratio_v = torch.exp(logprob_pi_v - old_logprob_v)
