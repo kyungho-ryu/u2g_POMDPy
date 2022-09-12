@@ -54,7 +54,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_for_NN', default=10, type=int, help='a method for action selection')
     parser.add_argument('--inner_batch_for_NN', default=32, type=int, help='a method for action selection')
     parser.add_argument('--learning_iteration_for_PPO', default=10, type=int, help='a method for action selection')
-    parser.add_argument('--DRLType', default="OS_PPOModel", type=str, help='a method for action selection')
+    parser.add_argument('--DRLType', default="IS_PPOModel", type=str, help='a method for action selection')
 
     # Progressive Widening
     parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')

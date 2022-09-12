@@ -6,7 +6,7 @@ from .trajectory_grid import TG
 from .SL_object import MO, State, Trajectory
 from .mobility_config import MConfig
 from .utils import set_coordinate, get_cellCoordinate, get_state_transition_prob, create_random_position_in_cell, getGridIndex, get_id_of_gmu, add_noise_to_trajectory
-import logging, random, copy
+import logging, random, copy, os
 
 class SLModel :
     def __init__(self, NumOfMO, cellWidth, MAX_XGRID_N, MAX_YGRID_N, min_particle_count, limit_prediction_length, exceptedID=-1):
@@ -43,10 +43,11 @@ class SLModel :
 
 
     def initialize(self, NumOfMO, exceptedID):
+        _list = os.listdir('/home/kyungho/project/U2G_POMDPy/mobility/trajectory/')
         for i in range(NumOfMO) :
             if i == exceptedID :
                 continue
-            file = "/home/kyungho/project/U2G_POMDPy/mobility/trajectory/MO" + str(i) +"_traj.csv"
+            file = "/home/kyungho/project/U2G_POMDPy/mobility/trajectory/" + str(_list[i])
 
             self.traj[i] = Trajectory(pd.read_csv(file))
             mo = MO("MO"+str(i))
@@ -56,17 +57,18 @@ class SLModel :
             self.logger.debug("GMU {}' trajectory updated until {} steps".format(i, self.traj[i].updated_time))
             self.MOS.append(mo)
 
-        for i in range(len(self.MOS), len(self.MOS)+MConfig.Batch) :
+        _batch_list = os.listdir('/home/kyungho/project/U2G_POMDPy/mobility/batch_trajectory/')
+        for i in range(MConfig.Batch) :
             if i == exceptedID :
                 continue
-            file = "/home/kyungho/project/U2G_POMDPy/mobility/trajectory/MO" + str(i) +"_traj.csv"
+            file = "/home/kyungho/project/U2G_POMDPy/mobility/batch_trajectory/" + str(_batch_list[i])
 
-            self.traj[i] = Trajectory(pd.read_csv(file))
-            mo = MO("MO"+str(i))
+            self.traj[i+NumOfMO] = Trajectory(pd.read_csv(file))
+            mo = MO("MO"+str(i+NumOfMO))
             for j in range(0, MConfig.BatchInitialTrip*self.sampling_interval, self.sampling_interval) :
-                self.update_trajectory(mo, i, j)
+                self.update_trajectory(mo, i+NumOfMO, j)
 
-            self.logger.debug("GMU {}' trajectory updated until {} steps".format(i, self.traj[i].updated_time))
+            self.logger.debug("GMU {}' trajectory updated until {} steps".format(i+NumOfMO, self.traj[i+NumOfMO].updated_time))
             self.MOS.append(mo)
 
     def get_init_prior_gmu_locIndex(self, id):

@@ -2,9 +2,9 @@ import pandas as pd
 from utils import set_coordinate, get_cellCoordinate, getGridIndex
 import numpy as np
 
-traj = {i : [] for i in range(10)}
+traj = {i : [] for i in range(20)}
 
-for i in range(10) :
+for i in range(20) :
     file = "/home/kyungho/project/U2G_POMDPy/mobility/original_trajectory/MO" + str(i) +"_traj.csv"
     temp = pd.read_csv(file)
 
@@ -16,7 +16,7 @@ for i in range(10) :
         temp["pos"][len(temp["pos"])] = (temp["pos"][j])
         temp["angle"][len(temp["angle"])] = (temp["angle"][j])
 
-    for k in range(6) :
+    for k in range(4) :
         for j in range(1, int(len(temp["x"])), 1) :
             temp["x"][len(temp["x"])] = (temp["x"][j])
             temp["y"][len(temp["y"])] = (temp["y"][j])
@@ -30,9 +30,9 @@ for i in range(10) :
                 na_rep='NaN',
                 index = False)
 
-# traj = {i : [] for i in range(10, 40)}
+# traj = {i : [] for i in range(60, 90)}
 #
-# for i in range(10, 40) :
+# for i in range(60, 90) :
 #     file = "/home/kyungho/project/U2G_POMDPy/mobility/original_trajectory/MO" + str(i) +"_traj.csv"
 #     temp = pd.read_csv(file)
 #
@@ -46,7 +46,7 @@ for i in range(10) :
 #
 #
 #     traj = pd.DataFrame(temp)
-#     traj.to_csv('/home/kyungho/project/U2G_POMDPy/mobility/trajectory/MO' + str(i) +"_traj.csv",
+#     traj.to_csv('/home/kyungho/project/U2G_POMDPy/mobility/batch_trajectory/MO' + str(i) +"_traj.csv",
 #                 sep=',',
 #                 na_rep='NaN',
 #                 index = False)
