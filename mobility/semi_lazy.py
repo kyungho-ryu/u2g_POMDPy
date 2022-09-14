@@ -17,7 +17,8 @@ class SLModel :
         self.cellWidth = cellWidth
         self.MAX_XGRID_N = MAX_XGRID_N
         self.MAX_YGRID_N = MAX_YGRID_N
-        self.limit_prediction_length = limit_prediction_length
+        # self.limit_prediction_length = limit_prediction_length
+        self.limit_prediction_length = False
         self.sampling_interval = int((cellWidth/MConfig.velocity)//MConfig.interval)
         self.logger.debug("sampling interval : {}".format(self.sampling_interval))
 
@@ -120,15 +121,21 @@ class SLModel :
         self.logger.debug("[{}]' simulation trajectory is updated : {}".format(self.MOS[id].id, len(self.simulation_state[id])))
 
     def get_init_gmu_locIndex(self, id):
-        if self.MOS[id].observed == True :
-            choice = self.select_simulation_trajectory(id, 0)
+        choice = self.select_simulation_trajectory(id, 0)
+        if self.limit_prediction_length:
             xC, yC = self.simulation_state[id][choice][0]
+        else :
+            if choice == None:
+                xC = random.randint(0, self.MAX_XGRID_N - 1)
+                yC = random.randint(0, self.MAX_YGRID_N - 1)
+            else :
+                xC, yC = self.simulation_state[id][choice][0]
+
+        if self.MOS[id].observed == True:
             index = getGridIndex(xC, yC, self.MAX_XGRID_N)
 
             return index, self.MOS[id].get_location(), True, self.MOS[id].k
-        else :
-            choice = self.select_simulation_trajectory(id, 0)
-            xC, yC = self.simulation_state[id][choice][0]
+        else:
             index = getGridIndex(xC, yC, self.MAX_XGRID_N)
 
             # create a random position corresponding its cell

@@ -18,6 +18,7 @@ class Sample :
 
 
     def check_depth(self, tree_depth):
+        # if tree_depth >=5 : return False
         if self.MaxDepth < tree_depth :
             self.MaxDepth = tree_depth
             self.reset_sample()

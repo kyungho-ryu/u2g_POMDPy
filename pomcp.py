@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_tf', dest='use_tf', action='store_true', help='Set if using TensorFlow')
     parser.add_argument('--discount', default=0.99, type=float, help='Specify the discount factor (default=0.95)')
     parser.add_argument('--n_epochs', default=1000000, type=int, help='Num of epochs of the experiment to conduct')
-    parser.add_argument('--max_steps', default=10000000, type=int, help='Max num of steps per trial/episode/trajectory/epoch')
+    parser.add_argument('--max_steps', default=10000, type=int, help='Max num of steps per trial/episode/trajectory/epoch')
     parser.add_argument('--save', dest='save', action='store_true', help='Pickle the weights/alpha vectors')
     parser.add_argument('--test', default=10, type=int, help='Evaluate the agent every `test` epochs')
     parser.add_argument('--epsilon_start', default=1, type=float)
@@ -36,11 +36,11 @@ if __name__ == '__main__':
     parser.add_argument('--preferred_actions', dest='preferred_actions', action='store_true', help='For RockSample, '
                                                     'specify whether smart actions should be used')
     parser.add_argument('--ucb_coefficient', default=3.0, type=float, help='Coefficient for UCB algorithm used by MCTS')
-    parser.add_argument('--n_start_states', default=10, type=int, help='Num of state particles to generate for root '
+    parser.add_argument('--n_start_states', default=100, type=int, help='Num of state particles to generate for root '
                         'belief node in MCTS')
-    parser.add_argument('--min_particle_count', default=10, type=int, help='Lower bound on num of particles a belief '
+    parser.add_argument('--min_particle_count', default=100, type=int, help='Lower bound on num of particles a belief '
                         'node can have in MCTS')
-    parser.add_argument('--max_particle_count', default=100, type=int, help='Upper bound on num of particles a belief '
+    parser.add_argument('--max_particle_count', default=1000, type=int, help='Upper bound on num of particles a belief '
                         'node can have in MCTS')
     parser.add_argument('--max_depth', default=100, type=int, help='Max depth for a DFS of the belief search tree in '
                         'MCTS')
@@ -51,10 +51,10 @@ if __name__ == '__main__':
     # Using NN
     parser.add_argument('--solver_type', type=int, help='')
     parser.add_argument('--ActionType', default=0, type=int, help='a method for action selection')
-    parser.add_argument('--batch_for_NN', default=10, type=int, help='a method for action selection')
+    parser.add_argument('--batch_for_NN', default=30, type=int, help='a method for action selection')
     parser.add_argument('--inner_batch_for_NN', default=32, type=int, help='a method for action selection')
     parser.add_argument('--learning_iteration_for_PPO', default=10, type=int, help='a method for action selection')
-    parser.add_argument('--DRLType', default="IS_PPOModel", type=str, help='a method for action selection')
+    parser.add_argument('--DRLType', default="OS_PPOModel", type=str, help='a method for action selection')
 
     # Progressive Widening
     parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')
@@ -105,9 +105,14 @@ if __name__ == '__main__':
         elif args["DRLType"] == "IS_PPOModel" :
             solver = POMCPWITHPPO
             args["DRLType"] = DRLType.IS_PPOModel.value
+        elif args["DRLType"] == "OS_A2CModel" :
+            solver = POMCPWITHNN
+            args["DRLType"] = DRLType.OS_A2CModel.value
+            args["learning_iteration_for_PPO"] = 1
         elif args["DRLType"] == "OS_PPOModel" :
             solver = POMCPWITHPPO
             args["DRLType"] = DRLType.OS_PPOModel.value
+
 
     if args['env'] == 'U2GModel':
         env = U2GModel(args)

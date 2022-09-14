@@ -16,7 +16,7 @@ for i in range(20) :
         temp["pos"][len(temp["pos"])] = (temp["pos"][j])
         temp["angle"][len(temp["angle"])] = (temp["angle"][j])
 
-    for k in range(4) :
+    for k in range(6) :
         for j in range(1, int(len(temp["x"])), 1) :
             temp["x"][len(temp["x"])] = (temp["x"][j])
             temp["y"][len(temp["y"])] = (temp["y"][j])

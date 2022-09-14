@@ -7,16 +7,15 @@ from examples.u2g.u2g_action import U2GAction
 import torch.optim as optim
 import torch, logging, math
 import torch.nn.functional as F
-
+from torch.distributions import Normal
 # Hyperparameters
 learning_rate = 0.0002
-max_train_steps = 60000
 ENTROPY_BETA = 1e-3
 GAMMA = 0.9
 GAE_LAMBDA = 0.9
 PPO_EPS = 0.2
 CLIP_GRAD_NORM = -1
-log_std_clip = (-1,1)
+log_std_clip = (-1,0.5)
 class PPOModel :
     def __init__(self, state_dim, state_space, action_dim, action_space, _DRLType):
         self.logger = logging.getLogger('POMDPy.DRLModel')
@@ -48,11 +47,10 @@ class PPOModel :
         mu = mu_v.data.cpu().numpy()
         mu = self.scale_action(mu)
         logstd = std.detach().numpy()
-
-        logstd = np.clip(logstd, log_std_clip[0], log_std_clip[1])
-
+        # logstd = np.clip(logstd, log_std_clip[0], log_std_clip[1])
         action = mu + np.exp(logstd) * np.random.normal(size=logstd.shape)
         # action = action + np.exp(0.4) * np.random.normal(size=logstd.shape)
+
         action = np.clip(action, self.action_low[0], self.action_high[0])
         action = np.round(action).astype(int)
 
@@ -98,12 +96,11 @@ class PPOModel :
             a_vec = torch.FloatTensor(sample.a_list[i][:-1])
             a_vec = self.relex_scale(a_vec)
             logprob_pi_v = self.calc_logprob(mu_v, std, a_vec)
-            logprob_pi_v = torch.clip(logprob_pi_v, log_std_clip[0], log_std_clip[1])
+            # logprob_pi_v = torch.clip(logprob_pi_v, log_std_clip[0], log_std_clip[1])
             # print("logprob_pi_v", logprob_pi_v, logprob_pi_v.shape, logprob_pi_v.grad)
 
             ratio_v = torch.exp(logprob_pi_v - old_logprob_v)
             # print("ratio_v", ratio_v, ratio_v.shape, ratio_v.grad)
-
             surr_obj_v = adv_v * ratio_v
             clipped_surr_v = adv_v * torch.clamp(ratio_v, 1.0 - PPO_EPS, 1.0 + PPO_EPS)
             loss_policy_v = -torch.min(surr_obj_v, clipped_surr_v).mean()
@@ -114,14 +111,26 @@ class PPOModel :
 
             value = self.net_A2C.V(traj_states_v[:-1]).reshape(-1)
             loss = loss_policy_v + F.smooth_l1_loss(value, ref_v)
+            # print("adv_v", adv_v)
+            # print("value", value.requires_grad)
+            # print("ref_v", ref_v.requires_grad)
+            # print("logprob_pi_v", logprob_pi_v.grad_fn)
+            # print("logprob_pi_v", logprob_pi_v)
+            # print("old_logprob_v", old_logprob_v)
+            # print("loss",loss)
+            # print(self.net_A2C.logstd)
+            # print(self.net_A2C.logstd.grad)
             loss_v_list.append(np.mean(loss.tolist()))
-
             # print("value ", value, value.shape)
             # print("loss ", loss, loss.shape)
             loss.backward()
+            # print("test", self.net_A2C.logstd.grad)
+
             if CLIP_GRAD_NORM != -1:
                 torch.nn.utils.clip_grad_norm(self.net_A2C.parameters(), CLIP_GRAD_NORM)
             self.optimizer.step()
+            # print("test", self.net_A2C.logstd)
+            # exit()
 
             std_list.append(float(std.mean()))
 

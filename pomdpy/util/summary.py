@@ -52,9 +52,9 @@ def summary_NNResult(writer, advantage, loss, step, MaxDepth, NumSample, std_lis
     group = "NN/"
     for i in range(len(std_list)) :
         writer.add_scalar(group + 'logstd', std_list[i], logStdStep+i)
-
     writer.add_scalar(group + 'advantage', advantage, step)
     writer.add_scalar(group + 'loss', loss, step)
+
     writer.add_scalar(group + 'MaxDepth', MaxDepth, step)
     writer.add_scalar(group + 'NumSample', NumSample, step)
 

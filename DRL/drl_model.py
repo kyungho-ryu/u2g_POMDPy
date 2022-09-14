@@ -96,7 +96,7 @@ class DRLModel :
             mu_v, std = self.net_A2C.pi(traj_states_v)
             a_vec = self.relex_scale(traj_action_v)
             logprob_pi_v = self.calc_logprob(mu_v, std, a_vec)
-            logprob_pi_v = torch.clip(logprob_pi_v, log_std_clip[0], log_std_clip[1])
+            # logprob_pi_v = torch.clip(logprob_pi_v, log_std_clip[0], log_std_clip[1])
 
             log_prob_v = advantage.detach() * logprob_pi_v
             # print("log_prob_v", log_prob_v)

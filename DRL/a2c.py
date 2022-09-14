@@ -11,8 +11,8 @@ class ActorCritic(nn.Module):
         self.fc2 = nn.Linear(HID_SIZE, HID_SIZE)
         self.fc_mu = nn.Linear(HID_SIZE, act_size)
         self.fc_v = nn.Linear(HID_SIZE, 1)
-        self.fc_std = nn.Linear(HID_SIZE, act_size)
-        # self.logstd = nn.Parameter(torch.zeros(act_size))
+        # self.fc_std = nn.Linear(HID_SIZE, act_size)
+        self.logstd = nn.Parameter(torch.zeros(act_size))
         self.act_size = act_size
 
     def pi(self, x):
@@ -20,9 +20,10 @@ class ActorCritic(nn.Module):
         fc2 = torch.tanh(self.fc2(fc1))
         # fc_mu1 = torch.tanh(self.fc_mu1(fc2))
         mu = torch.tanh(self.fc_mu(fc2))
-        std = self.fc_std(fc2)
+        # std = self.fc_std(fc2)
 
-        return mu, std
+        # return mu, std
+        return mu, self.logstd
 
     def V(self, x):
         fc1 = torch.tanh(self.fc1(x))
