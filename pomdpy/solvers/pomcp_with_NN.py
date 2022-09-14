@@ -44,7 +44,7 @@ class POMCPWITHNN(BeliefTreeSolver):
         action_dimension = self.model.get_action_dimension()
 
         self.A2CModel = DRLModel(state_dimension, state_space, action_dimension, action_space, self.model.DRLType)
-        self.A2CSample = None
+        self.A2CSample = Sample()
 
         for N in range(POMCPWITHNN.UCB_N):
             for n in range(POMCPWITHNN.UCB_n):
