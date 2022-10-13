@@ -367,7 +367,7 @@ class U2GModel(Model) : # Model
             self.logger.debug("Already exisit reward for an action, Reward: {}/{}".format(totalEnergyConsumtion, totalDnRate))
         else :
             # 1. check gmu deploy and reallocate uavs during UAV_RELOC_PERIOD
-            totalPropEnergy = self.calcurate_reallocate_uav_energy(state.uav_position, next_state.uav_position)
+            totalPropEnergy = self.calcurate_reallocate_uav_energy(state.uav_position, next_state.uav_position, next_state.uavs)
 
             gmuStatus = getLocStat(state.gmus, Config.MAX_GRID_INDEX)
             uavStatus = getLocStat(next_state.uavs, Config.MAX_GRID_INDEX)
@@ -438,7 +438,7 @@ class U2GModel(Model) : # Model
         self.logger.debug("Previous UAV deployment : {}".format(state.uav_position))
         self.logger.debug("next UAV deployment : {}".format(next_state.uav_position))
 
-        totalPropEnergy = self.calcurate_reallocate_uav_energy(state.uav_position, next_state.uav_position)
+        totalPropEnergy = self.calcurate_reallocate_uav_energy(state.uav_position, next_state.uav_position, next_state.uavs)
 
         uavStatus = getLocStat(next_state.uavs, Config.MAX_GRID_INDEX)
 
@@ -507,10 +507,11 @@ class U2GModel(Model) : # Model
 
         for i in range(MAX_GRID_INDEX+1) :
             _vel = self.calUAVFlightSpeed(i, opposit_index)
+            hoveringEnergy = (self.p0 + self.p1)
             if _vel == 0 :
-                totalPropEnergy += (self.p0 + self.p1) * Config.UAV_RELOC_PERIOD
+                totalPropEnergy += hoveringEnergy * Config.UAV_RELOC_PERIOD
             else:
-                totalPropEnergy += energy.calUavFowardEnergy(self.p0, self.p1, _vel) * Config.UAV_RELOC_PERIOD
+                totalPropEnergy += (hoveringEnergy + energy.calUavFowardEnergy(self.p0, self.p1, _vel)) * Config.UAV_RELOC_PERIOD
             opposit_index -=1
 
             if i == (NUM_UAV -1) : break
@@ -528,15 +529,20 @@ class U2GModel(Model) : # Model
         return totalPowerConsumption
 
 
-    def calcurate_reallocate_uav_energy(self, previous_uav_status, uav_status):
+    def calcurate_reallocate_uav_energy(self, previous_uav_status, uav_status, uavs):
         totalPropEnergy = 0
+
         for i in range(len(uav_status)) :
-            # if 'off' != uavs[i].power :
-            _vel = self.calUAVFlightSpeed(previous_uav_status[i], uav_status[i])
-            if _vel == 0 :
-                totalPropEnergy += (self.p0+self.p1) * Config.UAV_RELOC_PERIOD
-            else :
-                totalPropEnergy += energy.calUavFowardEnergy(self.p0, self.p1, _vel) * Config.UAV_RELOC_PERIOD
+            if uavs[i].power == "on":
+                # print("test", previous_uav_status[i], uav_status[i])
+                # if 'off' != uavs[i].power :
+                _vel = self.calUAVFlightSpeed(previous_uav_status[i], uav_status[i])
+                # print("test", previous_uav_status[i], uav_status[i])
+                hoveringEnergy = (self.p0+self.p1)
+                if _vel == 0 :
+                    totalPropEnergy += hoveringEnergy * Config.UAV_RELOC_PERIOD
+                else :
+                    totalPropEnergy += (hoveringEnergy + energy.calUavFowardEnergy(self.p0, self.p1, _vel)) * Config.UAV_RELOC_PERIOD
 
         self.logger.debug("Total prop energy : {}".format(totalPropEnergy))
 
