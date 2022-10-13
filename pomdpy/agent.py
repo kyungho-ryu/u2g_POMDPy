@@ -212,8 +212,10 @@ class Agent:
 
             if self.model.DRLType == DRLType.OS_PPOModel or self.model.DRLType == DRLType.OS_A2CModel :
                 action_node = solver.belief_tree_index.action_map.get_action_node(action)
-                solver.A2CSample.add_batch_sample(action_node.state_for_learning, action.UAV_deployment,
-                                                  action_node.old_logprob_v, step_result.reward, step_result.is_terminal)
+                solver.A2CSample.add_batch_sample(solver.belief_tree_index.id,
+                                                  action_node.state_for_learning, action.UAV_deployment,
+                                                  action_node.old_logprob_v, step_result.reward,
+                                                  step_result.is_terminal)
 
                 if step_result.is_terminal :
                     solver.A2CSample.add_sample()
@@ -226,6 +228,7 @@ class Agent:
                         self.A2CModel.logStdStep = step
 
                     solver.A2CSample.reset_batch()
+                    solver.A2CSample.set_init_depth()
                     solver.reset_A2CSample()
                 else :
                     if self.model.inner_batch_for_NN <= solver.A2CSample.get_batch_len() :
@@ -240,6 +243,7 @@ class Agent:
                                                      solver.A2CSample.NumSample, std_list, logStdStep)
                             solver.A2CModel.logStdStep = step
 
+                        solver.A2CSample.set_init_depth()
                         solver.reset_A2CSample()
 
             if self.results.initial_reward == 0 :

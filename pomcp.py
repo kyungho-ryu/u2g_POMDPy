@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # Using NN
     parser.add_argument('--solver_type', type=int, help='')
     parser.add_argument('--ActionType', default=0, type=int, help='a method for action selection')
-    parser.add_argument('--batch_for_NN', default=30, type=int, help='a method for action selection')
+    parser.add_argument('--batch_for_NN', default=1, type=int, help='a method for action selection')
     parser.add_argument('--inner_batch_for_NN', default=32, type=int, help='a method for action selection')
     parser.add_argument('--learning_iteration_for_PPO', default=10, type=int, help='a method for action selection')
     parser.add_argument('--DRLType', default="IS_PPOModel", type=str, help='a method for action selection')
