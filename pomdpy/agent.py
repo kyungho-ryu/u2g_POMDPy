@@ -146,6 +146,10 @@ class Agent:
         steps = 0
         # init_belief_mapping_index = solver.belief_tree_index
         solver = None
+
+        # This is for simulation
+        self.model.reset_for_epoch()
+
         for i in range(self.model.n_epochs):
             # Reset the epoch stats
             self.results = Results()

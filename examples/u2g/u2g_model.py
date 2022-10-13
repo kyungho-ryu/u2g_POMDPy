@@ -64,6 +64,8 @@ class U2GModel(Model) : # Model
         self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N,
                                         Config.MAX_YGRID_N, args["min_particle_count"],
                                         limit_prediction_length, args["trajectory_prediction_type"])
+        self.mobility_SLModel.reset(self.env_map)
+
         self.init_prior_state = self.set_an_init_prior_state()
         self.init_observation = None
         self.initialize()
