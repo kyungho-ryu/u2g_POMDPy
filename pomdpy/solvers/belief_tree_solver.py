@@ -123,7 +123,7 @@ class BeliefTreeSolver(Solver):
             action_mapping_entry.update_visit_count(1)
             action_mapping_entry.update_q_value(q_value)
 
-    def rollout(self, belief_node, action_method, prior_state_key):
+    def rollout(self, belief_node, action_method):
         """
         Iterative random rollout search to finish expanding the episode starting at belief_node
         :param belief_node:

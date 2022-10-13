@@ -4,16 +4,16 @@ import numpy as np
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 from itertools import cycle
-plt.rcParams.update({'font.size': 25})
+plt.rcParams.update({'font.size': 22})
 plt.rc('axes', labelsize=28)
 plt.figure(figsize=(10, 8))
 # 화면 스타일 설정하기
 sns.set_style("whitegrid")
 #delay
 # train_data = pd.read_csv("./last/delay_flow_amount.csv", names=["amount", "delay", "protocol"])
-train_data = pd.read_csv("result(H=100).csv", names=["path", "error", 'theta'])
+train_data = pd.read_csv("result(all).csv", names=["path", "error", 'theta'])
 
-ax = sns.barplot(x="path", y="error", data=train_data, palette="Blues_d")
+ax = sns.barplot(x="path", y="error", data=train_data, palette="plasma")
 hatches = cycle(['','//',"\\\\"])
 print(train_data.path.unique())
 num_locations = len(train_data.path.unique())
@@ -31,5 +31,5 @@ leg_handles = ax.get_legend_handles_labels()[0]
 
 plt.xlabel("Length of prediction")
 plt.ylabel("Distance error (cell)")
-plt.savefig('mobility_prediction_error(H=100).pdf')
+plt.savefig('mobility_prediction_error(t=100).pdf')
 plt.show()

@@ -27,7 +27,7 @@ class DiscreteObservationMap(ObservationMapping):
         entry = DiscreteObservationMapEntry()
         entry.map = self
         entry.observation = disc_observation
-        entry.child_node = BeliefNode(self.agent, None, entry)
+        entry.child_node = BeliefNode(self.agent, self.agent.get_new_id_of_beliefNode(), entry)
         key = self.get_key(disc_observation.observed_gmu_status)
         self.child_map.__setitem__(key, entry)
         return entry.child_node

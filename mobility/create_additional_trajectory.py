@@ -2,9 +2,9 @@ import pandas as pd
 from utils import set_coordinate, get_cellCoordinate, getGridIndex
 import numpy as np
 
-traj = {i : [] for i in range(20)}
+traj = {i : [] for i in range(20,40)}
 
-for i in range(20) :
+for i in range(20,40) :
     file = "/home/kyungho/project/U2G_POMDPy/mobility/original_trajectory/MO" + str(i) +"_traj.csv"
     temp = pd.read_csv(file)
 
@@ -30,23 +30,3 @@ for i in range(20) :
                 na_rep='NaN',
                 index = False)
 
-# traj = {i : [] for i in range(60, 90)}
-#
-# for i in range(60, 90) :
-#     file = "/home/kyungho/project/U2G_POMDPy/mobility/original_trajectory/MO" + str(i) +"_traj.csv"
-#     temp = pd.read_csv(file)
-#
-#     temp = temp.to_dict()
-#     for j in range(int(len(temp["x"])-2), -1, -1) :
-#         temp["x"][len(temp["x"])] = (temp["x"][j])
-#         temp["y"][len(temp["y"])] = (temp["y"][j])
-#         temp["speed"][len(temp["speed"])] = (temp["speed"][j])
-#         temp["pos"][len(temp["pos"])] = (temp["pos"][j])
-#         temp["angle"][len(temp["angle"])] = (temp["angle"][j])
-#
-#
-#     traj = pd.DataFrame(temp)
-#     traj.to_csv('/home/kyungho/project/U2G_POMDPy/mobility/batch_trajectory/MO' + str(i) +"_traj.csv",
-#                 sep=',',
-#                 na_rep='NaN',
-#                 index = False)

@@ -25,6 +25,7 @@ class BeliefNode(object):
         self.action_map = None
         self.particle_pool = ParticlePool(self.solver.model.max_particle_count, self.solver.model.solver_type)   # The set of states that comprise the belief distribution of this belief node
         self.penalty_count = 0
+
         if parent_entry is not None:
             self.parent_entry = parent_entry
             # Correctly calculate the depth based on the parent node.

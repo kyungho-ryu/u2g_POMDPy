@@ -44,7 +44,7 @@ class POMCPWITHPPO(BeliefTreeSolver):
         action_dimension = self.model.get_action_dimension()
 
         self.A2CModel = PPOModel(state_dimension, state_space, action_dimension, action_space, self.model.DRLType)
-        self.A2CSample = Sample()
+        self.A2CSample = Sample(self.model.MaxNumIterationForBeliefNode)
 
         for N in range(POMCPWITHPPO.UCB_N):
             for n in range(POMCPWITHPPO.UCB_n):
@@ -83,15 +83,15 @@ class POMCPWITHPPO(BeliefTreeSolver):
             return self.model.ucb_coefficient * np.sqrt(old_div(log_n, action_map_entry_visit_count))
 
     def reset_A2CSample(self):
-        self.A2CSample = Sample()
+        initMaxDepth = self.A2CSample.initMaxDepth
+        self.A2CSample = None
+        self.A2CSample = Sample(self.model.MaxNumIterationForBeliefNode, initMaxDepth)
 
     def select_eps_greedy_action(self,epoch,step, eps, start_time):
         """
         Starts off the Monte-Carlo Tree Search and returns the selected action. If the belief tree
                 data structure is disabled, random rollout is used.
         """
-        if self.model.DRLType == DRLType.IS_PPOModel.value:
-            self.reset_A2CSample()
 
         start = time.time()
         if self.disable_tree:   # False
@@ -99,11 +99,15 @@ class POMCPWITHPPO(BeliefTreeSolver):
         else:
             self.monte_carlo_approx(eps, start_time)
 
-        if self.model.DRLType == DRLType.IS_PPOModel.value :
-            advantage, loss, step, std_list, logStdStep = self.A2CModel.update(self.A2CSample)
-            summary.summary_NNResult(self.model.writer, advantage, loss, step, self.A2CSample.MaxDepth, self.A2CSample.NumSample, std_list, logStdStep)
-            self.A2CModel.logStdStep = step
-            self.A2CSample = None
+        if self.model.DRLType == DRLType.IS_PPOModel.value  :
+            if self.A2CSample.check_init_depth() and self.A2CSample.MaxDepth > 1 :
+                advantage, loss, step, std_list, logStdStep = self.A2CModel.update(self.A2CSample)
+                summary.summary_NNResult(self.model.writer, advantage, loss, step, self.A2CSample.MaxDepth, self.A2CSample.NumSample, std_list, logStdStep)
+                self.A2CModel.logStdStep = step
+            print("TEST", self.A2CSample.initMaxDepth, self.A2CSample.MaxDepth, self.A2CSample.NumSample)
+            self.A2CSample.set_init_depth()
+            # self.A2CSample = None
+            self.reset_A2CSample()
 
         action, best_ucb_value, best_q_value = Max_Q_action(self, self.belief_tree_index, True)
         # action = Max_UCB_action(self.belief_tree_index)
@@ -173,13 +177,16 @@ class POMCPWITHPPO(BeliefTreeSolver):
         action_mapping_entry = belief_node.action_map.get_entry(action.UAV_deployment)
 
         if self.model.DRLType == DRLType.IS_PPOModel.value:
-            if not sampleStatus :
-                sampleStatus = self.A2CSample.check_depth(tree_depth)
+            if tree_depth != 0 :
+                if not sampleStatus :
+                    sampleStatus = self.A2CSample.check_depth(tree_depth)
 
-            if sampleStatus :
-                action_node = belief_node.action_map.get_action_node(action)
+                if sampleStatus :
+                    action_node = belief_node.action_map.get_action_node(action)
 
-                self.A2CSample.add_batch_sample(action_node.state_for_learning, action.UAV_deployment, action_node.old_logprob_v, reward, is_terminal)
+                    sampleStatus = self.A2CSample.add_batch_sample(belief_node.id, action_node.state_for_learning,
+                                                                   action.UAV_deployment, action_node.old_logprob_v,
+                                                                   reward, is_terminal)
 
         td_target = reward + self.model.discount * delayed_reward
         q_value = action_mapping_entry.mean_q_value

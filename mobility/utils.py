@@ -30,7 +30,7 @@ def get_cellCoordinate(x, y, diameterofCell) :
         return x, y
 
 
-def get_state_transition_prob(previousRO, currentRO) :
+def get_condition_prob_in_likelihood(previousRO, currentRO) :
     RO = []
     for i in range(len(currentRO)) :
         RO.append((currentRO[i][0], currentRO[i][1] -1))

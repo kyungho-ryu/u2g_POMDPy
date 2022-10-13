@@ -5,14 +5,17 @@ import pandas as pd
 from .trajectory_grid import TG
 from .SL_object import MO, State, Trajectory
 from .mobility_config import MConfig
-from .utils import set_coordinate, get_cellCoordinate, get_state_transition_prob, create_random_position_in_cell, getGridIndex, get_id_of_gmu, add_noise_to_trajectory
+from .structure import TrajectoryPredictionType
+from .utils import set_coordinate, get_cellCoordinate, get_condition_prob_in_likelihood, create_random_position_in_cell, getGridIndex, get_id_of_gmu, add_noise_to_trajectory
 import logging, random, copy, os
 
 class SLModel :
-    def __init__(self, NumOfMO, cellWidth, MAX_XGRID_N, MAX_YGRID_N, min_particle_count, limit_prediction_length, exceptedID=-1):
+    def __init__(self, NumOfMO, cellWidth, MAX_XGRID_N, MAX_YGRID_N, min_particle_count, limit_prediction_length, prediction_type, exceptedID=-1):
         self.logger = logging.getLogger('POMDPy.SLModel')
         self.logger.setLevel("INFO")
         self.traj = {}
+
+        self.prediction_type = prediction_type
 
         self.cellWidth = cellWidth
         self.MAX_XGRID_N = MAX_XGRID_N
@@ -54,14 +57,11 @@ class SLModel :
             mo = MO("MO"+str(i))
             for j in range(0, MConfig.initialTrip*self.sampling_interval, self.sampling_interval) :
                 self.update_trajectory(mo, i, j)
-
             self.logger.debug("GMU {}' trajectory updated until {} steps".format(i, self.traj[i].updated_time))
             self.MOS.append(mo)
 
         _batch_list = os.listdir('/home/kyungho/project/U2G_POMDPy/mobility/batch_trajectory/')
         for i in range(MConfig.Batch) :
-            if i == exceptedID :
-                continue
             file = "/home/kyungho/project/U2G_POMDPy/mobility/batch_trajectory/" + str(_batch_list[i])
 
             self.traj[i+NumOfMO] = Trajectory(pd.read_csv(file))
@@ -98,43 +98,68 @@ class SLModel :
             self.MOS[id].set_observed(False)
             self.MOS[id].update_prediction_length()
 
-            eta = 1  # probability that the path ends with predicted state
-            k = 1
-            RO, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
-            for i in range(self.NumSimulation):
-                S = State({})  # state
-                selectedPath = self.prediction_probabilistic_path(S, t0Loc, RO, MConfig.theta, eta, k, [])
-                self.simulation_state[id].append(selectedPath)
+            if self.prediction_type == TrajectoryPredictionType.SL.value:
+                eta = 1  # probability that the path ends with predicted state
+                k = 1
+                RO, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
+                for i in range(self.NumSimulation):
+                    S = State({})  # state
+                    selectedPath = self.prediction_probabilistic_path(S, t0Loc, RO, MConfig.theta, eta, k, [])
+                    self.simulation_state[id].append(selectedPath)
+            else:
+                for i in range(self.NumSimulation):
+                    selectedPath = []
+                    for j in range(MConfig.MaxPath):
+                        xC = random.randint(0, self.MAX_XGRID_N - 1)
+                        yC = random.randint(0, self.MAX_YGRID_N - 1)
+                        selectedPath.append((xC, yC))
+
+                    self.simulation_state[id].append(selectedPath)
         else :
             update_time = self.traj[id].updated_time + self.sampling_interval
             self.update_trajectory(self.MOS[id], id, update_time)
             self.NumObservedGMU +=1
             self.logger.debug("[{}]' trajectory is updated : {}".format(self.MOS[id].id, self.MOS[id].get_location()))
 
-            eta = 1  # probability that the path ends with predicted state
-            k = 1
-            RO, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
-            for i in range(self.NumSimulation):
-                S = State({})  # state
-                selectedPath = self.prediction_probabilistic_path(S, t0Loc, RO, MConfig.theta, eta, k, [self.MOS[id].backward_traj[-1]])
-                self.simulation_state[id].append(selectedPath)
+            if self.prediction_type == TrajectoryPredictionType.SL.value:
+                eta = 1  # probability that the path ends with predicted state
+                k = 1
+                RO, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
+                for i in range(self.NumSimulation):
+                    S = State({})  # state
+                    selectedPath = self.prediction_probabilistic_path(S, t0Loc, RO, MConfig.theta, eta, k, [self.MOS[id].backward_traj[-1]])
+                    self.simulation_state[id].append(selectedPath)
+            else:
+                for i in range(self.NumSimulation):
+                    selectedPath = []
+                    for j in range(MConfig.MaxPath):
+                        xC = random.randint(0, self.MAX_XGRID_N - 1)
+                        yC = random.randint(0, self.MAX_YGRID_N - 1)
+                        selectedPath.append((xC, yC))
+
+                    self.simulation_state[id].append(selectedPath)
+
         self.logger.debug("[{}]' simulation trajectory is updated : {}".format(self.MOS[id].id, len(self.simulation_state[id])))
 
     def get_init_gmu_locIndex(self, id):
         choice = self.select_simulation_trajectory(id, 0)
         if self.limit_prediction_length:
             xC, yC = self.simulation_state[id][choice][0]
+            next_loc = self.MOS[id].get_location()
         else :
             if choice == None:
                 xC = random.randint(0, self.MAX_XGRID_N - 1)
                 yC = random.randint(0, self.MAX_YGRID_N - 1)
+                _maxLen = self.get_max_simulation_trajectory(id)
+                self.simulation_state[id][_maxLen].append((xC, yC))
+                next_loc = create_random_position_in_cell(xC, yC, self.cellWidth)
             else :
                 xC, yC = self.simulation_state[id][choice][0]
-
+                next_loc = self.MOS[id].get_location()
         if self.MOS[id].observed == True:
             index = getGridIndex(xC, yC, self.MAX_XGRID_N)
 
-            return index, self.MOS[id].get_location(), True, self.MOS[id].k
+            return index, next_loc, True, self.MOS[id].k
         else:
             index = getGridIndex(xC, yC, self.MAX_XGRID_N)
 
@@ -168,6 +193,8 @@ class SLModel :
             if choice == None:
                 xC = random.randint(0, self.MAX_XGRID_N - 1)
                 yC = random.randint(0, self.MAX_YGRID_N - 1)
+                _maxLen = self.get_max_simulation_trajectory(id)
+                self.simulation_state[id][_maxLen].append((xC, yC))
             else :
                 try:
                     xC, yC = self.simulation_state[id][choice][self.simulation_prediction_length]
@@ -193,7 +220,8 @@ class SLModel :
             self.MOS[id].set_observed(False)
             self.MOS[id].update_prediction_length()
             for i in range(self.NumSimulation):
-                self.simulation_state[id][i].pop(0)
+                if len(self.simulation_state[id][i]) != 0 :
+                    self.simulation_state[id][i].pop(0)
         else :
             self.NumObservedGMU +=1
             if self.MOS[id].observed == False:
@@ -202,30 +230,50 @@ class SLModel :
                     self.update_trajectory(self.MOS[id], id, updated_time)
 
                 self.reset_simulation_state(id)
-                eta = 1  # probability that the path ends with predicted state
-                k = 1
-                RO, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
-                for i in range(self.NumSimulation):
-                    S = State({})  # state
-                    selectedPath = self.prediction_probabilistic_path(S, t0Loc, RO, MConfig.theta, eta, k,
-                                                                      [self.MOS[id].backward_traj[-1]])
-                    self.simulation_state[id].append(selectedPath)
+                if self.prediction_type == TrajectoryPredictionType.SL.value:
+                    eta = 1  # probability that the path ends with predicted state
+                    k = 1
+                    RO, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
+                    for i in range(self.NumSimulation):
+                        S = State({})  # state
+                        selectedPath = self.prediction_probabilistic_path(S, t0Loc, RO, MConfig.theta, eta, k,
+                                                                          [self.MOS[id].backward_traj[-1]])
+                        self.simulation_state[id].append(selectedPath)
 
-                self.MOS[id].reset_prediction()
+                    self.MOS[id].reset_prediction()
+                else:
+                    for i in range(self.NumSimulation):
+                        selectedPath = []
+                        for j in range(MConfig.MaxPath):
+                            xC = random.randint(0, self.MAX_XGRID_N - 1)
+                            yC = random.randint(0, self.MAX_YGRID_N - 1)
+                            selectedPath.append((xC, yC))
 
+                        self.simulation_state[id].append(selectedPath)
+                    self.MOS[id].reset_prediction()
             else :
                 updated_time = self.traj[id].updated_time + self.sampling_interval
                 self.update_trajectory(self.MOS[id], id, updated_time)
 
                 self.reset_simulation_state(id)
-                eta = 1  # probability that the path ends with predicted state
-                k = 1
-                RO, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
-                for i in range(self.NumSimulation):
-                    S = State({})  # state
-                    selectedPath = self.prediction_probabilistic_path(S, t0Loc, RO, MConfig.theta, eta, k,
-                                                                      [self.MOS[id].backward_traj[-1]])
-                    self.simulation_state[id].append(selectedPath)
+                if self.prediction_type == TrajectoryPredictionType.SL.value:
+                    eta = 1  # probability that the path ends with predicted state
+                    k = 1
+                    RO, t0Loc = self.get_reference_objects(id, self.MOS[id].backward_traj)
+                    for i in range(self.NumSimulation):
+                        S = State({})  # state
+                        selectedPath = self.prediction_probabilistic_path(S, t0Loc, RO, MConfig.theta, eta, k,
+                                                                          [self.MOS[id].backward_traj[-1]])
+                        self.simulation_state[id].append(selectedPath)
+                else:
+                    for i in range(self.NumSimulation):
+                        selectedPath = []
+                        for j in range(MConfig.MaxPath):
+                            xC = random.randint(0, self.MAX_XGRID_N - 1)
+                            yC = random.randint(0, self.MAX_YGRID_N - 1)
+                            selectedPath.append((xC, yC))
+
+                        self.simulation_state[id].append(selectedPath)
 
             self.logger.debug("[{}]' trajectory is updated : {}".format(self.MOS[id].id, self.MOS[id].get_location()))
 
@@ -283,7 +331,7 @@ class SLModel :
         self.traj[id].update_time(update_time)
 
     def test_update_trajectory(self, id, T):
-        file = "/home/kyungho/project/POMDPy/mobility/trajectory/MO" + str(id) + "_traj.csv"
+        file = "/home/kyungho/project/U2G_POMDPy/mobility/trajectory/MO" + str(id) + "_traj.csv"
 
         self.traj[id] = Trajectory(pd.read_csv(file))
         mo = MO("MO" + str(id))
@@ -291,14 +339,16 @@ class SLModel :
             self.update_trajectory(mo, id, j)
 
         self.logger.debug("GMU {}' trajectory updated until {} steps".format(id, self.traj[id].updated_time))
-        self.MOS.append(mo)
+        self.MOS.insert(id, mo)
 
-    def get_reference_objects(self, id, backward_traj, repeat=0):
+    def get_reference_objects(self, id, backward_traj, repeat=0, flag=True):
         # find reference objects of mo0
         # 5. LOOKUP PROCESS
         RO = self.tg.lookup(self.MOS[id].id, backward_traj, self.MOS, self.NumGMU)
         self.logger.debug("Selected RO : {}".format(RO))
         if RO ==[] :
+            if not flag:
+                return [], []
             if repeat ==0 :
                 self.logger.info("There are no RO {} in {}".format(RO, id))
             repeat +=1
@@ -360,13 +410,13 @@ class SLModel :
             return [S, new_t0Loc, new_RO , new_eta, k+1, is_terminal]
 
     def prediction_probabilistic_path(self, S, t0Loc, RO, theta, eta, k, selectedPath) :
-        Length_init_RO = len(RO)
         is_terminal = False
         if len(RO)<= 0 :
             return []
         else :
             while eta > theta and not is_terminal and len(selectedPath) +1 < self.get_max_path():
                 totalDensity = 0
+                totalTransitionDensity = 0
                 previousRO = []
                 self.logger.debug("K : {}========================================================================".format(k))
                 for ro in RO :
@@ -388,18 +438,21 @@ class SLModel :
                     if createdNewState:
                         density = self.tg.leafCells[(x,y)].get_density()
                         totalDensity +=density
+
+                        transitionDensity = self.tg.leafCells[t0Loc].get_transition_density((x, y))
+                        totalTransitionDensity += transitionDensity
+
                 if totalDensity == 0 :
                     print("k", k)
                     self.logger.error("TEST : {}".format(len(RO)))
                     self.logger.error("RO : {}".format(S.states.keys()))
-                    is_terminal = True
                     break
 
                 self.logger.debug("S[{}] - RO : {}".format(k, ros))
                 self.logger.debug("totalDensity : {}".format(totalDensity))
                 self.logger.debug("previousRO : {}".format(previousRO))
 
-                t0Loc, RO , eta = self.calcurate_eta(eta,Length_init_RO, previousRO, totalDensity, S, k)
+                t0Loc, RO , eta = self.calcurate_eta(eta, previousRO, t0Loc, totalTransitionDensity, totalDensity, S, k)
                 is_terminal = self.check_having_trajectory_RO(t0Loc, RO, k)
                 k+=1
                 selectedPath.append(t0Loc)
@@ -416,10 +469,12 @@ class SLModel :
             eta = 1 # probability that the path ends with predicted state
             selectedPath = []
             k = 1
-            S = State()  # state
+            S = State({})  # state
             t0Loc = self.MOS[id].backward_traj[-1]
             while eta > theta and len(selectedPath) < self.get_max_path():
                 totalDensity = 0
+                totalTransitionDensity = 0
+
                 previousRO = []
                 selectedPath.append(t0Loc)
                 self.logger.debug("K : {}========================================================================".format(k))
@@ -438,7 +493,10 @@ class SLModel :
 
                     if createdNewState:
                         density = self.tg.leafCells[(x,y)].get_density()
+                        transitionDensity = self.tg.leafCells[t0Loc].get_transition_density((x,y))
+
                         totalDensity +=density
+                        totalTransitionDensity += transitionDensity
 
                 if totalDensity == 0 :
                     break
@@ -447,7 +505,8 @@ class SLModel :
                 self.logger.debug("totalDensity : {}".format(totalDensity))
                 self.logger.debug("previousRO : {}".format(previousRO))
 
-                t0Loc, RO , eta = self.calcurate_maxEta(eta,Length_init_RO, previousRO, totalDensity, S, k)
+                # t0Loc, RO , eta = self.calcurate_maxEta(eta,Length_init_RO, previousRO, totalDensity, S, k)
+                t0Loc, RO , eta = self.calcurate_maxEta(eta,Length_init_RO, previousRO, t0Loc, totalTransitionDensity, totalDensity, S, k)
 
                 k+=1
 
@@ -456,12 +515,14 @@ class SLModel :
         return selectedPath
 
     # calcurate probability for next state
-    def calcurate_eta(self, eta, Length_init_RO, previousRO, totalDensity, S, k) :
+    def calcurate_eta(self, eta, previousRO, previous_state, totalTransitionDensity, totalDensity, S, k) :
         max_states = []
         etas = []
         next_ROs = []
         for next_s, v in list(S.get_key_value_of_k(k)) :
-            union, intersection, state_transition_prob = get_state_transition_prob(previousRO, v.currentRO)
+            union, intersection, condition_prob = get_condition_prob_in_likelihood(previousRO, v.currentRO)
+            transitionDensity = self.tg.leafCells[previous_state].get_transition_density(next_s)
+            state_transition_prob = transitionDensity / totalTransitionDensity
 
             self.logger.debug("state : {}---------------------------------------------------------------------------".format(next_s))
             self.logger.debug("currentRO : {}".format(v.currentRO))
@@ -469,18 +530,17 @@ class SLModel :
             self.logger.debug("state_transition_prob : {}".format(state_transition_prob))
 
             # likelihood Function
-            prior_prob = (totalDensity - self.tg.leafCells[next_s].get_density()) / totalDensity +0.01
-            distribution_RO = len(v.currentRO) / Length_init_RO
+            prior_prob = self.tg.leafCells[next_s].get_density() / totalDensity
             # RO_prob = 1 / len(S.get_key_value_of_k(k))
             RO_prob = MConfig.RO_prob
 
-            likelihood = distribution_RO*RO_prob / prior_prob
+            likelihood = condition_prob*RO_prob / prior_prob
             # likelihood = 1
             new_eta = eta * state_transition_prob * likelihood
             S.states[k][next_s].probability = new_eta
             self.logger.debug("Density : {}/{}".format(self.tg.leafCells[next_s].get_density(), totalDensity))
             self.logger.debug("prior_prob : {}".format(prior_prob))
-            self.logger.debug("distribution_RO : {}".format(distribution_RO))
+            self.logger.debug("condition_prob_likelihood : {}".format(condition_prob))
             self.logger.debug("RO_prob : {}".format(RO_prob))
             self.logger.debug("likelihood : {}".format(likelihood))
             self.logger.debug("new_eta : {}".format(new_eta))
@@ -501,24 +561,26 @@ class SLModel :
 
         return [max_states[selected_index], next_ROs[selected_index], etas[selected_index]]
 
-    def calcurate_maxEta(self, eta, Length_init_RO, previousRO, totalDensity, S, k):
+    def calcurate_maxEta(self, eta, Length_init_RO, previousRO, previous_state, totalTransitionDensity, totalDensity, S, k):
         max_states = []
         etas = []
         next_ROs = []
         for next_s, v in list(S.get_key_value_of_k(k)):
-            union, intersection, state_transition_prob = get_state_transition_prob(previousRO, v.currentRO)
+            union, intersection, distribution_RO = get_condition_prob_in_likelihood(previousRO, v.currentRO)
+            transitionDensity = self.tg.leafCells[previous_state].get_transition_density(next_s)
+            state_transition_prob = transitionDensity / totalTransitionDensity
 
             self.logger.debug(
                 "state : {}---------------------------------------------------------------------------".format(next_s))
             self.logger.debug("currentRO : {}".format(v.currentRO))
-            self.logger.debug("union : {}, intersection : {}".format(union, intersection))
+            # self.logger.debug("union : {}, intersection : {}".format(union, intersection))
             self.logger.debug("state_transition_prob : {}".format(state_transition_prob))
 
             # likelihood Function
-            prior_prob = (totalDensity - self.tg.leafCells[next_s].get_density()) / totalDensity
+            prior_prob = self.tg.leafCells[next_s].get_density() / totalDensity
             if prior_prob == 0 :
                 prior_prob = 1
-            distribution_RO = len(v.currentRO) / Length_init_RO
+            # distribution_RO = len(v.currentRO) / Length_init_RO
             # RO_prob = 1 / len(S.get_key_value_of_k(k))
             RO_prob = MConfig.RO_prob
 
@@ -627,6 +689,21 @@ class SLModel :
         for i in range(len(self.simulation_state[id])) :
             if len(self.simulation_state[id][i]) -1 >= predictionStep :
                 candidate.append(i)
+
+        if candidate == [] :
+            return None
+        else :
+            return random.choice(candidate)
+
+    def get_max_simulation_trajectory(self, id) :
+        candidate = []
+        max = 0
+        for i in range(len(self.simulation_state[id])) :
+            if len(self.simulation_state[id][i]) == max :
+                candidate.append(i)
+            elif len(self.simulation_state[id][i]) > max :
+                candidate = [i]
+                max = len(self.simulation_state[id][i])
 
         if candidate == [] :
             return None

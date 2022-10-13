@@ -3,6 +3,9 @@ import math
 import numpy as np
 from mobility.semi_lazy import SLModel as SL
 from mobility.mobility_config import MConfig  as p
+from mobility.SL_object import State
+
+
 import pandas as pd
 import matplotlib.pyplot as plt
 from mobility.utils import set_coordinate, get_cellCoordinate
@@ -19,16 +22,17 @@ my_logger.addHandler(sys_handler)
 
 
 result = {}
-f = open('result(H=100).csv', 'a', encoding='utf-8')
+f = open('result(odd).csv', 'a', encoding='utf-8')
 wr = csv.writer(f)
-
-for index in range(51) :
-    NumOfMO = 50
+f = open('result(all).csv', 'a', encoding='utf-8')
+wr2 = csv.writer(f)
+for index in range(20) :
+    NumOfMO = 20
     error_path = {}
     id = index
-    sl = SL(NumOfMO, 400, 14, 5, id)
+    sl = SL(NumOfMO, 400, 5, 5, 100, False, id)
     RO = []
-    file = "/home/kyungho/project/POMDPy/mobility/trajectory/MO" + str(id) + "_traj.csv"
+    file = "/home/kyungho/project/U2G_POMDPy/mobility/trajectory/MO" + str(id) + "_traj.csv"
     traj = pd.read_csv(file)
 
     sl.test_update_trajectory(id, 50)
@@ -38,10 +42,16 @@ for index in range(51) :
         plt_x_real = []
         plt_y_real = []
 
-        ro = sl.get_reference_objects(id)
-        path = sl.prediction_probabilistic_path(ro, p.theta, id)
-        real_path = []
+        ro, toLoc = sl.get_reference_objects(id, sl.MOS[id].backward_traj, 0, False)
+        if ro == [] :
+            updated_time = sl.traj[id].updated_time + sl.sampling_interval
+            sl.update_trajectory(sl.MOS[id], id, updated_time)
+            continue
 
+        # path = sl.prediction_probabilistic_path(S, toLoc, ro, p.theta, 1, 1, [])
+        path = sl.prediction_maximum_path(ro, p.theta, id)
+
+        # prediction_maximum_path(self, RO, theta, id)
         if len(path) == 0 :
             path = [0]
 
@@ -66,10 +76,10 @@ for index in range(51) :
 
                 error_path[j].append(error)
 
-                plt_x_prediction.append(path[j][0])
-                plt_y_prediction.append(path[j][1])
-                plt_x_real.append(coordinate[0]- 0.1)
-                plt_y_real.append(coordinate[1]- 0.1)
+                # plt_x_prediction.append(path[j][0])
+                # plt_y_prediction.append(path[j][1])
+                # plt_x_real.append(coordinate[0]- 0.1)
+                # plt_y_real.append(coordinate[1]- 0.1)
 
         # print("real : ", plt_x_real)
         # print("real : ", plt_y_real)
@@ -87,13 +97,16 @@ for index in range(51) :
         #
         #     error_path[z].append(-1)
 
-
+    print("finish : {}".format(id))
     for k, v in error_path.items() :
         # print("{} - {}".format(k, len(v)))
-        if k % 2 == 0 :
+        if k > 10 :
             continue
         for vv in v :
-            wr.writerow([k, vv, 0.])
+            wr2.writerow([k, vv, 0.])
+            if k %2 !=0 :
+                wr.writerow([k, vv, 0.])
+
 
 f.close()
 #

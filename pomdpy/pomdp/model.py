@@ -1,7 +1,7 @@
 from __future__ import print_function
 from builtins import object
 import abc
-import random
+import csv
 from future.utils import with_metaclass
 from tensorboardX import SummaryWriter
 import pprint
@@ -27,7 +27,7 @@ class Model(with_metaclass(abc.ABCMeta, object)):
     *           by utilizing the step generator
     """
 
-    def __init__(self, args):
+    def __init__(self, args, Config):
         for k in args:
             setattr(self, k, args[k])
         pp(args)
@@ -35,36 +35,64 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         my_dir = os.path.dirname(__file__)
         # self.weight_dir = os.path.join(my_dir, '..', '..', 'experiments', 'pickle_jar')
         # self.ckpt_dir = os.path.join(my_dir, '..', '..', 'experiments', 'checkpoints')
+        self.csvLogs = os.path.join(my_dir, '..', '..', 'experiments', 'UAV_deployment')
         self.logs = os.path.join(my_dir, '..', '..', 'experiments', 'tensorboard')
 
         # TODO: More elegant naming convention for experiments
         if not os.path.exists(self.logs):
             os.makedirs(self.logs)
+        if not os.path.exists(self.csvLogs):
+            os.makedirs(self.csvLogs)
 
-        self.logs = os.path.join(self.logs, args["solver"])
+        sub_dir = "LearningRate&discountFactor"
+        self.logs = os.path.join(self.logs, sub_dir)
+        self.csvLogs = os.path.join(self.csvLogs, sub_dir)
         if not os.path.exists(self.logs):
             os.makedirs(self.logs)
+        if not os.path.exists(self.csvLogs):
+            os.makedirs(self.csvLogs)
 
-        self.logs = os.path.join(self.logs, str(args["DRLType"]))
+        # self.logs = os.path.join(self.logs, "logStd")
+        # if not os.path.exists(self.logs):
+        #     os.makedirs(self.logs)
+
+        sub_dir = args["solver"]
+        self.logs = os.path.join(self.logs, sub_dir)
+        self.csvLogs = os.path.join(self.csvLogs, sub_dir)
         if not os.path.exists(self.logs):
             os.makedirs(self.logs)
+        if not os.path.exists(self.csvLogs):
+            os.makedirs(self.csvLogs)
 
-        parms = str([args['pw_a_k'], args['pw_a_alpha'], args['pw_o_k'], args['pw_o_alpha'], args['max_particle_count']])
-        self.logs = os.path.join(self.logs, parms)
+        sub_dir = str(args["DRLType"]) + "- (" + str(Config.NUM_UAV) + "," + str(str(Config.NUM_GMU)) + ")"
+        self.logs = os.path.join(self.logs, sub_dir)
+        self.csvLogs = os.path.join(self.csvLogs, sub_dir)
         if not os.path.exists(self.logs):
             os.makedirs(self.logs)
+        if not os.path.exists(self.csvLogs):
+            os.makedirs(self.csvLogs)
+
+        # parms = str([args['pw_a_k'], args['pw_a_alpha'], args['pw_o_k'], args['pw_o_alpha'], args['max_particle_count']])
+        sub_dir =  "L :" + str(0.0002) + "," + "D :" + str(0.9)
+        self.logs = os.path.join(self.logs, sub_dir)
+        self.csvLogs = os.path.join(self.csvLogs, sub_dir)
+        if not os.path.exists(self.logs):
+            os.makedirs(self.logs)
+        if not os.path.exists(self.csvLogs):
+            os.makedirs(self.csvLogs)
 
         count = len(os.listdir(self.logs))
         self.logs = os.path.join(self.logs, str(count))
 
-        # if not os.path.exists(self.weight_dir):
-        #     os.makedirs(self.weight_dir)
-        # if not os.path.exists(self.ckpt_dir):
-        #     os.makedirs(self.ckpt_dir)
         if not os.path.exists(self.logs):
             os.makedirs(self.logs)
 
         self.writer = SummaryWriter(self.logs)
+
+        count = len(os.listdir(self.csvLogs))
+        file = self.csvLogs + "/" + str(count) + '.csv'
+        f = open(file, 'w', newline='')
+        self.csvWriter = csv.writer(f)
 
     @abc.abstractmethod
     def reset_for_simulation(self, gmus):

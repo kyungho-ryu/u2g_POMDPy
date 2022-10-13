@@ -24,7 +24,7 @@ module = "U2GModel"
 
 class U2GModel(Model) : # Model
     def __init__(self, args):
-        super(U2GModel, self).__init__(args)
+        super(U2GModel, self).__init__(args, Config)
         # logging utility
         self.logger = logging.getLogger('POMDPy.U2GModel')
         self.logger.setLevel("INFO")
@@ -62,7 +62,8 @@ class U2GModel(Model) : # Model
 
         # if args["DRLType"]
         self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N,
-                                        Config.MAX_YGRID_N, args["min_particle_count"], limit_prediction_length)
+                                        Config.MAX_YGRID_N, args["min_particle_count"],
+                                        limit_prediction_length, args["trajectory_prediction_type"])
         self.init_prior_state = self.set_an_init_prior_state()
         self.init_observation = None
         self.initialize()

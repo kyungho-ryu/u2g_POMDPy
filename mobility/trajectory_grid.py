@@ -61,17 +61,25 @@ class TG () :
 class Cell () :
     def __init__(self):
         self.density = 0        # provides prior information for Prediction Filter (E.q (14))
+        self.density_transtion = {}
         self.trajectories = FixSizeOrderedDict(max=MConfig.H)
 
     def update_traHash(self, id, new_loc, previous_t):
         key = (id, previous_t)
         self.trajectories[key] = TraHash(new_loc[0], new_loc[1])
 
+        if new_loc not in self.density_transtion :
+            self.density_transtion[new_loc] = 0
+        self.density_transtion[new_loc] +=1
+
     def visit(self):
         self.density +=1
 
     def get_density(self):
         return self.density * MConfig.C_density
+
+    def get_transition_density(self, next_loc):
+        return self.density_transtion[next_loc] * MConfig.C_density
 
 # hash table to store the trajectories passing the cell
 class TraHash :

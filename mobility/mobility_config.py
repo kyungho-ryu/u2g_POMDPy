@@ -27,7 +27,7 @@ class MConfig :
     MaxPath = 20
 
     #density coefficient
-    C_density = 1/10
+    C_density = 1
 
     # probability of specific RO
     RO_prob = 1

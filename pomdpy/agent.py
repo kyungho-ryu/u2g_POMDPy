@@ -3,6 +3,7 @@ import time, psutil
 import logging
 import os
 from pomdpy.pomdp import Statistic
+from pomdpy.action_selection.structure import ActionType
 from pomdpy.pomdp.history import Histories, HistoryEntry
 from pomdpy.util import console, print_divider, summary, memory
 from DRL.structure import DRLType
@@ -33,6 +34,12 @@ class Agent:
         self.action_pool = self.model.create_action_pool()
         self.observation_pool = self.model.create_observation_pool(self)
         self.solver_factory = solver.reset  # Factory method for generating instances of the solver
+
+        self.NumBeliefNode = 0
+
+    def get_new_id_of_beliefNode(self):
+        self.NumBeliefNode +=1
+        return self.NumBeliefNode
 
     def discounted_return(self):
 
@@ -157,7 +164,7 @@ class Agent:
         epoch_start = time.time()
         # -------------------------implement root belief tree-----------------------------------------------
         new_solver = self.solver_factory(self)
-        if solver != None :
+        if solver != None and self.model.ActionType == ActionType.NN :
             new_solver.A2CSample = solver.A2CSample
             new_solver.A2CModel = solver.A2CModel
 
@@ -187,6 +194,7 @@ class Agent:
             print_divider('large')
             print('\tStep #' + str(i) + ' simulation is working\n')
             action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time)
+
             self.results.ucb_value.append(best_ucb_value)
             self.results.q_value.append(best_q_value)
             new_action.append(action.UAV_deployment)
@@ -262,6 +270,9 @@ class Agent:
 
             # show the step result
             self.display_step_result(i, step_result, [R1, R2])
+
+            # save UAVs deployment to csv file
+            self.model.csvWriter.writerow(step_result.action.UAV_deployment)
 
             start = time.time()
             if not step_result.is_terminal:

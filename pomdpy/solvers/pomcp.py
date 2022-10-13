@@ -185,8 +185,8 @@ class POMCP(BeliefTreeSolver):
         if not step_result.is_terminal or not is_legal:
             tree_depth += 1
             if added:
-                delayed_reward = 0
-                # delayed_reward = self.rollout(child_belief_node, self.model.ActionType)
+                # delayed_reward = 0
+                delayed_reward = self.rollout(child_belief_node, self.model.ActionType)
             else:
                 delayed_reward = self.POCMP_DPW(child_belief_node, tree_depth, start_time)
             tree_depth -= 1
