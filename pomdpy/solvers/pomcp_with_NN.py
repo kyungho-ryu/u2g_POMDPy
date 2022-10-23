@@ -110,7 +110,7 @@ class POMCPWITHNN(BeliefTreeSolver):
             self.reset_A2CSample()
 
 
-        action, best_ucb_value, best_q_value = Max_Q_action(self, self.belief_tree_index, True)
+        action, best_ucb_value, best_q_value, best_N = Max_Q_action(self, self.belief_tree_index, True)
         # action = Max_UCB_action(self.belief_tree_index)
         action_selection_delay = time.time()
         self.logger.info("action selection delay : {}".format(action_selection_delay - start))
@@ -118,7 +118,7 @@ class POMCPWITHNN(BeliefTreeSolver):
 
         # summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
 
-        return action, best_ucb_value, best_q_value
+        return action, best_ucb_value, best_q_value, best_N
 
     def simulate(self, belief_node, eps, start_time):   # not use eps
         """

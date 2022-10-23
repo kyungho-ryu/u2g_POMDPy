@@ -104,12 +104,12 @@ class POMCPWITHPPO(BeliefTreeSolver):
                 advantage, loss, step, std_list, logStdStep = self.A2CModel.update(self.A2CSample)
                 summary.summary_NNResult(self.model.writer, advantage, loss, step, self.A2CSample.MaxDepth, self.A2CSample.NumSample, std_list, logStdStep)
                 self.A2CModel.logStdStep = step
-            print("TEST", self.A2CSample.initMaxDepth, self.A2CSample.MaxDepth, self.A2CSample.NumSample)
+            self.logger.info("Sample Depth : {}, Number of Sample : {}".format(self.A2CSample.MaxDepth, self.A2CSample.NumSample))
             self.A2CSample.set_init_depth()
             # self.A2CSample = None
             self.reset_A2CSample()
 
-        action, best_ucb_value, best_q_value = Max_Q_action(self, self.belief_tree_index, True)
+        action, best_ucb_value, best_q_value, best_N = Max_Q_action(self, self.belief_tree_index, True)
         # action = Max_UCB_action(self.belief_tree_index)
         action_selection_delay = time.time()
         self.logger.info("action selection delay : {}".format(action_selection_delay - start))
@@ -117,7 +117,7 @@ class POMCPWITHPPO(BeliefTreeSolver):
 
         # summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
 
-        return action, best_ucb_value, best_q_value
+        return action, best_ucb_value, best_q_value, best_N
 
     def simulate(self, belief_node, eps, start_time):   # not use eps
         """

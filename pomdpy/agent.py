@@ -197,10 +197,11 @@ class Agent:
             # action will be of type Discrete Action
             print_divider('large')
             print('\tStep #' + str(i) + ' simulation is working\n')
-            action, best_ucb_value, best_q_value = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time)
+            action, best_ucb_value, best_q_value, best_N = solver.select_eps_greedy_action(epoch, simulation_steps, eps, start_time)
 
             self.results.ucb_value.append(best_ucb_value)
             self.results.q_value.append(best_q_value)
+            self.results.visit_count.append(best_N)
             new_action.append(action.UAV_deployment)
             print('\n')
             self.logger.debug("[{}/{}]'acition : {}".format(epoch, i, action.UAV_deployment))
@@ -249,15 +250,6 @@ class Agent:
 
                         solver.A2CSample.set_init_depth()
                         solver.reset_A2CSample()
-
-            if self.results.initial_reward == 0 :
-                self.results.initial_reward = R1 + R2
-
-            if self.results.count == 1:
-                self.results.second_reward = R1 + R2
-
-            if self.results.count == 2:
-                self.results.thrid_reward = R1 + R2
 
             _totalA2GEnergy, _totalA2AEnergy, _totalPropEnergy, _totalEnergyConsumtion, _avgDnRage, \
             _scaledEnergyConsumtion, _scaledDnRate, _NumActiveUav, _NumObservedGMU = self.model.get_simulationResult(state, action)
@@ -405,9 +397,6 @@ class Results(object):
         self.reward = []
         self.discounted_reward = []
         self.discount=1
-        self.initial_reward = 0
-        self.second_reward = 0
-        self.thrid_reward = 0
         self.totalA2GEnergy = []
         self.totalA2AEnergy = []
         self.totalPropEnergy = []
@@ -421,16 +410,16 @@ class Results(object):
         self.prediction_error = []
         self.ucb_value = []
         self.q_value = []
+        self.visit_count = []
 
     def summary_result(self, writer, logger, reward, epoch_start, simulation_steps):
         usedMemory = memory.check_momory(logger)
 
 
         summary.summary_result(
-            writer, simulation_steps, self.initial_reward,
-            self.second_reward, self.thrid_reward,
+            writer, simulation_steps,
             self.reward, self.discounted_reward, reward,
-            self.ucb_value, self.q_value,
+            self.ucb_value, self.q_value, self.visit_count,
             self.NUM_grab_nearest_child_belief_node, self.NUM_create_child_belief_node,
             self.dissimilarity, self.totalA2GEnergy, self.totalA2AEnergy,
             self.totalPropEnergy, self.totalEnergyConsumtion, self.avgDnRage,

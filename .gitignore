@@ -6,5 +6,8 @@ build
 POMDPy.egg-info
 dist
 experiments/tensorboard
+experiments/UAV_deployment
+experiments/graphs
 experiments/logs
+experiments/checkpoints
 venv

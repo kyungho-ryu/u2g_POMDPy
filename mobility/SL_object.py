@@ -46,8 +46,8 @@ class MO() :
     def set_observed(self, new_status):
         self.observed = new_status
 
-    def update_prediction_length(self):
-        self.k +=1
+    def update_prediction_length(self, k=1):
+        self.k += k
 
     def reset_prediction(self):
         self.observed = True

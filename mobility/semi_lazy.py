@@ -96,8 +96,8 @@ class SLModel :
 
         if uavStatus[actual_next_loc[1][1]][actual_next_loc[1][0]] == 0:
             self.MOS[id].set_observed(False)
-            self.MOS[id].update_prediction_length()
-
+            unObservedLenth = random.choice(MConfig.initialUnObservedLength)
+            self.MOS[id].update_prediction_length(unObservedLenth)
             if self.prediction_type == TrajectoryPredictionType.SL.value:
                 eta = 1  # probability that the path ends with predicted state
                 k = 1
@@ -105,7 +105,7 @@ class SLModel :
                 for i in range(self.NumSimulation):
                     S = State({})  # state
                     selectedPath = self.prediction_probabilistic_path(S, t0Loc, RO, MConfig.theta, eta, k, [])
-                    self.simulation_state[id].append(selectedPath)
+                    self.simulation_state[id].append(selectedPath[unObservedLenth:])
             else:
                 for i in range(self.NumSimulation):
                     selectedPath = []
@@ -114,7 +114,7 @@ class SLModel :
                         yC = random.randint(0, self.MAX_YGRID_N - 1)
                         selectedPath.append((xC, yC))
 
-                    self.simulation_state[id].append(selectedPath)
+                    self.simulation_state[id].append(selectedPath[unObservedLenth:])
         else :
             update_time = self.traj[id].updated_time + self.sampling_interval
             self.update_trajectory(self.MOS[id], id, update_time)

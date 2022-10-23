@@ -4,6 +4,8 @@ class MConfig :
     # H = np.inf
     H = 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000
     initialTrip = 2
+    # initialUnObservedLength = [i for i in range(5)]
+    initialUnObservedLength = [5]
     Batch = 30
     # BatchInitialTrip = 280
     BatchInitialTrip = 300

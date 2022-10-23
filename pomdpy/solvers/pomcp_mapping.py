@@ -88,7 +88,7 @@ class POMCPMapping(BeliefMappingSolver):
             self.rollout_search(self.belief_mapping_index)
         else:
             self.monte_carlo_approx(eps, start_time, prior_state_key)
-        action, best_ucb_value, best_q_value = Max_Q_action(self, self.belief_mapping_index, True)
+        action, best_ucb_value, best_q_value, best_N = Max_Q_action(self, self.belief_mapping_index, True)
         action_selection_delay = time.time()
         self.logger.info("action selection delay : {}".format(action_selection_delay-start))
         self.model.reset_for_simulation()
@@ -97,7 +97,7 @@ class POMCPMapping(BeliefMappingSolver):
         # print("END==========================================================================")
         # check_momory(self.logger)
         # exit()
-        return action, best_ucb_value, best_q_value
+        return action, best_ucb_value, best_q_value, best_N
 
     def simulate(self, belief_node, eps, start_time, prior_state_key):   # not use eps
         """

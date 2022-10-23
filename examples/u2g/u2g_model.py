@@ -57,14 +57,14 @@ class U2GModel(Model) : # Model
         # Mobility model
         if args["DRLType"] == DRLType.IS_A2CModel.value or args["DRLType"] == DRLType.IS_PPOModel.value :
             limit_prediction_length = True
-        if args["DRLType"] == DRLType.OS_A2CModel.value or args["DRLType"] == DRLType.OS_PPOModel.value :
+        elif args["DRLType"] == DRLType.OS_A2CModel.value or args["DRLType"] == DRLType.OS_PPOModel.value :
             limit_prediction_length = False
-
+        else :
+            limit_prediction_length = False
         # if args["DRLType"]
         self.mobility_SLModel = SLModel(Config.NUM_GMU, Config.GRID_W, Config.MAX_XGRID_N,
                                         Config.MAX_YGRID_N, args["min_particle_count"],
                                         limit_prediction_length, args["trajectory_prediction_type"])
-        self.mobility_SLModel.reset(self.env_map)
 
         self.init_prior_state = self.set_an_init_prior_state()
         self.init_observation = None
@@ -78,6 +78,7 @@ class U2GModel(Model) : # Model
 
         self.generate_UAV()
         self.set_envMap()
+        self.mobility_SLModel.reset(self.env_map)
 
         self.MaxEnergyConsumtion = self.calcurate_max_uav_energy(Config.MAX_GRID_INDEX, Config.NUM_UAV)
         self.MaxDnRate = Config.USER_DEMAND * Config.NUM_GMU
@@ -536,16 +537,12 @@ class U2GModel(Model) : # Model
 
         for i in range(len(uav_status)) :
             if uavs[i].power == "on":
-                # print("test", previous_uav_status[i], uav_status[i])
-                # if 'off' != uavs[i].power :
                 _vel = self.calUAVFlightSpeed(previous_uav_status[i], uav_status[i])
-                # print("test", previous_uav_status[i], uav_status[i])
                 hoveringEnergy = (self.p0+self.p1)
                 if _vel == 0 :
                     totalPropEnergy += hoveringEnergy * Config.UAV_RELOC_PERIOD
                 else :
                     totalPropEnergy += (hoveringEnergy + energy.calUavFowardEnergy(self.p0, self.p1, _vel)) * Config.UAV_RELOC_PERIOD
-
         self.logger.debug("Total prop energy : {}".format(totalPropEnergy))
 
         return totalPropEnergy

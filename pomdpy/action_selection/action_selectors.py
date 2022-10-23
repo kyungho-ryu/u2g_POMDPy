@@ -33,6 +33,7 @@ def Max_Q_action(mcts, current_node, greedy):
     best_actions = []
     best_q_value = -np.inf
     best_ucb_value = -np.inf
+    best_N = 0
     mapping = current_node.action_map
 
     N = mapping.total_visit_count
@@ -50,20 +51,27 @@ def Max_Q_action(mcts, current_node, greedy):
         if not greedy:
             current_q += mcts.find_fast_ucb(N, action_entry.visit_count, log_n)
 
+        ucb = mcts.find_fast_ucb(N, action_entry.visit_count, log_n)
         # If the UCB coefficient is 0, this is greedy Q selection
         # current_ucb = current_q + mcts.find_fast_ucb(N, action_entry.visit_count, log_n)
 
         if current_q >= best_ucb_value:
             if current_q > best_ucb_value:
                 best_actions = []
-            best_ucb_value = current_q
+            best_ucb_value = current_q + ucb
             best_q_value = current_q
+            best_N = action_entry.visit_count
             # best actions is a list of Discrete Actions
             best_actions.append(action_entry.get_action())
+            # print("action_entry.get_action()", action_entry.get_action().get_key())
+            # print("visit_count", action_entry.visit_count)
 
     assert best_actions.__len__() is not 0
-
-    return random.choice(best_actions), best_ucb_value, best_q_value
+    # action = random.choice(best_actions)
+    # print(best_q_value)
+    # print("ac", action.get_key())
+    # exit()
+    return random.choice(best_actions), best_ucb_value, best_q_value, best_N
 
 def action_progWiden(mcts, current_node, temp_action, k, alpha):
     mapping = current_node.action_map
@@ -91,6 +99,11 @@ def action_progWiden(mcts, current_node, temp_action, k, alpha):
                 continue
 
             current_q = action_entry.mean_q_value
+            # if action_entry.visit_count == 3 :
+            #     print("N", N)
+            #     print("current_q", current_q)
+            #     print(mcts.find_fast_ucb(N, action_entry.visit_count, log_n))
+            #     exit()
             current_q += mcts.find_fast_ucb(N, action_entry.visit_count, log_n)
             if current_q >= best_q_value:
                 if current_q > best_q_value:

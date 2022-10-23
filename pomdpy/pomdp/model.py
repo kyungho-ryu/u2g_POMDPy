@@ -44,13 +44,13 @@ class Model(with_metaclass(abc.ABCMeta, object)):
         if not os.path.exists(self.csvLogs):
             os.makedirs(self.csvLogs)
 
-        sub_dir = "LearningRate&discountFactor"
-        self.logs = os.path.join(self.logs, sub_dir)
-        self.csvLogs = os.path.join(self.csvLogs, sub_dir)
-        if not os.path.exists(self.logs):
-            os.makedirs(self.logs)
-        if not os.path.exists(self.csvLogs):
-            os.makedirs(self.csvLogs)
+        # sub_dir = "LearningRate&discountFactor"
+        # self.logs = os.path.join(self.logs, sub_dir)
+        # self.csvLogs = os.path.join(self.csvLogs, sub_dir)
+        # if not os.path.exists(self.logs):
+        #     os.makedirs(self.logs)
+        # if not os.path.exists(self.csvLogs):
+        #     os.makedirs(self.csvLogs)
 
         # self.logs = os.path.join(self.logs, "logStd")
         # if not os.path.exists(self.logs):
@@ -73,7 +73,7 @@ class Model(with_metaclass(abc.ABCMeta, object)):
             os.makedirs(self.csvLogs)
 
         # parms = str([args['pw_a_k'], args['pw_a_alpha'], args['pw_o_k'], args['pw_o_alpha'], args['max_particle_count']])
-        sub_dir =  "L :" + str(0.000002) + "," + "D :" + str(0.9)
+        sub_dir =  "L :" + str(0.0001) + "," + "C :" + str(10) + "," + "Sim :" + str(2000) + "," + "r_w :" + str(0.0001)
         self.logs = os.path.join(self.logs, sub_dir)
         self.csvLogs = os.path.join(self.csvLogs, sub_dir)
         if not os.path.exists(self.logs):
