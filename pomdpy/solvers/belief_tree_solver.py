@@ -133,7 +133,7 @@ class BeliefTreeSolver(Solver):
         discounted_reward_sum = 0.0
         discount = 1.0
         num_steps = 0
-        while num_steps < self.model.max_depth and not is_terminal:
+        while num_steps < self.model.max_rollout_depth and not is_terminal:
             if action_method == structure.ActionType.NN.value:
                 pass
             elif action_method == structure.ActionType.Random.value:

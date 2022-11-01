@@ -15,8 +15,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Set the run parameters.')
     parser.add_argument('--env', default="U2GModel", type=str, help='Specify the env to solve')
-    parser.add_argument('--solver', default='POMCP_DPW_WITH_NN', type=str,
-                        help='Specify the solver to use {POMCP}')
+    parser.add_argument('--solver', default='POMCP_DPW', type=str,
+                        help='Specify the solver to use {POMCP}')   # POMCP_DPW, POMCP_DPW_WITH_NN
     parser.add_argument('--seed', default=1993, type=int, help='Specify the random seed for numpy.random')
     parser.add_argument('--use_tf', dest='use_tf', action='store_true', help='Set if using TensorFlow')
     parser.add_argument('--discount', default=0.99, type=float, help='Specify the discount factor (default=0.95)')
