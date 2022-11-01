@@ -28,14 +28,14 @@ if __name__ == '__main__':
     parser.add_argument('--epsilon_minimum', default=0.1, type=float)
     parser.add_argument('--epsilon_decay', default=0.95, type=float)
     parser.add_argument('--epsilon_decay_step', default=20, type=int)
-    parser.add_argument('--n_sims', default=5000, type=int,
+    parser.add_argument('--n_sims', default=2000, type=int,
                         help='For POMCP, this is the num of MC sims to do at each belief node. '
                              'For SARSA, this is the number of rollouts to do per epoch')
     parser.add_argument('--timeout', default=3600, type=int, help='Max num of sec the experiment should run before '
                                                                   'timeout')
     parser.add_argument('--preferred_actions', dest='preferred_actions', action='store_true', help='For RockSample, '
                                                     'specify whether smart actions should be used')
-    parser.add_argument('--ucb_coefficient', default=10, type=float, help='Coefficient for UCB algorithm used by MCTS')
+    parser.add_argument('--ucb_coefficient', default=5, type=float, help='Coefficient for UCB algorithm used by MCTS')
     parser.add_argument('--n_start_states', default=100, type=int, help='Num of state particles to generate for root '
                         'belief node in MCTS')
     parser.add_argument('--min_particle_count', default=100, type=int, help='Lower bound on num of particles a belief '
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('--inner_batch_for_NN', default=32, type=int, help='a method for action selection')
     parser.add_argument('--learning_iteration_for_PPO', default=10, type=int, help='a method for action selection')
     parser.add_argument('--DRLType', default="IS_PPOModel", type=str, help='a method for action selection')
-    parser.add_argument('--MaxNumIterationForBeliefNode', default=15, type=int, help='a method for action selection')
+    parser.add_argument('--MaxNumIterationForBeliefNode', default=10, type=int, help='a method for action selection')
 
     # Progressive Widening
     parser.add_argument('--pw_a_k', default=1, type=int, help='coefficient for progrssive widening in action')

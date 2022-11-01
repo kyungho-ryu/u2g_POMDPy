@@ -35,10 +35,11 @@ class Sample :
             return False
 
     def check_init_depth(self):
-        if self.initMaxDepth == 0 :
-            return True
-        else :
-            return self.initMaxDepth == self.MaxDepth
+        return True
+        # if self.initMaxDepth == 0 :
+        #     return True
+        # else :
+        #     return self.initMaxDepth == self.MaxDepth
 
     def add_batch_sample(self, id, s, a, logprob, r, termial):
         if id not in self.NumIterationForBeliefNode :

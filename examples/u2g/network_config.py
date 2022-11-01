@@ -20,6 +20,6 @@ class Config :
     USER_DEMAND = 300 * pow(10, 3) # 300 Kbps
 
     #0.0005
-    WoE = 0.0005 # weight of energy consumption
-    WoD = 0.0005 # weight of data rate
+    WoE = 0.005 # weight of energy consumption
+    WoD = 0.005 # weight of data rate
 
