@@ -61,7 +61,10 @@ class BeliefNode(object):
     def get_create_current_particle(self):
         return self.particle_pool.get_create_current_particle()
 
+    def get_diff_real_state_with_belief_state(self, gmuState, cellIndex, GRID_W):
+        num, diff = self.particle_pool.get_numbers_of_state(gmuState, cellIndex, GRID_W)
 
+        return num, diff
     # -------------------- Tree-related getters  ---------------------- #
     def get_parent_action_node(self):
         if self.parent_entry is not None:

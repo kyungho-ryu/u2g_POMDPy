@@ -100,7 +100,7 @@ class POMCPWITHPPO(BeliefTreeSolver):
             self.monte_carlo_approx(eps, start_time)
 
         if self.model.DRLType == DRLType.IS_PPOModel.value  :
-            if self.A2CSample.check_init_depth() and self.A2CSample.MaxDepth > 1 :
+            if self.A2CSample.check_init_depth() and self.A2CSample.MaxDepth > 1 and self.A2CSample.NumSample >=10 :
                 advantage, loss, step, std_list, logStdStep = self.A2CModel.update(self.A2CSample)
                 summary.summary_NNResult(self.model.writer, advantage, loss, step, self.A2CSample.MaxDepth, self.A2CSample.NumSample, std_list, logStdStep)
                 self.A2CModel.logStdStep = step

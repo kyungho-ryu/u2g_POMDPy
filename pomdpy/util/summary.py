@@ -63,7 +63,8 @@ def summary_result(writer, epoch, reward, discounted_reward, last_reward,
                     ucb_value, q_value, visit_count, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
                    dissimilarity, totalA2GEnergy, totalA2AEnergy, totalPropEnergy,
                    totalEnergyConsumtion, avgDnRage, scaledEnergyConsumtion, scaledDnRate,
-                   NumActiveUav, NumObservedGMU, prediction_error, usedMemory, count, time) :
+                   NumActiveUav, NumObservedGMU, prediction_error, usedMemory,
+                   propRealState, propDifference,count, time) :
 
     group = "Reward/"
     writer.add_scalar(group+'R', np.mean(reward), epoch)
@@ -93,6 +94,8 @@ def summary_result(writer, epoch, reward, discounted_reward, last_reward,
     writer.add_scalar(group + 'GrabProbabality', NUM_grab_nearest_child_belief_node, epoch)
     writer.add_scalar(group + 'dissimilarity', np.mean(dissimilarity), epoch)
     writer.add_scalar(group + 'prediction_error', np.mean(prediction_error), epoch)
+    writer.add_scalar(group + 'propRealState', np.mean(propRealState), epoch)
+    writer.add_scalar(group + 'propDifference', np.mean(propDifference), epoch)
     writer.add_scalar(group + 'usedMemory', usedMemory, epoch)
     # writer.add_scalar(group + 'Action Equality', NumactionEquality, epoch)
 

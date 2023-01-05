@@ -9,7 +9,7 @@ import torch, logging, math
 import torch.nn.functional as F
 from torch.distributions import Normal
 # Hyperparameters
-learning_rate = 0.0005
+learning_rate = 0.00005
 ENTROPY_BETA = 1e-3
 GAMMA = 0.9
 GAE_LAMBDA = 0.9

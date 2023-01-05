@@ -73,8 +73,8 @@ class Model(with_metaclass(abc.ABCMeta, object)):
             os.makedirs(self.csvLogs)
 
         # parms = str([args['pw_a_k'], args['pw_a_alpha'], args['pw_o_k'], args['pw_o_alpha'], args['max_particle_count']])
-        # sub_dir =  "L :" + str(0.0005) + "," + "C :" + str(5) + "," + "Sim :" + str(2000) + "," + "r_w :" + str(0.01) + "," + "LUB :" + str(10)
-        sub_dir =  "C :" + str(5) + "," + "Sim :" + str(2000) + "," + "r_w :" + str(0.01) + "," + "LUB :" + str(10)
+        sub_dir =  "L :" + str(0.00005) + "," + "C :" + str(5) + "," + "Sim :" + str(5000) + \
+				"," + "r_w :" + str(0.01) + "," + "LUB :" + str(30) + ", learning_limit : " + str("inf")
         self.logs = os.path.join(self.logs, sub_dir)
         self.csvLogs = os.path.join(self.csvLogs, sub_dir)
         if not os.path.exists(self.logs):

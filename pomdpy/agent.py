@@ -210,6 +210,12 @@ class Agent:
             if eps > self.model.epsilon_minimum:
                 eps *= self.model.epsilon_decay
 
+            # check belief state
+            gmuState, cellIndex, GRID_W = solver.model.get_real_loc_of_GMU(state.gmus)
+            prop_of_realState, prop_of_diff = solver.belief_tree_index.get_diff_real_state_with_belief_state(gmuState, cellIndex, GRID_W)
+            self.results.propRealState.append(prop_of_realState)
+            self.results.propDifference.append(prop_of_diff)
+
             self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
             # state = not real state
             self.results.prediction_error.append(solver.model.get_dissimilarity_of_gmu_prediction(state.gmus))
@@ -411,6 +417,8 @@ class Results(object):
         self.ucb_value = []
         self.q_value = []
         self.visit_count = []
+        self.propRealState = []
+        self.propDifference = []
 
     def summary_result(self, writer, logger, reward, epoch_start, simulation_steps):
         usedMemory = memory.check_momory(logger)
@@ -424,7 +432,7 @@ class Results(object):
             self.dissimilarity, self.totalA2GEnergy, self.totalA2AEnergy,
             self.totalPropEnergy, self.totalEnergyConsumtion, self.avgDnRage,
             self.scaledEnergyConsumtion, self.scaledDnRate, self.NumActiveUav,
-            self.NumObservedGMU, self.prediction_error, usedMemory,
+            self.NumObservedGMU, self.prediction_error, usedMemory, self.propRealState, self.propDifference,
             self.count, (time.time() - epoch_start)
         )
 

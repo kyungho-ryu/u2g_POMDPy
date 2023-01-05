@@ -100,7 +100,7 @@ class POMCPWITHNN(BeliefTreeSolver):
             self.monte_carlo_approx(eps, start_time)
 
         if self.model.DRLType == DRLType.IS_A2CModel.value :
-            if self.A2CSample.check_init_depth() and self.A2CSample.MaxDepth > 1:
+            if self.A2CSample.check_init_depth() and self.A2CSample.MaxDepth > 1 and self.A2CSample.NumSample >=10:
                 advantage, loss, step, std_list, logStdStep = self.A2CModel.update(self.A2CSample)
                 summary.summary_NNResult(self.model.writer, advantage, loss, step, self.A2CSample.MaxDepth,
                                          self.A2CSample.NumSample, std_list, logStdStep)
@@ -134,10 +134,9 @@ class POMCPWITHNN(BeliefTreeSolver):
 
     def POCMP_DPW(self, belief_node, tree_depth, start_time):
         delayed_reward = 0
-
+        
         # choice random state from particles every simulation
         state = belief_node.sample_particle()
-
         if tree_depth == 0 :
             self.model.reset_for_simulation()
             if self.model.DRLType == DRLType.IS_A2CModel.value:

@@ -543,6 +543,7 @@ class U2GModel(Model) : # Model
                     totalPropEnergy += hoveringEnergy * Config.UAV_RELOC_PERIOD
                 else :
                     totalPropEnergy += (hoveringEnergy + energy.calUavFowardEnergy(self.p0, self.p1, _vel)) * Config.UAV_RELOC_PERIOD
+
         self.logger.debug("Total prop energy : {}".format(totalPropEnergy))
 
         return totalPropEnergy
@@ -845,6 +846,15 @@ class U2GModel(Model) : # Model
         else :
             return np.mean(error)
 
+    def get_real_loc_of_GMU(self, gmus):
+        sample_states = [0 for _ in range(Config.MAX_GRID_INDEX + 1)]
+        cellIndexs = []
+        for gmu in gmus :
+            real_cell = (self.mobility_SLModel.get_real_trajectory(gmu.id))
+            cellIndex = real_cell[1] * Config.MAX_XGRID_N + real_cell[0]
+            sample_states[cellIndex] += 1
+            cellIndexs.append(real_cell)
+        return  sample_states, cellIndexs, Config.GRID_W
 
     def get_simulationResult(self, state, action):
         key = action.get_key()

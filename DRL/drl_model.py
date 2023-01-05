@@ -9,7 +9,7 @@ import torch, logging, math
 import torch.nn.functional as F
 
 # Hyperparameters
-learning_rate = 0.0002
+learning_rate = 0.000001
 gamma = 0.9
 max_train_steps = 60000
 ENTROPY_BETA = 1e-3

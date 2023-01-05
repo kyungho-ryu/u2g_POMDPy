@@ -1,4 +1,5 @@
-import random
+import random, math
+import numpy as np
 from collections import deque
 
 class ParticlePool :
@@ -34,6 +35,43 @@ class ParticlePool :
 
     def get_num_total_particle(self):
         return self.TotalParticle
+
+    def get_numbers_of_state(self, gmuState, cellIndex, GRID_W):
+        num = 0
+        diff = 0
+
+        for i in range(len(self.particle.state)) :
+            s = self.particle.state[i].gmu_position
+            if s == gmuState : num +=1
+
+            error = []
+            for i, gmu in enumerate(self.particle.state[i].gmus):
+                prediction_cell = gmu.get_cellCoordinate(GRID_W)
+
+                error_x = int(cellIndex[i][0]) - prediction_cell[0]
+                error_y = cellIndex[i][1] - prediction_cell[1]
+
+                error.append(math.sqrt(math.pow(error_x, 2) + math.pow(error_y, 2)))
+
+            diff += np.mean(error) / self.TotalParticle
+
+        for i in range(len(self.particle.current_state)):
+            s = self.particle.current_state[i].gmu_position
+            if s == gmuState : num +=1
+
+            error = []
+            for i, gmu in enumerate(self.particle.current_state[i].gmus) :
+                prediction_cell = gmu.get_cellCoordinate(GRID_W)
+
+                error_x = int(cellIndex[i][0]) - prediction_cell[0]
+                error_y = cellIndex[i][1] - prediction_cell[1]
+
+                error.append(math.sqrt(math.pow(error_x, 2) + math.pow(error_y, 2)))
+
+            diff += np.mean(error) / self.TotalParticle
+
+        return num / self.TotalParticle, diff
+
 
 class Particle :
     def __init__(self, MaxParticle):
