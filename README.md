@@ -39,7 +39,8 @@ accelerates the search procedure. We train the actor-critic network using simula
 
 - Performance 
 <img src="https://user-images.githubusercontent.com/73271891/234560638-3c3f0377-a0a0-4a81-8672-eb6c8ad14976.png" width="88%">
-- Figure llustrates the average location of GMUs sampled from the belief state, the actual location of GMUs, and an action obtained from the MCTS in the corresponding belief state.
+
+Figure llustrates the average location of GMUs sampled from the belief state, the actual location of GMUs, and an action obtained from the MCTS in the corresponding belief state.
   - Color index of each cell indicates the number of actual GMUs
   - The number of each cell is the average of GMUs sampled from belief state
   - The dashed circles mean UAV location by a selected action
