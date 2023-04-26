@@ -39,11 +39,12 @@ class ParticlePool :
     def get_numbers_of_state(self, gmuState, cellIndex, GRID_W):
         num = 0
         diff = 0
-
+        distribution = np.zeros(len(gmuState))
         for i in range(len(self.particle.state)) :
             s = self.particle.state[i].gmu_position
             if s == gmuState : num +=1
 
+            distribution = distribution + s
             error = []
             for i, gmu in enumerate(self.particle.state[i].gmus):
                 prediction_cell = gmu.get_cellCoordinate(GRID_W)
@@ -59,6 +60,7 @@ class ParticlePool :
             s = self.particle.current_state[i].gmu_position
             if s == gmuState : num +=1
 
+            distribution = distribution + s
             error = []
             for i, gmu in enumerate(self.particle.current_state[i].gmus) :
                 prediction_cell = gmu.get_cellCoordinate(GRID_W)
@@ -70,7 +72,10 @@ class ParticlePool :
 
             diff += np.mean(error) / self.TotalParticle
 
-        return num / self.TotalParticle, diff
+        distribution = distribution / self.TotalParticle
+        print("current particle :", len(self.particle.current_state))
+        print("particle :", len(self.particle.state))
+        return num / self.TotalParticle, diff, distribution
 
 
 class Particle :

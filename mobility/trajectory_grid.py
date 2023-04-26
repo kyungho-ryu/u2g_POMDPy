@@ -32,6 +32,7 @@ class TG () :
 
             for k, v in self.leafCells[traj].trajectories.items() :
                 candidate_id = get_id_of_gmu(k[0])
+                # if k[0] != id and candidate_id >= NUMMOS:
                 if k[0] != id and candidate_id >= NUMMOS:
                     if candidate ==[] or k in candidate :
                         if last_index :

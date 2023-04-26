@@ -23,7 +23,7 @@ class SLModel :
         # self.limit_prediction_length = limit_prediction_length
         self.limit_prediction_length = False
         self.sampling_interval = int((cellWidth/MConfig.velocity)//MConfig.interval)
-        self.logger.debug("sampling interval : {}".format(self.sampling_interval))
+        self.logger.info("sampling interval : {}".format(self.sampling_interval))
 
         # read trajectories of MO
         # create TG
@@ -346,22 +346,23 @@ class SLModel :
         # 5. LOOKUP PROCESS
         RO = self.tg.lookup(self.MOS[id].id, backward_traj, self.MOS, self.NumGMU)
         self.logger.debug("Selected RO : {}".format(RO))
-        if RO ==[] :
-            if not flag:
-                return [], []
-            if repeat ==0 :
-                self.logger.info("There are no RO {} in {}".format(RO, id))
-            repeat +=1
-            start = len(self.MOS[id].candidate_backward_traj) - (repeat + len(backward_traj))
-            end = len(self.MOS[id].candidate_backward_traj) - repeat
-
-            new_backward_traj = list(self.MOS[id].candidate_backward_traj)[start:end]
-            if new_backward_traj == [] or repeat >=4:
-                new_backward_traj = add_noise_to_trajectory(list(self.MOS[id].backward_traj))
-
-            return self.get_reference_objects(id, new_backward_traj, repeat)
-        else :
-            return RO, backward_traj[-1]
+        # if RO ==[] :
+        #     if not flag:
+        #         return [], []
+        #     if repeat ==0 :
+        #         self.logger.info("There are no RO {} in {}".format(RO, id))
+        #     repeat +=1
+        #     start = len(self.MOS[id].candidate_backward_traj) - (repeat + len(backward_traj))
+        #     end = len(self.MOS[id].candidate_backward_traj) - repeat
+        #
+        #     new_backward_traj = list(self.MOS[id].candidate_backward_traj)[start:end]
+        #     if new_backward_traj == [] or repeat >=4:
+        #         new_backward_traj = add_noise_to_trajectory(list(self.MOS[id].backward_traj))
+        #
+        #     return self.get_reference_objects(id, new_backward_traj, repeat)
+        # else :
+        #     return RO, backward_traj[-1]
+        return RO, backward_traj[-1]
 
     # Probabilistic Path Prediction Alogorithm
     # 6. PF AND CONSTRUCTION PROCESS

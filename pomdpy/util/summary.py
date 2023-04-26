@@ -1,6 +1,6 @@
 import numpy as np
 
-def summary_simulationResult(writer, beliefTree, epoch) :
+def summary_simulationResult(writer, beliefTree, action, epoch) :
     tree_depth = 0
 
     obsList = [beliefTree]
@@ -31,7 +31,11 @@ def summary_simulationResult(writer, beliefTree, epoch) :
                 newObsList += actionEntry.child_node.get_child_all_nodes()
                 LenAction +=1
 
-        if len(newObsList) == 0 or tree_depth == 2:
+                if actionEntry.deployment == action :
+                    writer.add_scalar(group + 'selected_C_ha', actionEntry.child_node.get_count_child() , epoch)
+                    writer.add_scalar(group + 'selected_N_ha', actionEntry.child_node.get_visit_count() , epoch)
+
+        if len(newObsList) == 0 or tree_depth == 1:
             break
 
         writer.add_scalar(group+'N_h', N_h/len(obsList), epoch)
@@ -44,7 +48,6 @@ def summary_simulationResult(writer, beliefTree, epoch) :
 
         obsList = newObsList
         tree_depth +=1
-        break
 
     writer.add_scalar("depth", tree_depth, epoch)
 
@@ -60,11 +63,11 @@ def summary_NNResult(writer, advantage, loss, step, MaxDepth, NumSample, std_lis
 
 
 def summary_result(writer, epoch, reward, discounted_reward, last_reward,
-                    ucb_value, q_value, visit_count, NUM_grab_nearest_child_belief_node, NUM_create_child_belief_node,
+                    ucb_value, q_value, visit_count, NUM_grab_nearest_child_belief_node,
                    dissimilarity, totalA2GEnergy, totalA2AEnergy, totalPropEnergy,
                    totalEnergyConsumtion, avgDnRage, scaledEnergyConsumtion, scaledDnRate,
                    NumActiveUav, NumObservedGMU, prediction_error, usedMemory,
-                   propRealState, propDifference,count, time) :
+                   propRealState, propDifference, unobservedCell, predictionLength, time) :
 
     group = "Reward/"
     writer.add_scalar(group+'R', np.mean(reward), epoch)
@@ -90,12 +93,14 @@ def summary_result(writer, epoch, reward, discounted_reward, last_reward,
     writer.add_scalar(group + 'activeUav', np.mean(NumActiveUav), epoch)
     writer.add_scalar(group + 'observedGMU', np.mean(NumObservedGMU), epoch)
     writer.add_scalar(group + 'action visit count (N)', np.mean(visit_count), epoch)
-    writer.add_scalar(group + 'attachProbabality', (count - NUM_create_child_belief_node)/count, epoch)
-    writer.add_scalar(group + 'GrabProbabality', NUM_grab_nearest_child_belief_node, epoch)
+    writer.add_scalar(group + 'attachProbabality', NUM_grab_nearest_child_belief_node/(epoch+1), epoch)
+    writer.add_scalar(group + 'Grab', NUM_grab_nearest_child_belief_node, epoch)
     writer.add_scalar(group + 'dissimilarity', np.mean(dissimilarity), epoch)
     writer.add_scalar(group + 'prediction_error', np.mean(prediction_error), epoch)
     writer.add_scalar(group + 'propRealState', np.mean(propRealState), epoch)
     writer.add_scalar(group + 'propDifference', np.mean(propDifference), epoch)
+    writer.add_scalar(group + 'unobservedCell', np.mean(unobservedCell), epoch)
+    writer.add_scalar(group + 'predictionLength', np.mean(predictionLength), epoch)
     writer.add_scalar(group + 'usedMemory', usedMemory, epoch)
     # writer.add_scalar(group + 'Action Equality', NumactionEquality, epoch)
 

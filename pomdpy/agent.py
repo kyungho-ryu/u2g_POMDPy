@@ -9,6 +9,8 @@ from pomdpy.util import console, print_divider, summary, memory
 from DRL.structure import DRLType
 from experiments.scripts.pickle_wrapper import save_pkl
 
+import numpy as np
+
 module = "agent"
 
 
@@ -212,11 +214,16 @@ class Agent:
 
             # check belief state
             gmuState, cellIndex, GRID_W = solver.model.get_real_loc_of_GMU(state.gmus)
-            prop_of_realState, prop_of_diff = solver.belief_tree_index.get_diff_real_state_with_belief_state(gmuState, cellIndex, GRID_W)
+            unobservedCell = solver.model.get_unobserved_cells(gmuState, action.UAV_deployment)
+            self.results.unobservedCell.append(unobservedCell)
+            prop_of_realState, prop_of_diff, distribution = solver.belief_tree_index.get_diff_real_state_with_belief_state(gmuState, cellIndex, GRID_W)
             self.results.propRealState.append(prop_of_realState)
             self.results.propDifference.append(prop_of_diff)
 
-            self.logger.info("GMU' prediction Length : {}".format(state.get_gmus_prediction_length()))
+            predictionLen = state.get_gmus_prediction_length()
+            self.results.predictionLength.append(np.mean(predictionLen))
+            self.logger.info("GMU' prediction Length : {}".format(predictionLen))
+
             # state = not real state
             self.results.prediction_error.append(solver.model.get_dissimilarity_of_gmu_prediction(state.gmus))
             step_result, is_legal, R1, R2 = solver.model.generate_real_step(state, action)
@@ -278,13 +285,11 @@ class Agent:
             self.display_step_result(i, step_result, [R1, R2])
 
             # save UAVs deployment to csv file
-            self.model.csvWriter.writerow(step_result.action.UAV_deployment)
+            self.model.csvWriter.writerow([simulation_steps, step_result.action.UAV_deployment, gmuState, distribution])
 
             start = time.time()
             if not step_result.is_terminal:
                 result, new_dissimilarity = solver.update(state, step_result, True)
-                if result ==1 :
-                    self.results.NUM_create_child_belief_node +=1
                 if result == 2 :
                     self.results.NUM_grab_nearest_child_belief_node +=1
             else :
@@ -297,16 +302,15 @@ class Agent:
             new_hist_entry = solver.history.add_entry()
             HistoryEntry.update_history_entry(new_hist_entry, step_result.reward, step_result.action, step_result.observation, step_result.next_state)
 
-
-            self.results.count +=1
             state = solver.belief_tree_index.sample_particle()
 
 
             if simulation_steps % 1 == 0 :
                 self.results.summary_result(self.model.writer, self.logger, R1 + R2,
                                             epoch_start, simulation_steps)
+                NUM_grab_nearest_child_belief_node = self.results.NUM_grab_nearest_child_belief_node
                 self.results = None
-                self.results = Results()
+                self.results = Results(NUM_grab_nearest_child_belief_node)
                 # self.logger.info("Action equality : {}".format(actionEquality))
 
             simulation_steps +=1
@@ -393,12 +397,11 @@ class Results(object):
     """
     Maintain the statistics for each run
     """
-    def __init__(self):
+    def __init__(self, NUM_grab_nearest_child_belief_node=0):
         self.time = Statistic('Time')
         self.discounted_return = Statistic('discounted return')
         self.undiscounted_return = Statistic('undiscounted return')
-        self.NUM_create_child_belief_node = 0
-        self.NUM_grab_nearest_child_belief_node = 0
+        self.NUM_grab_nearest_child_belief_node = NUM_grab_nearest_child_belief_node
         self.dissimilarity = []
         self.reward = []
         self.discounted_reward = []
@@ -412,13 +415,14 @@ class Results(object):
         self.scaledDnRate = []
         self.NumActiveUav = []
         self.NumObservedGMU = []
-        self.count = 0
         self.prediction_error = []
         self.ucb_value = []
         self.q_value = []
         self.visit_count = []
         self.propRealState = []
         self.propDifference = []
+        self.unobservedCell = []
+        self.predictionLength = []
 
     def summary_result(self, writer, logger, reward, epoch_start, simulation_steps):
         usedMemory = memory.check_momory(logger)
@@ -428,12 +432,13 @@ class Results(object):
             writer, simulation_steps,
             self.reward, self.discounted_reward, reward,
             self.ucb_value, self.q_value, self.visit_count,
-            self.NUM_grab_nearest_child_belief_node, self.NUM_create_child_belief_node,
+            self.NUM_grab_nearest_child_belief_node,
             self.dissimilarity, self.totalA2GEnergy, self.totalA2AEnergy,
             self.totalPropEnergy, self.totalEnergyConsumtion, self.avgDnRage,
             self.scaledEnergyConsumtion, self.scaledDnRate, self.NumActiveUav,
-            self.NumObservedGMU, self.prediction_error, usedMemory, self.propRealState, self.propDifference,
-            self.count, (time.time() - epoch_start)
+            self.NumObservedGMU, self.prediction_error, usedMemory, self.propRealState,
+            self.propDifference, self.unobservedCell, self.predictionLength,
+            (time.time() - epoch_start)
         )
 
     def update_reward_results(self, r, dr):

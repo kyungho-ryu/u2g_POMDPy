@@ -9,7 +9,7 @@ import torch, logging, math
 import torch.nn.functional as F
 
 # Hyperparameters
-learning_rate = 0.000001
+learning_rate = 0.00005
 gamma = 0.9
 max_train_steps = 60000
 ENTROPY_BETA = 1e-3
@@ -78,17 +78,18 @@ class DRLModel :
         adv_v_list = []
         loss_v_list = []
         std_list = []
+        loss_array = []
         # print("sample.NumSample", sample.NumSample)
+        self.optimizer.zero_grad()
         for i in range(sample.NumSample):
-            self.optimizer.zero_grad()
             traj_states_v = torch.FloatTensor(sample.s_list[i])
             traj_action_v = torch.FloatTensor(sample.a_list[i])
 
             td_target = self.compute_target(traj_states_v[-1], sample.r_list[i], sample.termial_list[i])
-            # print("td_target", td_target)
+        # print("td_target", td_target)
 
             value = self.net_A2C.V(traj_states_v).reshape(-1)
-            # print("value", value)
+        # print("value", value)
             advantage = (td_target - value).unsqueeze(dim=-1)
             adv_v_list.append(float(advantage.mean()))
             # print("advantage", advantage)
@@ -104,14 +105,22 @@ class DRLModel :
             # print("loss_policy_v", loss_policy_v)
 
             loss = loss_policy_v + F.smooth_l1_loss(value, td_target)
+            loss_array.append(loss)
+
             loss_v_list.append(float(loss.mean()))
-            loss.backward()
 
-            self.optimizer.step()
+        total_loss = 0
+        for loss in loss_array :
+            total_loss += loss
+        total_loss = total_loss / len(loss_array)
 
-            std_list.append(float(std.mean()))
+        total_loss.backward()
 
-            self.step +=1
+        self.optimizer.step()
+
+        std_list.append(float(std.mean()))
+
+        self.step +=1
 
         return np.mean(adv_v_list), np.mean(loss_v_list), self.step, std_list, self.logStdStep
 

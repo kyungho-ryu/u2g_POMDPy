@@ -13,11 +13,13 @@ plt.rcParams["axes.labelweight"] = "bold"
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot()
 
+
+
 #delay
 # train_data = pd.read_csv("./last/delay_flow_amount.csv", names=["amount", "delay", "protocol"])
 train_data = pd.read_csv("result(all).csv", names=["path", "error", 'theta'])
 
-ax = sns.barplot(x="path", y="error", data=train_data, palette="plasma")
+ax = sns.barplot(x="path", y="error", data=train_data, palette="crest")
 for p in ax.patches :
  print(p.get_height())
 print("+++")
@@ -32,7 +34,8 @@ for i, patch in enumerate(ax.patches):
     patch.set_hatch(hatch)
 
 leg_handles = ax.get_legend_handles_labels()[0]
-
+ax.xaxis.set_major_locator(MultipleLocator(2))
+ax.xaxis.set_minor_locator(MultipleLocator(1))
 ax.yaxis.set_major_locator(MultipleLocator(0.5))
 # # ax.yaxis.set_major_formatter('{x:.001f}') ## 메인 눈금이 표시될 형식
 ax.yaxis.set_minor_locator(MultipleLocator(0.25))
@@ -46,7 +49,8 @@ for i in ax.get_yticklabels() : i.set_fontweight("bold")
 #                          "\u03C9=1, \u03C9'=4",
 #                          "\u03C9=1, \u03C9'=3"], title='')
 
-# plt.ylim(0.5, 1.9)
+
+plt.ylim(0.5, 2.2)
 
 ax.grid(axis='y')
 ax.grid(axis='y', which='minor')
@@ -54,5 +58,5 @@ ax.set_axisbelow(True)
 plt.xlabel("Length of prediction", labelpad=10,fontweight='bold')
 plt.ylabel("Distance error (cell)", labelpad=10,fontweight='bold')
 
-plt.savefig('trajectory_prediction_error.pdf', bbox_inches='tight')
+plt.savefig('trajectory_prediction_error(U=30).pdf', bbox_inches='tight')
 # plt.show()

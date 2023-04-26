@@ -115,7 +115,7 @@ class POMCPWITHPPO(BeliefTreeSolver):
         self.logger.info("action selection delay : {}".format(action_selection_delay - start))
         self.model.reset_for_simulation()
 
-        # summary.summary_simulationResult(self.model.writer, self.belief_mapping_index, step)
+        summary.summary_simulationResult(self.model.writer, self.belief_tree_index, action.UAV_deployment, step)
 
         return action, best_ucb_value, best_q_value, best_N
 

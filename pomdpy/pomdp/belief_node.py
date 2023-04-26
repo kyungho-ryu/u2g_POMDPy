@@ -34,6 +34,7 @@ class BeliefNode(object):
             self.parent_entry = None
             self.depth = 0
 
+
     def copy(self):
         bn = BeliefNode(self.solver, self.id, self.parent_entry)
         # share a reference to the action map
@@ -62,9 +63,9 @@ class BeliefNode(object):
         return self.particle_pool.get_create_current_particle()
 
     def get_diff_real_state_with_belief_state(self, gmuState, cellIndex, GRID_W):
-        num, diff = self.particle_pool.get_numbers_of_state(gmuState, cellIndex, GRID_W)
+        num, diff, distribution = self.particle_pool.get_numbers_of_state(gmuState, cellIndex, GRID_W)
 
-        return num, diff
+        return num, diff, distribution
     # -------------------- Tree-related getters  ---------------------- #
     def get_parent_action_node(self):
         if self.parent_entry is not None:

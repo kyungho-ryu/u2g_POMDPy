@@ -14,9 +14,9 @@ class Config :
     MAX_UAV_SPEED = 30 # [0, 30 m/s]
     UAV_RELOC_PERIOD = math.sqrt(MAX_X**2+MAX_Y**2)/MAX_UAV_SPEED #max seconds for diagonal range
 
-    NUM_UAV = 12
+    NUM_UAV = 20
 
-    NUM_GMU = 30
+    NUM_GMU = 20
     USER_DEMAND = 300 * pow(10, 3) # 300 Kbps
 
     #0.0005

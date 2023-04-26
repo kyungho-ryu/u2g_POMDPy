@@ -1,3 +1,0 @@
-UAV_RELOC_PERIOD = math.sqrt(MAX_X**2/MAX_UAV_SPEED #max seconds for diagonal range
-UAV_RELOC_PERIOD = math.sqrt(MAX_X**2+MAX_Y**2)/MAX_UAV_SPEED #max seconds for diagonal range
--> 기간을 모든 범위 이동할 수 있게 설정

@@ -181,11 +181,12 @@ class BeliefTreeSolver(Solver):
             if child_belief_node is None:
                 child_belief_node = self.create_child(action_node, step_result.observation)
                 result = 1
-            else:
-                result = 2
+        else:
+            result = 2
 
         # If the new root does not yet have the max possible number of particles add some more
         if not child_belief_node.get_create_current_particle() :
+            # for i in range(1) :
             for i in range(self.model.min_particle_count) :
                 # Generate particles for the new root node
                 particle = self.model.generate_particles()

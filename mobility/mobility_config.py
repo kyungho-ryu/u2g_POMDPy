@@ -8,8 +8,8 @@ class MConfig :
     initialUnObservedLength = [5]
     Batch = 30
     # BatchInitialTrip = 280
-    BatchInitialTrip = 300
-
+    BatchInitialTrip = 400
+    # 300 * 400 = 1200 20m
     # MaxTrajectory =  299
     # backward trajectory size
     BH = 2

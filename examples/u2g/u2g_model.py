@@ -856,6 +856,17 @@ class U2GModel(Model) : # Model
             cellIndexs.append(real_cell)
         return  sample_states, cellIndexs, Config.GRID_W
 
+    def get_unobserved_cells(self, gmus, action):
+        unobservedCells = 0
+        i = 0
+        for gmu in gmus :
+            if gmu != 0 and i not in action :
+                unobservedCells +=1
+
+            i+=1
+
+        return unobservedCells
+
     def get_simulationResult(self, state, action):
         key = action.get_key()
         totalA2GEnergy, totalA2AEnergy, totalPropEnergy, totalDnRate = state.get_reward(key)

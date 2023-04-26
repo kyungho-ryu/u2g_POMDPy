@@ -22,21 +22,20 @@ my_logger.addHandler(sys_handler)
 
 
 result = {}
-f = open('result(odd).csv', 'a', encoding='utf-8')
-wr = csv.writer(f)
 f = open('result(all).csv', 'a', encoding='utf-8')
-wr2 = csv.writer(f)
-for index in range(20) :
-    NumOfMO = 20
-    error_path = {}
+wr = csv.writer(f)
+error_path = {}
+num_error = {}
+for index in range(30) :
+    NumOfMO = 30
     id = index
     sl = SL(NumOfMO, 400, 5, 5, 100, False, id)
     RO = []
     file = "/home/kyungho/project/U2G_POMDPy/mobility/trajectory/MO" + str(id) + "_traj.csv"
     traj = pd.read_csv(file)
 
-    sl.test_update_trajectory(id, 50)
-    for i in range(200) :
+    sl.test_update_trajectory(id, 100)
+    for i in range(5) :
         plt_x_prediction = []
         plt_y_prediction = []
         plt_x_real = []
@@ -73,8 +72,10 @@ for index in range(20) :
 
                 if not j in error_path :
                     error_path[j] = []
+                    num_error[j] = 0
 
                 error_path[j].append(error)
+                num_error[j] = num_error[j]+1
 
                 # plt_x_prediction.append(path[j][0])
                 # plt_y_prediction.append(path[j][1])
@@ -98,14 +99,12 @@ for index in range(20) :
         #     error_path[z].append(-1)
 
     print("finish : {}".format(id))
-    for k, v in error_path.items() :
-        # print("{} - {}".format(k, len(v)))
-        if k > 10 :
-            continue
-        for vv in v :
-            wr2.writerow([k, vv, 0.])
-            if k %2 !=0 :
-                wr.writerow([k, vv, 0.])
+for k, v in error_path.items() :
+    # print("{} - {}".format(k, len(v)))
+    if k > 20 :
+        continue
+    for vv in v :
+        wr.writerow([k, vv, num_error[k]])
 
 
 f.close()
