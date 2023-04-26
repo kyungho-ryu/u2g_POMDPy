@@ -28,3 +28,5 @@ To realize multi-UAV environment of this study, we use the SUMO (simulation of u
 
 we develop a simulator based on the Cell-based Probabilistic Trajectory Prediction (CPTP) model as a semi-lazy GMU mobility model. In disaster environment without sufficient trajectory data of GMUs, the CPTP model can continuously improve performance by dynamically re-constructing the model whenever a new trajectory of GMUs is observed. 
  - [CPTP model](https://github.com/kyungho-ryu/u2g_POMDPy/blob/master/mobility/semi_lazy.py)
+ - performance 
+ - <img src="https://user-images.githubusercontent.com/73271891/234559297-5c8501cb-9774-46bd-a55e-f69173729c1c.jpg" width="44%"/>
