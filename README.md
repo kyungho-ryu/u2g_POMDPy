@@ -29,7 +29,7 @@ To realize multi-UAV environment of this study, we use the SUMO (simulation of u
 We develop a simulator based on the Cell-based Probabilistic Trajectory Prediction (CPTP) model as a semi-lazy GMU mobility model. In disaster environment without sufficient trajectory data of GMUs, the CPTP model can continuously improve performance by dynamically re-constructing the model whenever a new trajectory of GMUs is observed. 
  - [CPTP model](https://github.com/kyungho-ryu/u2g_POMDPy/blob/master/mobility/semi_lazy.py)
  - Performance 
- - <img src="https://user-images.githubusercontent.com/73271891/234559297-5c8501cb-9774-46bd-a55e-f69173729c1c.jpg" width="44%">
+ <img src="https://user-images.githubusercontent.com/73271891/234559297-5c8501cb-9774-46bd-a55e-f69173729c1c.jpg" width="44%">
 
 ## MCTS Guided by Deep Reinforcement Learning
 
@@ -38,4 +38,5 @@ We propose a Deep Neural Network (DNN) based reinforcement learning (DRL) to gui
 accelerates the search procedure. We train the actor-critic network using simulation samples for online algorithm.To avoid overfitting caused by the simulation samples, we use the Proximal Policy Optimization (PPO) for the DNN training.
 
 - Performance 
-- <img src="https://user-images.githubusercontent.com/73271891/234560638-3c3f0377-a0a0-4a81-8672-eb6c8ad14976.png" width="44%">
+<img src="https://user-images.githubusercontent.com/73271891/234560638-3c3f0377-a0a0-4a81-8672-eb6c8ad14976.png" width="88%">
+- Figure llustrates the average location of GMUs sampled from the belief state $B(s, h)$, the actual location of GMUs, and an action obtained from the MCTS in the corresponding $B(s, h)$.
