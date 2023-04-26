@@ -15,8 +15,7 @@ between energy saving and throughput including prediction error on GMU location.
 ## Urban environment 
 To realize multi-UAV environment of this study, we use the SUMO (simulation of urban mobility) simulator that is an open source simulator for urban vehicular and pedestrian traffic. We import a part of Berlin map, a 2×2 $km^2$ Mahattan grid and divide this environment region into 25 serving cells of 400×400 $m2$ like in figure considering UAV A2G coverage as an aerial base station. 
 
-<img src="https://user-images.githubusercontent.com/73271891/234549752-0a7777e1-45aa-465a-b39b-cc807542c852.png" width="40%">
-
-<img src="https://user-images.githubusercontent.com/73271891/234550312-fa66da1c-7d5c-4dd6-9214-e761b02dd13f.png" width="40%">
+<img src="https://user-images.githubusercontent.com/73271891/234549752-0a7777e1-45aa-465a-b39b-cc807542c852.png" width="30%">
+<img src="https://user-images.githubusercontent.com/73271891/234550312-fa66da1c-7d5c-4dd6-9214-e761b02dd13f.png" width="30%">
 
 
