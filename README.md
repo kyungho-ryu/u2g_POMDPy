@@ -24,3 +24,6 @@ To realize multi-UAV environment of this study, we use the SUMO (simulation of u
 - UAVs are deployed to the 25 cells and serve GMUs at the center of cells with 20 m altitude. Each UAV has A2A links toward other UAVs at the adjacent cells including diagonal ones.
 - Red symbol indicates ground control center that controls the location and trajectory of each UAV using ad-hoc networking under partially observable conditions dependent on GMU mobility. Therefore, GMUs reach the Internet through multi-UAVs network. 
 
+## GMU mobility prediction model
+
+we develop a simulator based on the Cell-based Probabilistic Trajectory Prediction (CPTP) model as a semi-lazy GMU mobility model. In disaster environment without sufficient trajectory data of GMUs, the CPTP model can continuously improve performance by dynamically re-constructing the model whenever a new trajectory of GMUs is observed. 
