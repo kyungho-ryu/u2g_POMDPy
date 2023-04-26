@@ -19,7 +19,8 @@ To realize multi-UAV environment of this study, we use the SUMO (simulation of u
 <img src="https://user-images.githubusercontent.com/73271891/234551258-12ab758f-aae0-45f1-a0a8-c1ceb273bd14.jpg" width="44%"/><img align="right" src="https://user-images.githubusercontent.com/73271891/234551083-da5a95a8-7bf9-4733-81c0-74b460f517bc.jpg" width="44%"/>
 
 - Triangle symbols indicate GMUs with their moving direction. GMUs move toward random destination along roads with random speed, [0, 1.4 m/s].
--- test
+  - [Trajectory data](https://github.com/kyungho-ryu/u2g_POMDPy/tree/master/mobility/original_trajectory)
+  - during the SUMO simulation, the GMU identifier, GPS location information (longitude, latitude) and time-stamps are logged periodically every 300 s that provides GMUs enough time to change their cell
 - UAVs are deployed to the 25 cells and serve GMUs at the center of cells with 20 m altitude. Each UAV has A2A links toward other UAVs at the adjacent cells including diagonal ones.
 - Red symbol indicates ground control center that controls the location and trajectory of each UAV using ad-hoc networking under partially observable conditions dependent on GMU mobility. Therefore, GMUs reach the Internet through multi-UAVs network. 
 
