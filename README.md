@@ -74,21 +74,6 @@ This study extends the **MCTS-based Partially Observable Monte Carlo Planning (P
 - **Cell Numbers**: Represent the average number of GMUs sampled from the belief state.
 - **Dashed Circles**: Indicate UAV locations as determined by the selected action.
 
----
-
-## Repository Structure
-```plaintext
-├── mobility
-│   ├── original_trajectory       # Original GMU trajectory data
-│   ├── semi_lazy.py              # CPTP mobility prediction model
-├── simulation
-│   ├── sumo_simulation           # SUMO environment setup and scripts
-│   ├── map_data                  # Imported Berlin map data
-├── models
-│   ├── pomcp                     # MCTS-based POMDP planning framework
-│   ├── drl_guidance              # Deep reinforcement learning modules
-└── README.md                     # Project documentation
-```
 
 ---
 
