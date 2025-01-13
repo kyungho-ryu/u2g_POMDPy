@@ -100,17 +100,12 @@ This study extends the **MCTS-based Partially Observable Monte Carlo Planning (P
    ```bash
    python mobility/semi_lazy.py
    ```
-3. **Train and Deploy UAV Control Algorithm**:
+3. **Train UAV Control Algorithm**:
    - Train the DNN-guided MCTS:
    ```bash
-   python models/drl_guidance/train.py
-   ```
-   - Deploy the trained model for UAV control:
-   ```bash
-   python models/pomcp/deploy.py
+   python pomcp.py
    ```
 
----
 
 ## References
 - [POMCP: Partially Observable Monte Carlo Planning](https://proceedings.neurips.cc/paper_files/paper/2010/file/edfbe1afcf9246bb0d40eb4d8027d90f-Paper.pdf)
